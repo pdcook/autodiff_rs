@@ -45,29 +45,42 @@ impl<F: Float> ComplexTrait<F> for Complex<F> {
 }
 
 // supertrait for complex arithmetic
-pub trait ComplexArithmetic<F: Float>: Arithmetic + ComplexTrait<F> {}
+pub trait ComplexArithmetic<F: Float>: Arithmetic + ComplexTrait<F>
+where
+    for<'a> &'a Self: CastingArithmetic<Self, Self> + ComplexTrait<F>,
+{
+}
 
 // supertrait for strong associated complex arithmetic
 pub trait ComplexStrongAssociatedArithmetic<F: Float, FT: Float, T: ComplexArithmetic<FT>>:
     StrongAssociatedArithmetic<T> + ComplexTrait<F>
+where
+    for<'a> &'a Self: CastingArithmetic<Self, Self> + CastingArithmetic<T, Self> + ComplexTrait<F>,
 {
 }
 
 // supertrait for weak associated complex arithmetic
 pub trait ComplexWeakAssociatedArithmetic<F: Float, FT: Float, T: ComplexArithmetic<FT>>:
     WeakAssociatedArithmetic<T> + ComplexTrait<F>
+where
+    for<'a> &'a Self: CastingArithmetic<Self, Self> + CastingArithmetic<T, T> + ComplexTrait<F>,
 {
 }
 
 // supertrait for extended complex arithmetic
-pub trait ComplexExtendedArithmetic<F: Float>: ExtendedArithmetic + ComplexTrait<F> {}
+pub trait ComplexExtendedArithmetic<F: Float>: ExtendedArithmetic + ComplexTrait<F>
+where
+    for<'a> &'a Self: CastingArithmetic<Self, Self> + ComplexTrait<F>,
+{
+}
 
 // supertrait for extended strong associated complex arithmetic
 pub trait ComplexStrongAssociatedExtendedArithmetic<
     F: Float,
     FT: Float,
     T: ComplexExtendedArithmetic<FT>,
->: StrongAssociatedExtendedArithmetic<T> + ComplexTrait<F>
+>: StrongAssociatedExtendedArithmetic<T> + ComplexTrait<F> where
+    for<'a> &'a Self: CastingArithmetic<Self, Self> + CastingArithmetic<T, Self> + ComplexTrait<F>,
 {
 }
 
@@ -76,13 +89,17 @@ pub trait ComplexWeakAssociatedExtendedArithmetic<
     F: Float,
     FT: Float,
     T: ComplexExtendedArithmetic<FT>,
->: WeakAssociatedExtendedArithmetic<T> + ComplexTrait<F>
+>: WeakAssociatedExtendedArithmetic<T> + ComplexTrait<F> where
+    for<'a> &'a Self: CastingArithmetic<Self, Self> + CastingArithmetic<T, T> + ComplexTrait<F>,
 {
 }
 
 // blanket implementations for all types
 // so they can be used like a trait alias
-impl<F: Float, T: Arithmetic + ComplexTrait<F>> ComplexArithmetic<F> for T {}
+impl<F: Float, T: Arithmetic + ComplexTrait<F>> ComplexArithmetic<F> for T where
+    for<'a> &'a T: CastingArithmetic<T, T> + ComplexTrait<F>
+{
+}
 
 impl<
         FT: Float,
@@ -90,6 +107,8 @@ impl<
         T: ComplexArithmetic<FT> + StrongAssociatedArithmetic<U>,
         U: ComplexArithmetic<FU>,
     > ComplexStrongAssociatedArithmetic<FT, FU, U> for T
+where
+    for<'a> &'a T: CastingArithmetic<T, T> + CastingArithmetic<U, T> + ComplexTrait<FT>,
 {
 }
 
@@ -99,10 +118,15 @@ impl<
         T: ComplexArithmetic<FT> + WeakAssociatedArithmetic<U>,
         U: ComplexArithmetic<FU>,
     > ComplexWeakAssociatedArithmetic<FT, FU, U> for T
+where
+    for<'a> &'a T: CastingArithmetic<T, T> + CastingArithmetic<U, U> + ComplexTrait<FT>,
 {
 }
 
-impl<F: Float, T: ExtendedArithmetic + ComplexTrait<F>> ComplexExtendedArithmetic<F> for T {}
+impl<F: Float, T: ExtendedArithmetic + ComplexTrait<F>> ComplexExtendedArithmetic<F> for T where
+    for<'a> &'a T: CastingArithmetic<T, T> + ComplexTrait<F>
+{
+}
 
 impl<
         FT: Float,
@@ -110,6 +134,8 @@ impl<
         T: ComplexExtendedArithmetic<FT> + StrongAssociatedExtendedArithmetic<U>,
         U: ComplexExtendedArithmetic<FU>,
     > ComplexStrongAssociatedExtendedArithmetic<FT, FU, U> for T
+where
+    for<'a> &'a T: CastingArithmetic<T, T> + CastingArithmetic<U, T> + ComplexTrait<FT>,
 {
 }
 
@@ -119,5 +145,7 @@ impl<
         T: ComplexExtendedArithmetic<FT> + WeakAssociatedExtendedArithmetic<U>,
         U: ComplexExtendedArithmetic<FU>,
     > ComplexWeakAssociatedExtendedArithmetic<FT, FU, U> for T
+where
+    for<'a> &'a T: CastingArithmetic<T, T> + CastingArithmetic<U, U> + ComplexTrait<FT>,
 {
 }

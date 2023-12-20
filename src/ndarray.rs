@@ -1,1 +1,1 @@
-mod arithmetic;
+mod traits;

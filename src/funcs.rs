@@ -5,32 +5,29 @@ use crate::autodiffable::AutoDiffable;
 use std::marker::PhantomData;
 
 #[derive(Debug, Clone, Copy)]
-pub struct Identity<I: StrongAssociatedArithmetic<I> + WeakAssociatedArithmetic<I>>(
+pub struct Identity<I>
+(
     pub PhantomData<I>,
-)
-where
-    for<'a> &'a I: CastingArithmetic<I, I>;
+);
 
-impl<I: StrongAssociatedArithmetic<I> + WeakAssociatedArithmetic<I>> Identity<I>
-where
-    for<'a> &'a I: CastingArithmetic<I, I>,
+impl<I> Identity<I>
 {
     pub fn new() -> Self {
         Identity(PhantomData)
     }
 }
 
-impl<I: StrongAssociatedArithmetic<I> + WeakAssociatedArithmetic<I>> AutoDiffable<(), I, I, I>
+impl<'a, I> AutoDiffable<'a, (), I, I, I>
     for Identity<I>
-where
-    for<'a> &'a I: CastingArithmetic<I, I>,
+where for<'b> I: StrongAssociatedArithmetic<'b, I> + WeakAssociatedArithmetic<'b, I>,
+    for<'b> &'b I: CastingArithmetic<'b, I, I>,
 {
     fn eval(&self, x: &I, _: &()) -> I {
         x.clone()
     }
 
-    fn grad(&self, _: &I, _: &()) -> I {
-        I::one()
+    fn grad(&self, x: &I, _: &()) -> I {
+        x.one()
     }
 }
 
@@ -43,18 +40,20 @@ impl<I, O> Constant<I, O> {
     }
 }
 
-impl<I: Arithmetic, O: StrongAssociatedArithmetic<O> + WeakAssociatedArithmetic<O>>
-    AutoDiffable<(), I, O, O> for Constant<I, O>
+impl<'a, I, O>
+    AutoDiffable<'a, (), I, O, O> for Constant<I, O>
 where
-    for<'a> &'a I: CastingArithmetic<I, I>,
-    for<'a> &'a O: CastingArithmetic<O, O>,
+    for<'b> I: Arithmetic<'b>,
+    for<'b> O: StrongAssociatedArithmetic<'b, O> + WeakAssociatedArithmetic<'b, O>,
+    for<'b> &'b I: CastingArithmetic<'b, I, I>,
+    for<'b> &'b O: CastingArithmetic<'b, O, O>,
 {
     fn eval(&self, _: &I, _: &()) -> O {
         self.0.clone()
     }
 
     fn grad(&self, _: &I, _: &()) -> O {
-        O::zero()
+        self.0.zero()
     }
 }
 
@@ -67,17 +66,19 @@ impl<I, O> Polynomial<I, O> {
     }
 }
 
-impl<
-        I: Arithmetic,
-        O: StrongAssociatedArithmetic<I> + StrongAssociatedArithmetic<O> + WeakAssociatedArithmetic<O>,
-    > AutoDiffable<(), I, O, O> for Polynomial<I, O>
+impl<'a,
+        I,
+        O,
+    > AutoDiffable<'a, (), I, O, O> for Polynomial<I, O>
 where
-    for<'a> &'a I: CastingArithmetic<I, I> + CastingArithmetic<O, O>,
-    for<'a> &'a O: CastingArithmetic<O, O> + CastingArithmetic<I, O>,
+    for<'b> I: Arithmetic<'b>,
+    for<'b> O: StrongAssociatedArithmetic<'b, I> + WeakAssociatedArithmetic<'b, O> + StrongAssociatedArithmetic<'b, O>,
+    for<'b> &'b I: CastingArithmetic<'b, I, I> + CastingArithmetic<'b, O, O>,
+    for<'b> &'b O: CastingArithmetic<'b, O, O> + CastingArithmetic<'b, I, O>,
 {
     fn eval(&self, x: &I, _: &()) -> O {
-        let mut res = O::zero();
-        let mut x_pow = O::one();
+        let mut res = self.0[0].zero();
+        let mut x_pow = self.0[0].one();
         for c in &self.0 {
             res = res + c * &x_pow;
             x_pow = &x_pow * x;
@@ -86,12 +87,12 @@ where
     }
 
     fn grad(&self, x: &I, _: &()) -> O {
-        let mut res = O::zero();
-        let mut x_pow = O::one();
-        let mut pow = O::one();
+        let mut res = self.0[0].zero();
+        let mut x_pow = self.0[0].one();
+        let mut pow = self.0[0].one();
         for c in &self.0[1..] {
             res = res + c * &pow * &x_pow;
-            pow = &pow + O::one();
+            pow = &pow + self.0[0].one();
             x_pow = &x_pow * x;
         }
         res
@@ -107,19 +108,21 @@ impl<I, P> Monomial<I, P> {
     }
 }
 
-impl<
-        I: ExtendedArithmetic + StrongAssociatedExtendedArithmetic<P>,
-        P: WeakAssociatedExtendedArithmetic<I>,
-    > AutoDiffable<(), I, I, I> for Monomial<I, P>
+impl<'a,
+        I,
+        P,
+    > AutoDiffable<'a, (), I, I, I> for Monomial<I, P>
 where
-    for<'a> &'a I: CastingArithmetic<I, I> + CastingArithmetic<P, I>,
-    for<'a> &'a P: CastingArithmetic<P, P> + CastingArithmetic<I, I>,
+    for<'b> I: ExtendedArithmetic<'b> + StrongAssociatedExtendedArithmetic<'b, P>,
+    for<'b> P: WeakAssociatedExtendedArithmetic<'b, I>,
+    for<'b> &'b I: CastingArithmetic<'b, I, I> + CastingArithmetic<'b, P, I>,
+    for<'b> &'b P: CastingArithmetic<'b, P, P> + CastingArithmetic<'b, I, I>,
 {
     fn eval(&self, x: &I, _: &()) -> I {
         x.clone().pow(&self.0)
     }
 
     fn grad(&self, x: &I, _: &()) -> I {
-        &self.0 * x.clone().pow(&self.0 - I::one())
+        &self.0 * x.clone().pow(&self.0 - self.0.one())
     }
 }
