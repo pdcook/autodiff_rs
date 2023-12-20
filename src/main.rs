@@ -18,18 +18,16 @@ use num::complex::Complex;
 
 // ================================================= //
 
-
 fn main() {
-
     let z = Complex::new(1.0_f64, 2.0_f64);
 
     let f = AutoDiff::new(Identity::new());
-    println!("f(z) = {}", f.eval(z, &()));
-    println!("f'(z) = {}", f.grad(z, &()));
+    println!("f(z) = {}", f.eval(&z, &()));
+    println!("f'(z) = {}", f.grad(&z, &()));
 
     let g = f * f;
-    println!("g(z) = {}", g.eval(z, &()));
-    println!("g'(z) = {}", g.grad(z, &()));
+    println!("g(z) = {}", g.eval(&z, &()));
+    println!("g'(z) = {}", g.grad(&z, &()));
 
     /*
     let x = 2.0_f64;

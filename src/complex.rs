@@ -1,5 +1,5 @@
-pub mod arithmetic;
-pub mod funcs;
 pub mod adops;
-pub mod func_traits;
+pub mod arithmetic;
 pub mod autodiff;
+pub mod func_traits;
+pub mod funcs;

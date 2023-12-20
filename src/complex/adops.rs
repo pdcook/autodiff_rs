@@ -1,11 +1,11 @@
-use num::traits::Float;
-use num::complex::Complex;
-use crate::complex::arithmetic::*;
 use crate::autodiffable::AutoDiffable;
+use crate::complex::arithmetic::*;
+use num::complex::Complex;
+use num::traits::Float;
 use std::marker::PhantomData;
 
 #[derive(Debug, Clone, Copy)]
-pub struct ADRe<A,F1,F2,F3>(pub A, pub PhantomData<(F1, F2, F3)>);
+pub struct ADRe<A, F1, F2, F3>(pub A, pub PhantomData<(F1, F2, F3)>);
 
 impl<
         InputF: Float,
@@ -91,7 +91,9 @@ impl<
         // d/dz |f|^2 = (d/da a^2 - i d/db b^2)[a + ib = f(z)] * f'
         //            = 2a f' - 2i b f'
         //            = 2 f.conj() f'
-        OutputType::new(OutputF::from(2.0).unwrap(), OutputF::from(0.0).unwrap()) * self.0.eval(x, static_args).conj() * self.0.grad(x, static_args)
+        OutputType::new(OutputF::from(2.0).unwrap(), OutputF::from(0.0).unwrap())
+            * self.0.eval(x, static_args).conj()
+            * self.0.grad(x, static_args)
     }
 }
 
@@ -122,7 +124,10 @@ impl<
         // d/dz |f| = (d/da sqrt(a^2 + b^2) - i d/db sqrt(a^2 + b^2))[a + ib = f(z)] * f'
         //          = 0.5 * (a / |f|) f' - i (b / |f|) f'
         //          = 0.5 * f / |f| f'
-        OutputType::new(OutputF::from(0.5).unwrap(), OutputF::from(0.0).unwrap()) * self.0.eval(x, static_args) * self.0.grad(x, static_args) / self.0.eval(x, static_args).norm()
+        OutputType::new(OutputF::from(0.5).unwrap(), OutputF::from(0.0).unwrap())
+            * self.0.eval(x, static_args)
+            * self.0.grad(x, static_args)
+            / self.0.eval(x, static_args).norm()
     }
 }
 

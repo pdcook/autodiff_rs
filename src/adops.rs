@@ -1,6 +1,6 @@
-use num::traits::bounds::UpperBounded;
 use crate::arithmetic::*;
 use crate::autodiffable::AutoDiffable;
+use num::traits::bounds::UpperBounded;
 use num::traits::Signed;
 
 #[derive(Debug, Clone, Copy)]
@@ -14,16 +14,22 @@ impl<
         A: AutoDiffable<StaticArgsType, InType = InputType, OutType = OutputType, GradType = GradType>,
         B: AutoDiffable<StaticArgsType, InType = InputType, OutType = OutputType, GradType = GradType>,
     > AutoDiffable<StaticArgsType> for ADAdd<A, B>
+where
+    for<'a> &'a InputType: CastingArithmetic<InputType, InputType>,
+    for<'a> &'a OutputType:
+        CastingArithmetic<OutputType, OutputType> + CastingArithmetic<GradType, GradType>,
+    for<'a> &'a GradType:
+        CastingArithmetic<GradType, GradType> + CastingArithmetic<OutputType, GradType>,
 {
     type InType = InputType;
     type OutType = OutputType;
     type GradType = GradType;
 
-    fn eval(&self, x: InputType, static_args: &StaticArgsType) -> OutputType {
+    fn eval(&self, x: &InputType, static_args: &StaticArgsType) -> OutputType {
         self.0.eval(x, static_args) + self.1.eval(x, static_args)
     }
 
-    fn grad(&self, x: InputType, static_args: &StaticArgsType) -> GradType {
+    fn grad(&self, x: &InputType, static_args: &StaticArgsType) -> GradType {
         self.0.grad(x, static_args) + self.1.grad(x, static_args)
     }
 }
@@ -39,16 +45,22 @@ impl<
         A: AutoDiffable<StaticArgsType, InType = InputType, OutType = OutputType, GradType = GradType>,
         B: AutoDiffable<StaticArgsType, InType = InputType, OutType = OutputType, GradType = GradType>,
     > AutoDiffable<StaticArgsType> for ADSub<A, B>
+where
+    for<'a> &'a InputType: CastingArithmetic<InputType, InputType>,
+    for<'a> &'a OutputType:
+        CastingArithmetic<OutputType, OutputType> + CastingArithmetic<GradType, GradType>,
+    for<'a> &'a GradType:
+        CastingArithmetic<GradType, GradType> + CastingArithmetic<OutputType, GradType>,
 {
     type InType = InputType;
     type OutType = OutputType;
     type GradType = GradType;
 
-    fn eval(&self, x: InputType, static_args: &StaticArgsType) -> OutputType {
+    fn eval(&self, x: &InputType, static_args: &StaticArgsType) -> OutputType {
         self.0.eval(x, static_args) - self.1.eval(x, static_args)
     }
 
-    fn grad(&self, x: InputType, static_args: &StaticArgsType) -> GradType {
+    fn grad(&self, x: &InputType, static_args: &StaticArgsType) -> GradType {
         self.0.grad(x, static_args) - self.1.grad(x, static_args)
     }
 }
@@ -64,16 +76,22 @@ impl<
         A: AutoDiffable<StaticArgsType, InType = InputType, OutType = OutputType, GradType = GradType>,
         B: AutoDiffable<StaticArgsType, InType = InputType, OutType = OutputType, GradType = GradType>,
     > AutoDiffable<StaticArgsType> for ADMul<A, B>
+where
+    for<'a> &'a InputType: CastingArithmetic<InputType, InputType>,
+    for<'a> &'a OutputType:
+        CastingArithmetic<OutputType, OutputType> + CastingArithmetic<GradType, GradType>,
+    for<'a> &'a GradType:
+        CastingArithmetic<GradType, GradType> + CastingArithmetic<OutputType, GradType>,
 {
     type InType = InputType;
     type OutType = OutputType;
     type GradType = GradType;
 
-    fn eval(&self, x: InputType, static_args: &StaticArgsType) -> OutputType {
+    fn eval(&self, x: &InputType, static_args: &StaticArgsType) -> OutputType {
         self.0.eval(x, static_args) * self.1.eval(x, static_args)
     }
 
-    fn grad(&self, x: InputType, static_args: &StaticArgsType) -> GradType {
+    fn grad(&self, x: &InputType, static_args: &StaticArgsType) -> GradType {
         // product rule, (fg)' = f'g + fg'
 
         self.0.grad(x, static_args) * self.1.eval(x, static_args)
@@ -92,16 +110,22 @@ impl<
         A: AutoDiffable<StaticArgsType, InType = InputType, OutType = OutputType, GradType = GradType>,
         B: AutoDiffable<StaticArgsType, InType = InputType, OutType = OutputType, GradType = GradType>,
     > AutoDiffable<StaticArgsType> for ADDiv<A, B>
+where
+    for<'a> &'a InputType: CastingArithmetic<InputType, InputType>,
+    for<'a> &'a OutputType:
+        CastingArithmetic<OutputType, OutputType> + CastingArithmetic<GradType, GradType>,
+    for<'a> &'a GradType:
+        CastingArithmetic<GradType, GradType> + CastingArithmetic<OutputType, GradType>,
 {
     type InType = InputType;
     type OutType = OutputType;
     type GradType = GradType;
 
-    fn eval(&self, x: InputType, static_args: &StaticArgsType) -> OutputType {
+    fn eval(&self, x: &InputType, static_args: &StaticArgsType) -> OutputType {
         self.0.eval(x, static_args) / self.1.eval(x, static_args)
     }
 
-    fn grad(&self, x: InputType, static_args: &StaticArgsType) -> GradType {
+    fn grad(&self, x: &InputType, static_args: &StaticArgsType) -> GradType {
         // quotient rule, (f/g)' = (f'g - fg')/g^2
 
         let f = self.0.eval(x, static_args);
@@ -110,7 +134,8 @@ impl<
         let f_prime = self.0.grad(x, static_args);
         let g_prime = self.1.grad(x, static_args);
 
-        (f_prime * g - f * g_prime) / (g * g)
+        //(f_prime * g - f * g_prime) / (g * g)
+        f_prime / &g - f * g_prime / (&g * g)
     }
 }
 
@@ -124,16 +149,22 @@ impl<
         GradType: StrongAssociatedArithmetic<OutputType>,
         A: AutoDiffable<StaticArgsType, InType = InputType, OutType = OutputType, GradType = GradType>,
     > AutoDiffable<StaticArgsType> for ADNeg<A>
+where
+    for<'a> &'a InputType: CastingArithmetic<InputType, InputType>,
+    for<'a> &'a OutputType:
+        CastingArithmetic<OutputType, OutputType> + CastingArithmetic<GradType, GradType>,
+    for<'a> &'a GradType:
+        CastingArithmetic<GradType, GradType> + CastingArithmetic<OutputType, GradType>,
 {
     type InType = InputType;
     type OutType = OutputType;
     type GradType = GradType;
 
-    fn eval(&self, x: InputType, static_args: &StaticArgsType) -> OutputType {
+    fn eval(&self, x: &InputType, static_args: &StaticArgsType) -> OutputType {
         -self.0.eval(x, static_args)
     }
 
-    fn grad(&self, x: InputType, static_args: &StaticArgsType) -> GradType {
+    fn grad(&self, x: &InputType, static_args: &StaticArgsType) -> GradType {
         -self.0.grad(x, static_args)
     }
 }
@@ -161,21 +192,33 @@ impl<
             GradType = InnerGradType,
         >,
     > AutoDiffable<StaticArgsType> for ADCompose<Outer, Inner>
+where
+    for<'a> &'a InputType: CastingArithmetic<InputType, InputType>,
+    for<'a> &'a InnerOutputType: CastingArithmetic<InnerOutputType, InnerOutputType>
+        + CastingArithmetic<InnerGradType, InnerGradType>,
+    for<'a> &'a OuterOutputType: CastingArithmetic<OuterOutputType, OuterOutputType>
+        + CastingArithmetic<OuterGradType, OuterGradType>,
+    for<'a> &'a InnerGradType: CastingArithmetic<InnerGradType, InnerGradType>
+        + CastingArithmetic<InnerOutputType, InnerGradType>
+        + CastingArithmetic<OuterGradType, OuterGradType>,
+    for<'a> &'a OuterGradType: CastingArithmetic<OuterGradType, OuterGradType>
+        + CastingArithmetic<OuterOutputType, OuterGradType>
+        + CastingArithmetic<InnerGradType, OuterGradType>,
 {
     type InType = InputType;
     type OutType = OuterOutputType;
     type GradType = OuterGradType;
 
-    fn eval(&self, x: InputType, static_args: &StaticArgsType) -> OuterOutputType {
-        self.0.eval(self.1.eval(x, static_args), static_args)
+    fn eval(&self, x: &InputType, static_args: &StaticArgsType) -> OuterOutputType {
+        self.0.eval(&self.1.eval(x, static_args), static_args)
     }
 
-    fn grad(&self, x: InputType, static_args: &StaticArgsType) -> OuterGradType {
+    fn grad(&self, x: &InputType, static_args: &StaticArgsType) -> OuterGradType {
         // chain rule, (f(g(x)))' = f'(g(x)) * g'(x)
         let inner_output = self.1.eval(x, static_args);
         let inner_grad = self.1.grad(x, static_args);
 
-        let outer_grad = self.0.grad(inner_output, static_args);
+        let outer_grad = self.0.grad(&inner_output, static_args);
 
         outer_grad * inner_grad
     }
@@ -191,16 +234,22 @@ impl<
         GradType: StrongAssociatedArithmetic<OutputType>,
         A: AutoDiffable<StaticArgsType, InType = InputType, OutType = OutputType, GradType = GradType>,
     > AutoDiffable<StaticArgsType> for ADConstantAdd<A, OutputType>
+where
+    for<'a> &'a InputType: CastingArithmetic<InputType, InputType>,
+    for<'a> &'a OutputType:
+        CastingArithmetic<OutputType, OutputType> + CastingArithmetic<GradType, GradType>,
+    for<'a> &'a GradType:
+        CastingArithmetic<GradType, GradType> + CastingArithmetic<OutputType, GradType>,
 {
     type InType = InputType;
     type OutType = OutputType;
     type GradType = GradType;
 
-    fn eval(&self, x: InputType, static_args: &StaticArgsType) -> OutputType {
+    fn eval(&self, x: &InputType, static_args: &StaticArgsType) -> OutputType {
         self.0.eval(x, static_args) + self.1
     }
 
-    fn grad(&self, x: InputType, static_args: &StaticArgsType) -> GradType {
+    fn grad(&self, x: &InputType, static_args: &StaticArgsType) -> GradType {
         self.0.grad(x, static_args)
     }
 }
@@ -215,16 +264,22 @@ impl<
         GradType: StrongAssociatedArithmetic<OutputType>,
         A: AutoDiffable<StaticArgsType, InType = InputType, OutType = OutputType, GradType = GradType>,
     > AutoDiffable<StaticArgsType> for ADConstantSub<A, OutputType>
+where
+    for<'a> &'a InputType: CastingArithmetic<InputType, InputType>,
+    for<'a> &'a OutputType:
+        CastingArithmetic<OutputType, OutputType> + CastingArithmetic<GradType, GradType>,
+    for<'a> &'a GradType:
+        CastingArithmetic<GradType, GradType> + CastingArithmetic<OutputType, GradType>,
 {
     type InType = InputType;
     type OutType = OutputType;
     type GradType = GradType;
 
-    fn eval(&self, x: InputType, static_args: &StaticArgsType) -> OutputType {
+    fn eval(&self, x: &InputType, static_args: &StaticArgsType) -> OutputType {
         self.0.eval(x, static_args) - self.1
     }
 
-    fn grad(&self, x: InputType, static_args: &StaticArgsType) -> GradType {
+    fn grad(&self, x: &InputType, static_args: &StaticArgsType) -> GradType {
         self.0.grad(x, static_args)
     }
 }
@@ -239,16 +294,22 @@ impl<
         GradType: StrongAssociatedArithmetic<OutputType>,
         A: AutoDiffable<StaticArgsType, InType = InputType, OutType = OutputType, GradType = GradType>,
     > AutoDiffable<StaticArgsType> for ADConstantMul<A, OutputType>
+where
+    for<'a> &'a InputType: CastingArithmetic<InputType, InputType>,
+    for<'a> &'a OutputType:
+        CastingArithmetic<OutputType, OutputType> + CastingArithmetic<GradType, GradType>,
+    for<'a> &'a GradType:
+        CastingArithmetic<GradType, GradType> + CastingArithmetic<OutputType, GradType>,
 {
     type InType = InputType;
     type OutType = OutputType;
     type GradType = GradType;
 
-    fn eval(&self, x: InputType, static_args: &StaticArgsType) -> OutputType {
+    fn eval(&self, x: &InputType, static_args: &StaticArgsType) -> OutputType {
         self.0.eval(x, static_args) * self.1
     }
 
-    fn grad(&self, x: InputType, static_args: &StaticArgsType) -> GradType {
+    fn grad(&self, x: &InputType, static_args: &StaticArgsType) -> GradType {
         self.0.grad(x, static_args) * self.1
     }
 }
@@ -263,19 +324,25 @@ impl<
         GradType: StrongAssociatedArithmetic<OutputType>,
         A: AutoDiffable<StaticArgsType, InType = InputType, OutType = OutputType, GradType = GradType>,
     > AutoDiffable<StaticArgsType> for ADConstantDiv<A, OutputType>
+where
+    for<'a> &'a InputType: CastingArithmetic<InputType, InputType>,
+    for<'a> &'a OutputType:
+        CastingArithmetic<OutputType, OutputType> + CastingArithmetic<GradType, GradType>,
+    for<'a> &'a GradType:
+        CastingArithmetic<GradType, GradType> + CastingArithmetic<OutputType, GradType>,
 {
     type InType = InputType;
     type OutType = OutputType;
     type GradType = GradType;
 
-    fn eval(&self, x: InputType, static_args: &StaticArgsType) -> OutputType {
+    fn eval(&self, x: &InputType, static_args: &StaticArgsType) -> OutputType {
         if self.1.is_zero() {
             panic!("Division by zero");
         }
         self.0.eval(x, static_args) / self.1
     }
 
-    fn grad(&self, x: InputType, static_args: &StaticArgsType) -> GradType {
+    fn grad(&self, x: &InputType, static_args: &StaticArgsType) -> GradType {
         if self.1.is_zero() {
             panic!("Division by zero");
         }
@@ -293,16 +360,22 @@ impl<
         GradType: StrongAssociatedExtendedArithmetic<OutputType>,
         A: AutoDiffable<StaticArgsType, InType = InputType, OutType = OutputType, GradType = GradType>,
     > AutoDiffable<StaticArgsType> for ADConstantPow<A, OutputType>
+where
+    for<'a> &'a InputType: CastingArithmetic<InputType, InputType>,
+    for<'a> &'a OutputType:
+        CastingArithmetic<OutputType, OutputType> + CastingArithmetic<GradType, GradType>,
+    for<'a> &'a GradType:
+        CastingArithmetic<GradType, GradType> + CastingArithmetic<OutputType, GradType>,
 {
     type InType = InputType;
     type OutType = OutputType;
     type GradType = GradType;
 
-    fn eval(&self, x: InputType, static_args: &StaticArgsType) -> OutputType {
+    fn eval(&self, x: &InputType, static_args: &StaticArgsType) -> OutputType {
         self.0.eval(x, static_args).pow(self.1)
     }
 
-    fn grad(&self, x: InputType, static_args: &StaticArgsType) -> GradType {
+    fn grad(&self, x: &InputType, static_args: &StaticArgsType) -> GradType {
         // chain rule on power, (f(x)^g)' = f(x)^(p-1) * p * f'(x)
 
         if self.1.is_zero() {
@@ -332,16 +405,22 @@ impl<
         GradType: StrongAssociatedExtendedArithmetic<OutputType>,
         A: AutoDiffable<StaticArgsType, InType = InputType, OutType = OutputType, GradType = GradType>,
     > AutoDiffable<StaticArgsType> for ADAbs<A>
+where
+    for<'a> &'a InputType: CastingArithmetic<InputType, InputType>,
+    for<'a> &'a OutputType:
+        CastingArithmetic<OutputType, OutputType> + CastingArithmetic<GradType, GradType>,
+    for<'a> &'a GradType:
+        CastingArithmetic<GradType, GradType> + CastingArithmetic<OutputType, GradType>,
 {
     type InType = InputType;
     type OutType = OutputType;
     type GradType = GradType;
 
-    fn eval(&self, x: InputType, static_args: &StaticArgsType) -> OutputType {
+    fn eval(&self, x: &InputType, static_args: &StaticArgsType) -> OutputType {
         self.0.eval(x, static_args).abs()
     }
 
-    fn grad(&self, x: InputType, static_args: &StaticArgsType) -> GradType {
+    fn grad(&self, x: &InputType, static_args: &StaticArgsType) -> GradType {
         // chain rule on abs, (|f(x)|)' = f'(x) * sign(f(x))
 
         let f = self.0.eval(x, static_args);
@@ -363,16 +442,22 @@ impl<
         GradType: StrongAssociatedExtendedArithmetic<OutputType> + UpperBounded,
         A: AutoDiffable<StaticArgsType, InType = InputType, OutType = OutputType, GradType = GradType>,
     > AutoDiffable<StaticArgsType> for ADSignum<A>
+where
+    for<'a> &'a InputType: CastingArithmetic<InputType, InputType>,
+    for<'a> &'a OutputType:
+        CastingArithmetic<OutputType, OutputType> + CastingArithmetic<GradType, GradType>,
+    for<'a> &'a GradType:
+        CastingArithmetic<GradType, GradType> + CastingArithmetic<OutputType, GradType>,
 {
     type InType = InputType;
     type OutType = OutputType;
     type GradType = GradType;
 
-    fn eval(&self, x: InputType, static_args: &StaticArgsType) -> OutputType {
+    fn eval(&self, x: &InputType, static_args: &StaticArgsType) -> OutputType {
         self.0.eval(x, static_args).signum()
     }
 
-    fn grad(&self, x: InputType, _: &StaticArgsType) -> GradType {
+    fn grad(&self, x: &InputType, _: &StaticArgsType) -> GradType {
         // chain rule on signum, (sign(f(x)))' = 2 delta(x)
         // we approximate delta(x) as
         // delta(x) = GradType::MAX if x == 0, 0 otherwise
@@ -383,4 +468,3 @@ impl<
         }
     }
 }
-

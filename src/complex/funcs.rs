@@ -1,10 +1,10 @@
 #![allow(dead_code)]
 
-use std::marker::PhantomData;
-use crate::complex::arithmetic::*;
 use crate::autodiffable::AutoDiffable;
+use crate::complex::arithmetic::*;
 use crate::funcs::*;
 use num::traits::Float;
+use std::marker::PhantomData;
 
 #[derive(Debug, Clone, Copy)]
 pub struct ComplexIdentity<F: Float, I>(pub PhantomData<(F, I)>);
@@ -15,8 +15,10 @@ impl<F: Float, I> ComplexIdentity<F, I> {
     }
 }
 
-impl<F: Float, I: ComplexStrongAssociatedArithmetic<F, F, I> + ComplexWeakAssociatedArithmetic<F, F, I>> AutoDiffable<()>
-    for ComplexIdentity<F, I>
+impl<
+        F: Float,
+        I: ComplexStrongAssociatedArithmetic<F, F, I> + ComplexWeakAssociatedArithmetic<F, F, I>,
+    > AutoDiffable<()> for ComplexIdentity<F, I>
 {
     type InType = I;
     type OutType = I;
