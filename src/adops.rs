@@ -2,8 +2,9 @@ use crate::arithmetic::*;
 use crate::autodiffable::AutoDiffable;
 use num::traits::bounds::UpperBounded;
 use num::traits::Signed;
+use std::marker::PhantomData;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ADAdd<A, B>(pub A, pub B);
 
 impl<
@@ -11,9 +12,9 @@ impl<
         InputType: Arithmetic,
         OutputType: WeakAssociatedArithmetic<GradType>,
         GradType: StrongAssociatedArithmetic<OutputType>,
-        A: AutoDiffable<StaticArgsType, InType = InputType, OutType = OutputType, GradType = GradType>,
-        B: AutoDiffable<StaticArgsType, InType = InputType, OutType = OutputType, GradType = GradType>,
-    > AutoDiffable<StaticArgsType> for ADAdd<A, B>
+        A: AutoDiffable<StaticArgsType, InputType, OutputType, GradType>,
+        B: AutoDiffable<StaticArgsType, InputType, OutputType, GradType>,
+    > AutoDiffable<StaticArgsType, InputType, OutputType, GradType> for ADAdd<A, B>
 where
     for<'a> &'a InputType: CastingArithmetic<InputType, InputType>,
     for<'a> &'a OutputType:
@@ -21,10 +22,6 @@ where
     for<'a> &'a GradType:
         CastingArithmetic<GradType, GradType> + CastingArithmetic<OutputType, GradType>,
 {
-    type InType = InputType;
-    type OutType = OutputType;
-    type GradType = GradType;
-
     fn eval(&self, x: &InputType, static_args: &StaticArgsType) -> OutputType {
         self.0.eval(x, static_args) + self.1.eval(x, static_args)
     }
@@ -34,7 +31,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ADSub<A, B>(pub A, pub B);
 
 impl<
@@ -42,9 +39,9 @@ impl<
         InputType: Arithmetic,
         OutputType: WeakAssociatedArithmetic<GradType>,
         GradType: StrongAssociatedArithmetic<OutputType>,
-        A: AutoDiffable<StaticArgsType, InType = InputType, OutType = OutputType, GradType = GradType>,
-        B: AutoDiffable<StaticArgsType, InType = InputType, OutType = OutputType, GradType = GradType>,
-    > AutoDiffable<StaticArgsType> for ADSub<A, B>
+        A: AutoDiffable<StaticArgsType, InputType, OutputType, GradType>,
+        B: AutoDiffable<StaticArgsType, InputType, OutputType, GradType>,
+    > AutoDiffable<StaticArgsType, InputType, OutputType, GradType> for ADSub<A, B>
 where
     for<'a> &'a InputType: CastingArithmetic<InputType, InputType>,
     for<'a> &'a OutputType:
@@ -52,10 +49,6 @@ where
     for<'a> &'a GradType:
         CastingArithmetic<GradType, GradType> + CastingArithmetic<OutputType, GradType>,
 {
-    type InType = InputType;
-    type OutType = OutputType;
-    type GradType = GradType;
-
     fn eval(&self, x: &InputType, static_args: &StaticArgsType) -> OutputType {
         self.0.eval(x, static_args) - self.1.eval(x, static_args)
     }
@@ -65,7 +58,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ADMul<A, B>(pub A, pub B);
 
 impl<
@@ -73,9 +66,9 @@ impl<
         InputType: Arithmetic,
         OutputType: WeakAssociatedArithmetic<GradType>,
         GradType: StrongAssociatedArithmetic<OutputType>,
-        A: AutoDiffable<StaticArgsType, InType = InputType, OutType = OutputType, GradType = GradType>,
-        B: AutoDiffable<StaticArgsType, InType = InputType, OutType = OutputType, GradType = GradType>,
-    > AutoDiffable<StaticArgsType> for ADMul<A, B>
+        A: AutoDiffable<StaticArgsType, InputType, OutputType, GradType>,
+        B: AutoDiffable<StaticArgsType, InputType, OutputType, GradType>,
+    > AutoDiffable<StaticArgsType, InputType, OutputType, GradType> for ADMul<A, B>
 where
     for<'a> &'a InputType: CastingArithmetic<InputType, InputType>,
     for<'a> &'a OutputType:
@@ -83,10 +76,6 @@ where
     for<'a> &'a GradType:
         CastingArithmetic<GradType, GradType> + CastingArithmetic<OutputType, GradType>,
 {
-    type InType = InputType;
-    type OutType = OutputType;
-    type GradType = GradType;
-
     fn eval(&self, x: &InputType, static_args: &StaticArgsType) -> OutputType {
         self.0.eval(x, static_args) * self.1.eval(x, static_args)
     }
@@ -99,7 +88,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ADDiv<A, B>(pub A, pub B);
 
 impl<
@@ -107,9 +96,9 @@ impl<
         InputType: Arithmetic,
         OutputType: WeakAssociatedArithmetic<GradType>,
         GradType: StrongAssociatedArithmetic<OutputType>,
-        A: AutoDiffable<StaticArgsType, InType = InputType, OutType = OutputType, GradType = GradType>,
-        B: AutoDiffable<StaticArgsType, InType = InputType, OutType = OutputType, GradType = GradType>,
-    > AutoDiffable<StaticArgsType> for ADDiv<A, B>
+        A: AutoDiffable<StaticArgsType, InputType, OutputType, GradType>,
+        B: AutoDiffable<StaticArgsType, InputType, OutputType, GradType>,
+    > AutoDiffable<StaticArgsType, InputType, OutputType, GradType> for ADDiv<A, B>
 where
     for<'a> &'a InputType: CastingArithmetic<InputType, InputType>,
     for<'a> &'a OutputType:
@@ -117,10 +106,6 @@ where
     for<'a> &'a GradType:
         CastingArithmetic<GradType, GradType> + CastingArithmetic<OutputType, GradType>,
 {
-    type InType = InputType;
-    type OutType = OutputType;
-    type GradType = GradType;
-
     fn eval(&self, x: &InputType, static_args: &StaticArgsType) -> OutputType {
         self.0.eval(x, static_args) / self.1.eval(x, static_args)
     }
@@ -135,11 +120,11 @@ where
         let g_prime = self.1.grad(x, static_args);
 
         //(f_prime * g - f * g_prime) / (g * g)
-        f_prime / &g - f * g_prime / (&g * g)
+        f_prime / &g - f * g_prime / (&g * &g)
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ADNeg<A>(pub A);
 
 impl<
@@ -147,8 +132,8 @@ impl<
         InputType: Arithmetic,
         OutputType: WeakAssociatedArithmetic<GradType>,
         GradType: StrongAssociatedArithmetic<OutputType>,
-        A: AutoDiffable<StaticArgsType, InType = InputType, OutType = OutputType, GradType = GradType>,
-    > AutoDiffable<StaticArgsType> for ADNeg<A>
+        A: AutoDiffable<StaticArgsType, InputType, OutputType, GradType>,
+    > AutoDiffable<StaticArgsType, InputType, OutputType, GradType> for ADNeg<A>
 where
     for<'a> &'a InputType: CastingArithmetic<InputType, InputType>,
     for<'a> &'a OutputType:
@@ -156,10 +141,6 @@ where
     for<'a> &'a GradType:
         CastingArithmetic<GradType, GradType> + CastingArithmetic<OutputType, GradType>,
 {
-    type InType = InputType;
-    type OutType = OutputType;
-    type GradType = GradType;
-
     fn eval(&self, x: &InputType, static_args: &StaticArgsType) -> OutputType {
         -self.0.eval(x, static_args)
     }
@@ -169,8 +150,42 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct ADCompose<Outer, Inner>(pub Outer, pub Inner);
+#[derive(Debug, Clone)]
+pub struct ADCompose<
+    Outer,
+    Inner,
+    StaticArgsType,
+    InputType: Arithmetic,
+    InnerOutputType: WeakAssociatedArithmetic<InnerGradType>,
+    OuterOutputType: WeakAssociatedArithmetic<OuterGradType>,
+    InnerGradType: StrongAssociatedArithmetic<InnerOutputType> + WeakAssociatedArithmetic<OuterGradType>,
+    OuterGradType: StrongAssociatedArithmetic<OuterOutputType> + StrongAssociatedArithmetic<InnerGradType>,
+>(
+    pub Outer,
+    pub Inner,
+    pub  PhantomData<(
+        StaticArgsType,
+        InputType,
+        InnerOutputType,
+        OuterOutputType,
+        InnerGradType,
+        OuterGradType,
+    )>,
+)
+where
+    Outer: AutoDiffable<StaticArgsType, InnerOutputType, OuterOutputType, OuterGradType>,
+    Inner: AutoDiffable<StaticArgsType, InputType, InnerOutputType, InnerGradType>,
+    for<'a> &'a InputType: CastingArithmetic<InputType, InputType>,
+    for<'a> &'a InnerOutputType: CastingArithmetic<InnerOutputType, InnerOutputType>
+        + CastingArithmetic<InnerGradType, InnerGradType>,
+    for<'a> &'a OuterOutputType: CastingArithmetic<OuterOutputType, OuterOutputType>
+        + CastingArithmetic<OuterGradType, OuterGradType>,
+    for<'a> &'a InnerGradType: CastingArithmetic<InnerGradType, InnerGradType>
+        + CastingArithmetic<InnerOutputType, InnerGradType>
+        + CastingArithmetic<OuterGradType, OuterGradType>,
+    for<'a> &'a OuterGradType: CastingArithmetic<OuterGradType, OuterGradType>
+        + CastingArithmetic<OuterOutputType, OuterGradType>
+        + CastingArithmetic<InnerGradType, OuterGradType>;
 
 impl<
         StaticArgsType,
@@ -179,19 +194,19 @@ impl<
         OuterOutputType: WeakAssociatedArithmetic<OuterGradType>,
         InnerGradType: StrongAssociatedArithmetic<InnerOutputType> + WeakAssociatedArithmetic<OuterGradType>,
         OuterGradType: StrongAssociatedArithmetic<OuterOutputType> + StrongAssociatedArithmetic<InnerGradType>,
-        Outer: AutoDiffable<
-            StaticArgsType,
-            InType = InnerOutputType,
-            OutType = OuterOutputType,
-            GradType = OuterGradType,
-        >,
-        Inner: AutoDiffable<
-            StaticArgsType,
-            InType = InputType,
-            OutType = InnerOutputType,
-            GradType = InnerGradType,
-        >,
-    > AutoDiffable<StaticArgsType> for ADCompose<Outer, Inner>
+        Outer: AutoDiffable<StaticArgsType, InnerOutputType, OuterOutputType, OuterGradType>,
+        Inner: AutoDiffable<StaticArgsType, InputType, InnerOutputType, InnerGradType>,
+    > AutoDiffable<StaticArgsType, InputType, OuterOutputType, OuterGradType>
+    for ADCompose<
+        Outer,
+        Inner,
+        StaticArgsType,
+        InputType,
+        InnerOutputType,
+        OuterOutputType,
+        InnerGradType,
+        OuterGradType,
+    >
 where
     for<'a> &'a InputType: CastingArithmetic<InputType, InputType>,
     for<'a> &'a InnerOutputType: CastingArithmetic<InnerOutputType, InnerOutputType>
@@ -205,10 +220,6 @@ where
         + CastingArithmetic<OuterOutputType, OuterGradType>
         + CastingArithmetic<InnerGradType, OuterGradType>,
 {
-    type InType = InputType;
-    type OutType = OuterOutputType;
-    type GradType = OuterGradType;
-
     fn eval(&self, x: &InputType, static_args: &StaticArgsType) -> OuterOutputType {
         self.0.eval(&self.1.eval(x, static_args), static_args)
     }
@@ -224,7 +235,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ADConstantAdd<A, B>(pub A, pub B);
 
 impl<
@@ -232,8 +243,8 @@ impl<
         InputType: Arithmetic,
         OutputType: WeakAssociatedArithmetic<GradType>,
         GradType: StrongAssociatedArithmetic<OutputType>,
-        A: AutoDiffable<StaticArgsType, InType = InputType, OutType = OutputType, GradType = GradType>,
-    > AutoDiffable<StaticArgsType> for ADConstantAdd<A, OutputType>
+        A: AutoDiffable<StaticArgsType, InputType, OutputType, GradType>,
+    > AutoDiffable<StaticArgsType, InputType, OutputType, GradType> for ADConstantAdd<A, OutputType>
 where
     for<'a> &'a InputType: CastingArithmetic<InputType, InputType>,
     for<'a> &'a OutputType:
@@ -241,12 +252,8 @@ where
     for<'a> &'a GradType:
         CastingArithmetic<GradType, GradType> + CastingArithmetic<OutputType, GradType>,
 {
-    type InType = InputType;
-    type OutType = OutputType;
-    type GradType = GradType;
-
     fn eval(&self, x: &InputType, static_args: &StaticArgsType) -> OutputType {
-        self.0.eval(x, static_args) + self.1
+        self.0.eval(x, static_args) + &self.1
     }
 
     fn grad(&self, x: &InputType, static_args: &StaticArgsType) -> GradType {
@@ -254,7 +261,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ADConstantSub<A, B>(pub A, pub B);
 
 impl<
@@ -262,8 +269,8 @@ impl<
         InputType: Arithmetic,
         OutputType: WeakAssociatedArithmetic<GradType>,
         GradType: StrongAssociatedArithmetic<OutputType>,
-        A: AutoDiffable<StaticArgsType, InType = InputType, OutType = OutputType, GradType = GradType>,
-    > AutoDiffable<StaticArgsType> for ADConstantSub<A, OutputType>
+        A: AutoDiffable<StaticArgsType, InputType, OutputType, GradType>,
+    > AutoDiffable<StaticArgsType, InputType, OutputType, GradType> for ADConstantSub<A, OutputType>
 where
     for<'a> &'a InputType: CastingArithmetic<InputType, InputType>,
     for<'a> &'a OutputType:
@@ -271,12 +278,8 @@ where
     for<'a> &'a GradType:
         CastingArithmetic<GradType, GradType> + CastingArithmetic<OutputType, GradType>,
 {
-    type InType = InputType;
-    type OutType = OutputType;
-    type GradType = GradType;
-
     fn eval(&self, x: &InputType, static_args: &StaticArgsType) -> OutputType {
-        self.0.eval(x, static_args) - self.1
+        self.0.eval(x, static_args) - &self.1
     }
 
     fn grad(&self, x: &InputType, static_args: &StaticArgsType) -> GradType {
@@ -284,7 +287,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ADConstantMul<A, B>(pub A, pub B);
 
 impl<
@@ -292,8 +295,8 @@ impl<
         InputType: Arithmetic,
         OutputType: WeakAssociatedArithmetic<GradType>,
         GradType: StrongAssociatedArithmetic<OutputType>,
-        A: AutoDiffable<StaticArgsType, InType = InputType, OutType = OutputType, GradType = GradType>,
-    > AutoDiffable<StaticArgsType> for ADConstantMul<A, OutputType>
+        A: AutoDiffable<StaticArgsType, InputType, OutputType, GradType>,
+    > AutoDiffable<StaticArgsType, InputType, OutputType, GradType> for ADConstantMul<A, OutputType>
 where
     for<'a> &'a InputType: CastingArithmetic<InputType, InputType>,
     for<'a> &'a OutputType:
@@ -301,20 +304,16 @@ where
     for<'a> &'a GradType:
         CastingArithmetic<GradType, GradType> + CastingArithmetic<OutputType, GradType>,
 {
-    type InType = InputType;
-    type OutType = OutputType;
-    type GradType = GradType;
-
     fn eval(&self, x: &InputType, static_args: &StaticArgsType) -> OutputType {
-        self.0.eval(x, static_args) * self.1
+        self.0.eval(x, static_args) * &self.1
     }
 
     fn grad(&self, x: &InputType, static_args: &StaticArgsType) -> GradType {
-        self.0.grad(x, static_args) * self.1
+        self.0.grad(x, static_args) * &self.1
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ADConstantDiv<A, B>(pub A, pub B);
 
 impl<
@@ -322,8 +321,8 @@ impl<
         InputType: Arithmetic,
         OutputType: WeakAssociatedArithmetic<GradType>,
         GradType: StrongAssociatedArithmetic<OutputType>,
-        A: AutoDiffable<StaticArgsType, InType = InputType, OutType = OutputType, GradType = GradType>,
-    > AutoDiffable<StaticArgsType> for ADConstantDiv<A, OutputType>
+        A: AutoDiffable<StaticArgsType, InputType, OutputType, GradType>,
+    > AutoDiffable<StaticArgsType, InputType, OutputType, GradType> for ADConstantDiv<A, OutputType>
 where
     for<'a> &'a InputType: CastingArithmetic<InputType, InputType>,
     for<'a> &'a OutputType:
@@ -331,26 +330,22 @@ where
     for<'a> &'a GradType:
         CastingArithmetic<GradType, GradType> + CastingArithmetic<OutputType, GradType>,
 {
-    type InType = InputType;
-    type OutType = OutputType;
-    type GradType = GradType;
-
     fn eval(&self, x: &InputType, static_args: &StaticArgsType) -> OutputType {
         if self.1.is_zero() {
             panic!("Division by zero");
         }
-        self.0.eval(x, static_args) / self.1
+        self.0.eval(x, static_args) / &self.1
     }
 
     fn grad(&self, x: &InputType, static_args: &StaticArgsType) -> GradType {
         if self.1.is_zero() {
             panic!("Division by zero");
         }
-        self.0.grad(x, static_args) / self.1
+        self.0.grad(x, static_args) / &self.1
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ADConstantPow<A, B>(pub A, pub B);
 
 impl<
@@ -358,8 +353,8 @@ impl<
         InputType: Arithmetic,
         OutputType: WeakAssociatedExtendedArithmetic<GradType>,
         GradType: StrongAssociatedExtendedArithmetic<OutputType>,
-        A: AutoDiffable<StaticArgsType, InType = InputType, OutType = OutputType, GradType = GradType>,
-    > AutoDiffable<StaticArgsType> for ADConstantPow<A, OutputType>
+        A: AutoDiffable<StaticArgsType, InputType, OutputType, GradType>,
+    > AutoDiffable<StaticArgsType, InputType, OutputType, GradType> for ADConstantPow<A, OutputType>
 where
     for<'a> &'a InputType: CastingArithmetic<InputType, InputType>,
     for<'a> &'a OutputType:
@@ -367,12 +362,8 @@ where
     for<'a> &'a GradType:
         CastingArithmetic<GradType, GradType> + CastingArithmetic<OutputType, GradType>,
 {
-    type InType = InputType;
-    type OutType = OutputType;
-    type GradType = GradType;
-
     fn eval(&self, x: &InputType, static_args: &StaticArgsType) -> OutputType {
-        self.0.eval(x, static_args).pow(self.1)
+        self.0.eval(x, static_args).pow(&self.1)
     }
 
     fn grad(&self, x: &InputType, static_args: &StaticArgsType) -> GradType {
@@ -387,7 +378,7 @@ where
         let f = self.0.eval(x, static_args);
         let f_prime = self.0.grad(x, static_args);
 
-        let g = self.1;
+        let g = &self.1;
 
         let f_prime_of_g = f.pow(g - OutputType::one()) * g * f_prime;
 
@@ -395,7 +386,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ADAbs<A>(pub A);
 
 impl<
@@ -403,8 +394,8 @@ impl<
         InputType: Arithmetic,
         OutputType: WeakAssociatedExtendedArithmetic<GradType> + Signed,
         GradType: StrongAssociatedExtendedArithmetic<OutputType>,
-        A: AutoDiffable<StaticArgsType, InType = InputType, OutType = OutputType, GradType = GradType>,
-    > AutoDiffable<StaticArgsType> for ADAbs<A>
+        A: AutoDiffable<StaticArgsType, InputType, OutputType, GradType>,
+    > AutoDiffable<StaticArgsType, InputType, OutputType, GradType> for ADAbs<A>
 where
     for<'a> &'a InputType: CastingArithmetic<InputType, InputType>,
     for<'a> &'a OutputType:
@@ -412,10 +403,6 @@ where
     for<'a> &'a GradType:
         CastingArithmetic<GradType, GradType> + CastingArithmetic<OutputType, GradType>,
 {
-    type InType = InputType;
-    type OutType = OutputType;
-    type GradType = GradType;
-
     fn eval(&self, x: &InputType, static_args: &StaticArgsType) -> OutputType {
         self.0.eval(x, static_args).abs()
     }
@@ -432,7 +419,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ADSignum<A>(pub A);
 
 impl<
@@ -440,8 +427,8 @@ impl<
         InputType: Arithmetic,
         OutputType: WeakAssociatedExtendedArithmetic<GradType> + Signed,
         GradType: StrongAssociatedExtendedArithmetic<OutputType> + UpperBounded,
-        A: AutoDiffable<StaticArgsType, InType = InputType, OutType = OutputType, GradType = GradType>,
-    > AutoDiffable<StaticArgsType> for ADSignum<A>
+        A: AutoDiffable<StaticArgsType, InputType, OutputType, GradType>,
+    > AutoDiffable<StaticArgsType, InputType, OutputType, GradType> for ADSignum<A>
 where
     for<'a> &'a InputType: CastingArithmetic<InputType, InputType>,
     for<'a> &'a OutputType:
@@ -449,10 +436,6 @@ where
     for<'a> &'a GradType:
         CastingArithmetic<GradType, GradType> + CastingArithmetic<OutputType, GradType>,
 {
-    type InType = InputType;
-    type OutType = OutputType;
-    type GradType = GradType;
-
     fn eval(&self, x: &InputType, static_args: &StaticArgsType) -> OutputType {
         self.0.eval(x, static_args).signum()
     }

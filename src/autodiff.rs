@@ -14,7 +14,7 @@ pub struct AutoDiff<
     InputType: Arithmetic,
     OutputType: WeakAssociatedArithmetic<GradType>,
     GradType: StrongAssociatedArithmetic<OutputType>,
-    T: AutoDiffable<StaticArgsType, InType = InputType, OutType = OutputType, GradType = GradType>,
+    T: AutoDiffable<StaticArgsType, InputType, OutputType, GradType>,
 >(
     pub T,
     pub PhantomData<(StaticArgsType, InputType, OutputType, GradType)>,
@@ -32,7 +32,7 @@ impl<
         InputType: Arithmetic,
         OutputType: WeakAssociatedArithmetic<GradType>,
         GradType: StrongAssociatedArithmetic<OutputType>,
-        T: AutoDiffable<StaticArgsType, InType = InputType, OutType = OutputType, GradType = GradType>,
+        T: AutoDiffable<StaticArgsType, InputType, OutputType, GradType>,
     > AutoDiff<StaticArgsType, InputType, OutputType, GradType, T>
 where
     for<'a> &'a InputType: CastingArithmetic<InputType, InputType>,
@@ -53,8 +53,9 @@ impl<
         InputType: Arithmetic,
         OutputType: WeakAssociatedArithmetic<GradType>,
         GradType: StrongAssociatedArithmetic<OutputType>,
-        T: AutoDiffable<StaticArgsType, InType = InputType, OutType = OutputType, GradType = GradType>,
-    > AutoDiffable<StaticArgsType> for AutoDiff<StaticArgsType, InputType, OutputType, GradType, T>
+        T: AutoDiffable<StaticArgsType, InputType, OutputType, GradType>,
+    > AutoDiffable<StaticArgsType, InputType, OutputType, GradType>
+    for AutoDiff<StaticArgsType, InputType, OutputType, GradType, T>
 where
     for<'a> &'a InputType: CastingArithmetic<InputType, InputType>,
     for<'a> &'a OutputType:
@@ -62,10 +63,6 @@ where
     for<'a> &'a GradType:
         CastingArithmetic<GradType, GradType> + CastingArithmetic<OutputType, GradType>,
 {
-    type InType = InputType;
-    type OutType = OutputType;
-    type GradType = GradType;
-
     fn eval(&self, x: &InputType, static_args: &StaticArgsType) -> OutputType {
         self.0.eval(x, static_args)
     }
@@ -81,8 +78,8 @@ impl<
         InputType: Arithmetic,
         OutputType: WeakAssociatedArithmetic<GradType>,
         GradType: StrongAssociatedArithmetic<OutputType>,
-        A: AutoDiffable<StaticArgsType, InType = InputType, OutType = OutputType, GradType = GradType>,
-        B: AutoDiffable<StaticArgsType, InType = InputType, OutType = OutputType, GradType = GradType>,
+        A: AutoDiffable<StaticArgsType, InputType, OutputType, GradType>,
+        B: AutoDiffable<StaticArgsType, InputType, OutputType, GradType>,
     > Add<AutoDiff<StaticArgsType, InputType, OutputType, GradType, B>>
     for AutoDiff<StaticArgsType, InputType, OutputType, GradType, A>
 where
@@ -108,8 +105,8 @@ impl<
         InputType: Arithmetic,
         OutputType: WeakAssociatedArithmetic<GradType>,
         GradType: StrongAssociatedArithmetic<OutputType>,
-        A: AutoDiffable<StaticArgsType, InType = InputType, OutType = OutputType, GradType = GradType>,
-        B: AutoDiffable<StaticArgsType, InType = InputType, OutType = OutputType, GradType = GradType>,
+        A: AutoDiffable<StaticArgsType, InputType, OutputType, GradType>,
+        B: AutoDiffable<StaticArgsType, InputType, OutputType, GradType>,
     > Sub<AutoDiff<StaticArgsType, InputType, OutputType, GradType, B>>
     for AutoDiff<StaticArgsType, InputType, OutputType, GradType, A>
 where
@@ -135,8 +132,8 @@ impl<
         InputType: Arithmetic,
         OutputType: WeakAssociatedArithmetic<GradType>,
         GradType: StrongAssociatedArithmetic<OutputType>,
-        A: AutoDiffable<StaticArgsType, InType = InputType, OutType = OutputType, GradType = GradType>,
-        B: AutoDiffable<StaticArgsType, InType = InputType, OutType = OutputType, GradType = GradType>,
+        A: AutoDiffable<StaticArgsType, InputType, OutputType, GradType>,
+        B: AutoDiffable<StaticArgsType, InputType, OutputType, GradType>,
     > Mul<AutoDiff<StaticArgsType, InputType, OutputType, GradType, B>>
     for AutoDiff<StaticArgsType, InputType, OutputType, GradType, A>
 where
@@ -162,8 +159,8 @@ impl<
         InputType: Arithmetic,
         OutputType: WeakAssociatedArithmetic<GradType>,
         GradType: StrongAssociatedArithmetic<OutputType>,
-        A: AutoDiffable<StaticArgsType, InType = InputType, OutType = OutputType, GradType = GradType>,
-        B: AutoDiffable<StaticArgsType, InType = InputType, OutType = OutputType, GradType = GradType>,
+        A: AutoDiffable<StaticArgsType, InputType, OutputType, GradType>,
+        B: AutoDiffable<StaticArgsType, InputType, OutputType, GradType>,
     > Div<AutoDiff<StaticArgsType, InputType, OutputType, GradType, B>>
     for AutoDiff<StaticArgsType, InputType, OutputType, GradType, A>
 where
@@ -189,7 +186,7 @@ impl<
         InputType: Arithmetic,
         OutputType: WeakAssociatedArithmetic<GradType>,
         GradType: StrongAssociatedArithmetic<OutputType>,
-        A: AutoDiffable<StaticArgsType, InType = InputType, OutType = OutputType, GradType = GradType>,
+        A: AutoDiffable<StaticArgsType, InputType, OutputType, GradType>,
     > Neg for AutoDiff<StaticArgsType, InputType, OutputType, GradType, A>
 where
     for<'a> &'a InputType: CastingArithmetic<InputType, InputType>,
@@ -210,21 +207,11 @@ impl<
         StaticArgsType,
         InputType: Arithmetic,
         InnerOutputType: WeakAssociatedArithmetic<InnerGradType>,
-        InnerGradType: StrongAssociatedArithmetic<InnerOutputType> + WeakAssociatedArithmetic<OuterGradType>,
         OuterOutputType: WeakAssociatedArithmetic<OuterGradType>,
+        InnerGradType: StrongAssociatedArithmetic<InnerOutputType> + WeakAssociatedArithmetic<OuterGradType>,
         OuterGradType: StrongAssociatedArithmetic<OuterOutputType> + StrongAssociatedArithmetic<InnerGradType>,
-        Outer: AutoDiffable<
-            StaticArgsType,
-            InType = InnerOutputType,
-            OutType = OuterOutputType,
-            GradType = OuterGradType,
-        >,
-        Inner: AutoDiffable<
-            StaticArgsType,
-            InType = InputType,
-            OutType = InnerOutputType,
-            GradType = InnerGradType,
-        >,
+        Outer: AutoDiffable<StaticArgsType, InnerOutputType, OuterOutputType, OuterGradType>,
+        Inner: AutoDiffable<StaticArgsType, InputType, InnerOutputType, InnerGradType>,
     >
     func_traits::Compose<AutoDiff<StaticArgsType, InputType, InnerOutputType, InnerGradType, Inner>>
     for AutoDiff<StaticArgsType, InnerOutputType, OuterOutputType, OuterGradType, Outer>
@@ -246,14 +233,37 @@ where
         InputType,
         OuterOutputType,
         OuterGradType,
-        ADCompose<Outer, Inner>,
+        ADCompose<
+            Outer,
+            Inner,
+            StaticArgsType,
+            InputType,
+            InnerOutputType,
+            OuterOutputType,
+            InnerGradType,
+            OuterGradType,
+        >,
     >;
     fn compose(
         self,
         _other: AutoDiff<StaticArgsType, InputType, InnerOutputType, InnerGradType, Inner>,
-    ) -> AutoDiff<StaticArgsType, InputType, OuterOutputType, OuterGradType, ADCompose<Outer, Inner>>
-    {
-        AutoDiff(ADCompose(self.0, _other.0), PhantomData)
+    ) -> AutoDiff<
+        StaticArgsType,
+        InputType,
+        OuterOutputType,
+        OuterGradType,
+        ADCompose<
+            Outer,
+            Inner,
+            StaticArgsType,
+            InputType,
+            InnerOutputType,
+            OuterOutputType,
+            InnerGradType,
+            OuterGradType,
+        >,
+    > {
+        AutoDiff(ADCompose(self.0, _other.0, PhantomData), PhantomData)
     }
 }
 
@@ -265,7 +275,7 @@ impl<
         InputType: Arithmetic,
         OutputType: WeakAssociatedArithmetic<GradType>,
         GradType: StrongAssociatedArithmetic<OutputType>,
-        A: AutoDiffable<StaticArgsType, InType = InputType, OutType = OutputType, GradType = GradType>,
+        A: AutoDiffable<StaticArgsType, InputType, OutputType, GradType>,
     > Add<OutputType> for AutoDiff<StaticArgsType, InputType, OutputType, GradType, A>
 where
     for<'a> &'a InputType: CastingArithmetic<InputType, InputType>,
@@ -294,7 +304,7 @@ impl<
         InputType: Arithmetic,
         OutputType: WeakAssociatedArithmetic<GradType>,
         GradType: StrongAssociatedArithmetic<OutputType>,
-        A: AutoDiffable<StaticArgsType, InType = InputType, OutType = OutputType, GradType = GradType>,
+        A: AutoDiffable<StaticArgsType, InputType, OutputType, GradType>,
     > Sub<OutputType> for AutoDiff<StaticArgsType, InputType, OutputType, GradType, A>
 where
     for<'a> &'a InputType: CastingArithmetic<InputType, InputType>,
@@ -323,7 +333,7 @@ impl<
         InputType: Arithmetic,
         OutputType: WeakAssociatedArithmetic<GradType>,
         GradType: StrongAssociatedArithmetic<OutputType>,
-        A: AutoDiffable<StaticArgsType, InType = InputType, OutType = OutputType, GradType = GradType>,
+        A: AutoDiffable<StaticArgsType, InputType, OutputType, GradType>,
     > Mul<OutputType> for AutoDiff<StaticArgsType, InputType, OutputType, GradType, A>
 where
     for<'a> &'a InputType: CastingArithmetic<InputType, InputType>,
@@ -352,7 +362,7 @@ impl<
         InputType: Arithmetic,
         OutputType: WeakAssociatedArithmetic<GradType>,
         GradType: StrongAssociatedArithmetic<OutputType>,
-        A: AutoDiffable<StaticArgsType, InType = InputType, OutType = OutputType, GradType = GradType>,
+        A: AutoDiffable<StaticArgsType, InputType, OutputType, GradType>,
     > Div<OutputType> for AutoDiff<StaticArgsType, InputType, OutputType, GradType, A>
 where
     for<'a> &'a InputType: CastingArithmetic<InputType, InputType>,
@@ -381,7 +391,7 @@ impl<
         InputType: Arithmetic,
         OutputType: WeakAssociatedExtendedArithmetic<GradType>,
         GradType: StrongAssociatedExtendedArithmetic<OutputType>,
-        A: AutoDiffable<StaticArgsType, InType = InputType, OutType = OutputType, GradType = GradType>,
+        A: AutoDiffable<StaticArgsType, InputType, OutputType, GradType>,
     > Pow<OutputType> for AutoDiff<StaticArgsType, InputType, OutputType, GradType, A>
 where
     for<'a> &'a InputType: CastingArithmetic<InputType, InputType>,
@@ -408,7 +418,7 @@ impl<
         InputType: Arithmetic,
         OutputType: WeakAssociatedExtendedArithmetic<GradType> + Signed,
         GradType: StrongAssociatedExtendedArithmetic<OutputType> + UpperBounded,
-        A: AutoDiffable<StaticArgsType, InType = InputType, OutType = OutputType, GradType = GradType>,
+        A: AutoDiffable<StaticArgsType, InputType, OutputType, GradType>,
     > func_traits::Signed for AutoDiff<StaticArgsType, InputType, OutputType, GradType, A>
 where
     for<'a> &'a InputType: CastingArithmetic<InputType, InputType>,

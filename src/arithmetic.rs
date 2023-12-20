@@ -171,12 +171,12 @@ impl<
             + for<'a> Sub<&'a A, Output = B>
             + for<'a> Mul<&'a A, Output = B>
             + for<'a> Div<&'a A, Output = B>,
-        A: Arithmetic,
-        B: Arithmetic,
+        A,//: Arithmetic,
+        B,//: Arithmetic,
     > CastingArithmetic<A, B> for T
-where
-    for<'a> &'a A: CastingArithmetic<A, A>,
-    for<'a> &'a B: CastingArithmetic<B, B>,
+//where
+//    for<'a> &'a A: CastingArithmetic<A, A>,
+//    for<'a> &'a B: CastingArithmetic<B, B>,
 {
 }
 
