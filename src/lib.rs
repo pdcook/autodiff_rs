@@ -1,12 +1,12 @@
-mod adops;
-mod arithmetic;
-mod autodiff;
-mod autodiffable;
-mod func_traits;
-mod funcs;
+pub mod adops;
+pub mod arithmetic;
+pub mod autodiff;
+pub mod autodiffable;
+pub mod func_traits;
+pub mod funcs;
 
 #[cfg(feature = "ndarray")]
-mod ad_ndarray;
+pub mod ad_ndarray;
 
 #[cfg(feature = "complex")]
-mod complex;
+pub mod complex;
