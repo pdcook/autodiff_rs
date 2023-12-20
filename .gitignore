@@ -1,0 +1,4 @@
+/target
+**/bckps
+**/bckp*
+**/*.lock
