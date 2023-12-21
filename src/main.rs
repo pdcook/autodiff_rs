@@ -9,14 +9,9 @@ mod traits;
 #[cfg(feature = "ndarray")]
 mod ad_ndarray;
 #[cfg(feature = "ndarray")]
-use crate::ad_ndarray::impls::*;
+use ad_ndarray::impls::*;
 #[cfg(feature = "ndarray")]
 use ndarray::{Array, Array1, Array2, Array3, Dimension};
-
-#[cfg(feature = "complex")]
-mod complex;
-#[cfg(feature = "complex")]
-use crate::complex::funcs::*;
 
 use crate::arithmetic::*;
 use crate::autodiff::AutoDiff;
@@ -24,10 +19,9 @@ use crate::autodiffable::AutoDiffable;
 use crate::func_traits::Compose;
 use crate::funcs::*;
 use crate::traits::{InstOne, InstZero};
-use num::complex::Complex;
-use num::traits::Float;
 use std::marker::PhantomData;
 use std::ops::{Add, Div, Mul, Neg, Sub};
+use num::traits::Float;
 
 // ================================================= //
 
@@ -60,9 +54,7 @@ impl<'a> AutoDiffable<'a, usize, Array1<f64>, Array2<f64>, Array3<f64>> for Upca
         }
         g
     }
-
 }
-
 
 #[derive(Debug, Clone)]
 struct Exp<A, D>(PhantomData<(A, D)>)
@@ -111,21 +103,4 @@ fn main() {
     println!("g(x) = {}", g.eval(&x, &rows));
     println!("g'(x) = {}", g.grad(&x, &rows));
 
-    //let c = AutoDiff::new(Constant::new(x.clone()));
-
-    //let h = g + c;
-    //println!("h(x) = {}", (&h).eval(&x, &()));
-    //println!("h'(x) = {}", h.grad(&x, &()));
-
-    //let g = AutoDiff::new(Monomial::new(Complex::new(1.0, 0.0)));
-    //println!("g(x) = {}", g.eval(&x, &()));
-    //println!("g'(x) = {}", g.grad(&x, &()));
-
-    //let h = f.clone().compose(g);
-    //println!("h(x) = {}", h.eval(&x, &()));
-    //println!("h'(x) = {}", h.grad(&x, &()));
-
-    //let i = f.clone() * f;
-    //println!("i(x) = {}", i.eval(&x, &()));
-    //println!("i'(x) = {}", i.grad(&x, &()));
 }

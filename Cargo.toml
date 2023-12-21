@@ -20,4 +20,3 @@ num = "0.4.1"
 
 [features]
 ndarray = ["dep:ndarray"]
-complex = []
