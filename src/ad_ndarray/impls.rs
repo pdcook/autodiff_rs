@@ -1,7 +1,7 @@
-use crate::traits::{InstZero, InstOne};
+use crate::traits::{InstOne, InstZero};
 use ndarray::{ArrayBase, DataOwned, Dimension};
+use num::traits::{One, Zero};
 use std::ops::{Add, Mul};
-use num::traits::{Zero, One};
 
 impl<A, S, D> InstZero for ArrayBase<S, D>
 where

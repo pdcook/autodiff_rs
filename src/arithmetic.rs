@@ -1,5 +1,5 @@
+use crate::traits::{InstOne, InstZero};
 use core::ops::{Add, Div, Mul, Neg, Sub};
-use crate::traits::{InstZero, InstOne};
 use num::traits::pow::Pow;
 
 // supertrait for self arithmetic operations
@@ -110,7 +110,7 @@ where
 
 impl<
         'a,
-        T:  'a
+        T: 'a
             + Add<T, Output = T>
             + Sub<T, Output = T>
             + Mul<T, Output = T>
@@ -131,7 +131,8 @@ where
 {
 }
 
-impl<'a,
+impl<
+        'a,
         T: Arithmetic<'a>
             + Add<A, Output = T>
             + Sub<A, Output = T>
@@ -148,7 +149,8 @@ where
 {
 }
 
-impl<'a,
+impl<
+        'a,
         T: Arithmetic<'a>
             + Add<A, Output = A>
             + Sub<A, Output = A>
@@ -165,7 +167,8 @@ where
 {
 }
 
-impl<'a,
+impl<
+        'a,
         T: 'a
             + Add<A, Output = B>
             + Sub<A, Output = B>
@@ -181,12 +184,15 @@ impl<'a,
 {
 }
 
-impl<'a, T: Arithmetic<'a> + Pow<T, Output = T> + Pow<&'a T, Output = T>> ExtendedArithmetic<'a> for T where
-    &'a T: CastingArithmetic<'a, T, T>
+impl<'a, T: Arithmetic<'a> + Pow<T, Output = T> + Pow<&'a T, Output = T>> ExtendedArithmetic<'a>
+    for T
+where
+    &'a T: CastingArithmetic<'a, T, T>,
 {
 }
 
-impl<'a,
+impl<
+        'a,
         T: ExtendedArithmetic<'a>
             + StrongAssociatedArithmetic<'a, A>
             + Pow<A, Output = T>
@@ -198,7 +204,8 @@ where
 {
 }
 
-impl<'a,
+impl<
+        'a,
         T: ExtendedArithmetic<'a>
             + WeakAssociatedArithmetic<'a, A>
             + Pow<A, Output = A>

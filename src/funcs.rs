@@ -4,22 +4,26 @@ use crate::arithmetic::*;
 use crate::autodiffable::AutoDiffable;
 use std::marker::PhantomData;
 
-#[derive(Debug, Clone, Copy)]
-pub struct Identity<I>
-(
-    pub PhantomData<I>,
-);
+#[derive(Debug, Clone)]
+pub struct Identity<I>(pub PhantomData<I>);
 
-impl<I> Identity<I>
-{
+impl<I: Clone> Copy for Identity<I> {}
+
+impl<I> Identity<I> {
     pub fn new() -> Self {
         Identity(PhantomData)
     }
 }
 
-impl<'a, I> AutoDiffable<'a, (), I, I, I>
-    for Identity<I>
-where for<'b> I: StrongAssociatedArithmetic<'b, I> + WeakAssociatedArithmetic<'b, I>,
+impl<I> Default for Identity<I> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<'a, I> AutoDiffable<'a, (), I, I, I> for Identity<I>
+where
+    for<'b> I: StrongAssociatedArithmetic<'b, I> + WeakAssociatedArithmetic<'b, I>,
     for<'b> &'b I: CastingArithmetic<'b, I, I>,
 {
     fn eval(&self, x: &I, _: &()) -> I {
@@ -31,8 +35,10 @@ where for<'b> I: StrongAssociatedArithmetic<'b, I> + WeakAssociatedArithmetic<'b
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Constant<I, O>(pub O, pub PhantomData<I>);
+
+impl<I: Clone, O: Copy> Copy for Constant<I, O> {}
 
 impl<I, O> Constant<I, O> {
     pub fn new(x: O) -> Self {
@@ -40,8 +46,7 @@ impl<I, O> Constant<I, O> {
     }
 }
 
-impl<'a, I, O>
-    AutoDiffable<'a, (), I, O, O> for Constant<I, O>
+impl<'a, I, O> AutoDiffable<'a, (), I, O, O> for Constant<I, O>
 where
     for<'b> I: Arithmetic<'b>,
     for<'b> O: StrongAssociatedArithmetic<'b, O> + WeakAssociatedArithmetic<'b, O>,
@@ -66,13 +71,12 @@ impl<I, O> Polynomial<I, O> {
     }
 }
 
-impl<'a,
-        I,
-        O,
-    > AutoDiffable<'a, (), I, O, O> for Polynomial<I, O>
+impl<'a, I, O> AutoDiffable<'a, (), I, O, O> for Polynomial<I, O>
 where
     for<'b> I: Arithmetic<'b>,
-    for<'b> O: StrongAssociatedArithmetic<'b, I> + WeakAssociatedArithmetic<'b, O> + StrongAssociatedArithmetic<'b, O>,
+    for<'b> O: StrongAssociatedArithmetic<'b, I>
+        + WeakAssociatedArithmetic<'b, O>
+        + StrongAssociatedArithmetic<'b, O>,
     for<'b> &'b I: CastingArithmetic<'b, I, I> + CastingArithmetic<'b, O, O>,
     for<'b> &'b O: CastingArithmetic<'b, O, O> + CastingArithmetic<'b, I, O>,
 {
@@ -99,8 +103,10 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Monomial<I, P>(pub P, pub PhantomData<I>);
+
+impl<I: Clone, P: Copy> Copy for Monomial<I, P> {}
 
 impl<I, P> Monomial<I, P> {
     pub fn new(p: P) -> Self {
@@ -108,10 +114,7 @@ impl<I, P> Monomial<I, P> {
     }
 }
 
-impl<'a,
-        I,
-        P,
-    > AutoDiffable<'a, (), I, I, I> for Monomial<I, P>
+impl<'a, I, P> AutoDiffable<'a, (), I, I, I> for Monomial<I, P>
 where
     for<'b> I: ExtendedArithmetic<'b> + StrongAssociatedExtendedArithmetic<'b, P>,
     for<'b> P: WeakAssociatedExtendedArithmetic<'b, I>,

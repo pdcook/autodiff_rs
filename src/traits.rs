@@ -1,11 +1,10 @@
-use std::ops::{Add, Sub, Mul, Div};
-use num::{Zero, One, Integer, Num};
-use num::rational::Ratio;
 use num::complex::Complex;
+use num::rational::Ratio;
+use num::{Integer, Num, One, Zero};
 use std::num::Wrapping;
+use std::ops::{Add, Mul};
 
-pub trait InstZero: Sized + Add<Self, Output = Self>
-{
+pub trait InstZero: Sized + Add<Self, Output = Self> {
     // required methods
     fn zero(&self) -> Self;
 
@@ -27,44 +26,12 @@ pub trait InstOne: Sized + Mul<Self, Output = Self> {
     }
 
     fn is_one(&self) -> bool
-        where Self: PartialEq
+    where
+        Self: PartialEq,
     {
         *self == self.one()
     }
 }
-
-/*
-
-// implement InstZero for all types that implement Sized, Add, and PartialEq
-// as well as Sub on their references
-// Sub and PartialEq on their references
-impl<T> InstZero for T
-    where T: Sized + Add<T, Output = T> + PartialEq,
-          for<'a> &'a T: Sub<&'a T, Output = T>
-{
-    fn zero(&self) -> T {
-        self - self
-    }
-
-    fn is_zero(&self) -> bool {
-        *self == self.zero()
-    }
-}
-
-// implement InstOne for all types that implement Sized, Mul, and InstZero
-// as well as Div on their references
-impl<T> InstOne for T
-    where T: Mul<T, Output = T> + InstZero,
-          for<'a> &'a T: Div<&'a T, Output = T>
-{
-    fn one(&self) -> T {
-        // TODO: is there a way to still get 1 without possibly panicking?
-        if self.is_zero() {
-            panic!("divide by zero");
-        }
-        self / self
-    }
-}*/
 
 // implementation for InstZero for all the types that implement Zero from num
 // u32, i128, i16, u128, f64, usize, i32, i8, f32, i64, u16, Wrapping<T: Zero>, isize, u8, u64,
@@ -90,8 +57,9 @@ impl_zero!(num::BigInt, num::BigUint);
 
 // generic implementations done here
 impl<T> InstZero for Wrapping<T>
-    where T: Zero,
-          Wrapping<T>: Add<Wrapping<T>, Output = Wrapping<T>>
+where
+    T: Zero,
+    Wrapping<T>: Add<Wrapping<T>, Output = Wrapping<T>>,
 {
     fn zero(&self) -> Wrapping<T> {
         <Wrapping<T> as Zero>::zero()
@@ -102,7 +70,8 @@ impl<T> InstZero for Wrapping<T>
     }
 }
 impl<T> InstZero for Ratio<T>
-    where T: Clone + Integer,
+where
+    T: Clone + Integer,
 {
     fn zero(&self) -> Ratio<T> {
         <Ratio<T> as Zero>::zero()
@@ -113,7 +82,8 @@ impl<T> InstZero for Ratio<T>
     }
 }
 impl<T> InstZero for Complex<T>
-    where T: Clone + Num,
+where
+    T: Clone + Num,
 {
     fn zero(&self) -> Complex<T> {
         <Complex<T> as Zero>::zero()
@@ -139,13 +109,14 @@ macro_rules! impl_one {
     )*)
 }
 
-impl_one!(u128, f32, u16, u32, i16, f64, isize, i32, u8, u64, usize, i128, i8);
+impl_one!(i64, u128, f32, u16, u32, i16, f64, isize, i32, u8, u64, usize, i128, i8);
 impl_one!(num::BigInt, num::BigUint);
 
 // generic implementations done here
 impl<T> InstOne for Wrapping<T>
-    where T: One,
-          Wrapping<T>: Mul<Wrapping<T>, Output = Wrapping<T>>
+where
+    T: One,
+    Wrapping<T>: Mul<Wrapping<T>, Output = Wrapping<T>>,
 {
     fn one(&self) -> Wrapping<T> {
         <Wrapping<T> as One>::one()
@@ -153,7 +124,8 @@ impl<T> InstOne for Wrapping<T>
 }
 
 impl<T> InstOne for Ratio<T>
-    where T: Clone + Integer,
+where
+    T: Clone + Integer,
 {
     fn one(&self) -> Ratio<T> {
         <Ratio<T> as One>::one()
@@ -161,7 +133,8 @@ impl<T> InstOne for Ratio<T>
 }
 
 impl<T> InstOne for Complex<T>
-    where T: Clone + Num,
+where
+    T: Clone + Num,
 {
     fn one(&self) -> Complex<T> {
         <Complex<T> as One>::one()

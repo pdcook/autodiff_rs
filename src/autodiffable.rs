@@ -2,7 +2,8 @@ use crate::arithmetic::{
     Arithmetic, CastingArithmetic, StrongAssociatedArithmetic, WeakAssociatedArithmetic,
 };
 
-pub trait AutoDiffable<'a,
+pub trait AutoDiffable<
+    'a,
     StaticArgsType,
     InputType: Arithmetic<'a>,
     OutputType: WeakAssociatedArithmetic<'a, GradType>,
