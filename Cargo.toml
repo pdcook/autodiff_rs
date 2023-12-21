@@ -15,10 +15,9 @@ name = "autodiff"
 path = "src/main.rs"
 
 [dependencies]
-#ndarray = { version = "0.15.6", optional = true }
-ndarray = "0.15.6"
+ndarray = { version = "0.15.6", optional = true }
 num = "0.4.1"
 
 [features]
-#ndarray = ["dep:ndarray"]
-#complex = []
+ndarray = ["dep:ndarray"]
+complex = []

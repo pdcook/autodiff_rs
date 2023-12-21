@@ -6,6 +6,11 @@ mod func_traits;
 mod funcs;
 mod traits;
 
+#[cfg(feature = "ndarray")]
+mod ad_ndarray;
+#[cfg(feature = "ndarray")]
+use crate::ad_ndarray::impls::*;
+
 #[cfg(feature = "complex")]
 mod complex;
 #[cfg(feature = "complex")]

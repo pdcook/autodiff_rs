@@ -7,7 +7,7 @@ pub mod funcs;
 pub mod traits;
 
 #[cfg(feature = "ndarray")]
-pub mod ndarray;
+pub mod ad_ndarray;
 
 #[cfg(feature = "complex")]
 pub mod complex;
