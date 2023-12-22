@@ -2,7 +2,11 @@
 
 use crate::arithmetic::*;
 use crate::autodiffable::AutoDiffable;
+use crate::diffable::Diffable;
 use std::marker::PhantomData;
+use crate::traits::{InstOne, InstZero};
+use num::traits::Pow;
+use std::ops::{Mul, Sub};
 
 #[cfg(test)]
 use crate::autodiff::AutoDiff;
@@ -24,11 +28,7 @@ impl<I> Default for Identity<I> {
     }
 }
 
-impl<'a, I> AutoDiffable<'a, (), I, I, I> for Identity<I>
-where
-    for<'b> I: StrongAssociatedArithmetic<'b, I> + WeakAssociatedArithmetic<'b, I>,
-    for<'b> &'b I: CastingArithmetic<'b, I, I>,
-{
+impl<I: Clone + InstOne> Diffable<(), I, I, I> for Identity<I> {
     fn eval(&self, x: &I, _: &()) -> I {
         x.clone()
     }
@@ -36,6 +36,13 @@ where
     fn eval_grad(&self, x: &I, s: &()) -> (I, I) {
         (self.eval(x, s), x.one())
     }
+}
+
+impl<'a, I> AutoDiffable<'a, (), I, I, I> for Identity<I>
+where
+    for<'b> I: StrongAssociatedArithmetic<'b, I> + WeakAssociatedArithmetic<'b, I>,
+    for<'b> &'b I: CastingArithmetic<'b, I, I>,
+{
 }
 
 #[test]
@@ -57,13 +64,7 @@ impl<I, O> Constant<I, O> {
     }
 }
 
-impl<'a, I, O> AutoDiffable<'a, (), I, O, O> for Constant<I, O>
-where
-    for<'b> I: Arithmetic<'b>,
-    for<'b> O: StrongAssociatedArithmetic<'b, O> + WeakAssociatedArithmetic<'b, O>,
-    for<'b> &'b I: CastingArithmetic<'b, I, I>,
-    for<'b> &'b O: CastingArithmetic<'b, O, O>,
-{
+impl<I, O: InstOne+InstZero+Clone> Diffable<(), I, O, O> for Constant<I, O> {
     fn eval(&self, _: &I, _: &()) -> O {
         self.0.clone()
     }
@@ -71,6 +72,15 @@ where
     fn eval_grad(&self, x: &I, s: &()) -> (O, O) {
         (self.eval(x, s), self.0.zero())
     }
+}
+
+impl<'a, I, O> AutoDiffable<'a, (), I, O, O> for Constant<I, O>
+where
+    for<'b> I: Arithmetic<'b>,
+    for<'b> O: StrongAssociatedArithmetic<'b, O> + WeakAssociatedArithmetic<'b, O>,
+    for<'b> &'b I: CastingArithmetic<'b, I, I>,
+    for<'b> &'b O: CastingArithmetic<'b, O, O>,
+{
 }
 
 #[test]
@@ -90,14 +100,11 @@ impl<I, O> Polynomial<I, O> {
     }
 }
 
-impl<'a, I, O> AutoDiffable<'a, (), I, O, O> for Polynomial<I, O>
+impl<I, O: InstZero + InstOne> Diffable<(), I, O, O> for Polynomial<I, O>
 where
-    for<'b> I: Arithmetic<'b>,
-    for<'b> O: StrongAssociatedArithmetic<'b, I>
-        + WeakAssociatedArithmetic<'b, O>
-        + StrongAssociatedArithmetic<'b, O>,
-    for<'b> &'b I: CastingArithmetic<'b, I, I> + CastingArithmetic<'b, O, O>,
-    for<'b> &'b O: CastingArithmetic<'b, O, O> + CastingArithmetic<'b, I, O>,
+    for<'b> O: Mul<&'b O, Output = O>,
+    for<'b> &'b I: Mul<&'b O, Output = O>,
+    for<'b> &'b O: Mul<&'b I, Output = O> + Mul<&'b O, Output = O>,
 {
     fn eval(&self, x: &I, _: &()) -> O {
         let mut res = self.0[0].zero();
@@ -128,6 +135,17 @@ where
     }
 }
 
+impl<'a, I, O> AutoDiffable<'a, (), I, O, O> for Polynomial<I, O>
+where
+    for<'b> I: Arithmetic<'b>,
+    for<'b> O: StrongAssociatedArithmetic<'b, I>
+        + WeakAssociatedArithmetic<'b, O>
+        + StrongAssociatedArithmetic<'b, O>,
+    for<'b> &'b I: CastingArithmetic<'b, I, I> + CastingArithmetic<'b, O, O>,
+    for<'b> &'b O: CastingArithmetic<'b, O, O> + CastingArithmetic<'b, I, O>,
+{
+}
+
 #[test]
 fn test_polynomial() {
     // p(x) = 3 + 2x + x^2
@@ -152,12 +170,11 @@ impl<I, P> Monomial<I, P> {
     }
 }
 
-impl<'a, I, P> AutoDiffable<'a, (), I, I, I> for Monomial<I, P>
+impl<I: Clone + InstOne + Pow<P, Output = I> + Mul<I, Output = I>, P: InstOne> Diffable<(), I, I, I> for Monomial<I, P>
 where
-    for<'b> I: ExtendedArithmetic<'b> + StrongAssociatedExtendedArithmetic<'b, P>,
-    for<'b> P: WeakAssociatedExtendedArithmetic<'b, I>,
-    for<'b> &'b I: CastingArithmetic<'b, I, I> + CastingArithmetic<'b, P, I>,
-    for<'b> &'b P: CastingArithmetic<'b, P, P> + CastingArithmetic<'b, I, I>,
+    for<'b> I: Mul<&'b I, Output = I> + Mul<&'b P, Output = I> + Pow<&'b P, Output = I>,
+    for<'b> &'b I: Mul<&'b I, Output = I>,
+    for<'b> &'b P: Sub<&'b P, Output = P> + Sub<P, Output = P>,
 {
     fn eval(&self, x: &I, _: &()) -> I {
         x.clone().pow(&self.0)
@@ -166,8 +183,16 @@ where
     fn eval_grad(&self, x: &I, _: &()) -> (I, I) {
         let x_pow = x.clone().pow(&self.0 - self.0.one());
         (&x_pow * x, x_pow * &self.0)
-        //&self.0 * x.clone().pow(&self.0 - self.0.one())
     }
+}
+
+impl<'a, I, P> AutoDiffable<'a, (), I, I, I> for Monomial<I, P>
+where
+    for<'b> I: ExtendedArithmetic<'b> + StrongAssociatedExtendedArithmetic<'b, P>,
+    for<'b> P: WeakAssociatedExtendedArithmetic<'b, I>,
+    for<'b> &'b I: CastingArithmetic<'b, I, I> + CastingArithmetic<'b, P, I>,
+    for<'b> &'b P: CastingArithmetic<'b, P, P> + CastingArithmetic<'b, I, I>,
+{
 }
 
 #[test]

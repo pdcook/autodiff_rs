@@ -10,55 +10,30 @@ use std::ops::{Add, Div, Mul, Neg, Sub};
 
 /// A wrapper type for an AutoDiffable type.
 #[derive(Debug, Clone)]
-pub struct AutoDiff<StaticArgsType, InputType, OutputType, GradType, T>(
+pub struct Diff<StaticArgsType, InputType, OutputType, GradType, T>(
     pub T,
     pub PhantomData<(StaticArgsType, InputType, OutputType, GradType)>,
 )
 where
-    for<'a> InputType: Arithmetic<'a>,
-    for<'a> &'a InputType: CastingArithmetic<'a, InputType, InputType>,
-    for<'a> OutputType: WeakAssociatedArithmetic<'a, GradType>,
-    for<'a> &'a OutputType:
-        CastingArithmetic<'a, OutputType, OutputType> + CastingArithmetic<'a, GradType, GradType>,
-    for<'a> GradType: StrongAssociatedArithmetic<'a, OutputType>,
-    for<'a> &'a GradType:
-        CastingArithmetic<'a, GradType, GradType> + CastingArithmetic<'a, OutputType, GradType>,
-    for<'a> T: AutoDiffable<'a, StaticArgsType, InputType, OutputType, GradType>;
+    T: Diffable<StaticArgsType, InputType, OutputType, GradType>;
 
-/// Impl Copy for AutoDiff if T is Copy and all the other types are Clone
+/// Impl Copy for Diff if T is Copy and all the other types are Clone
 impl<StaticArgsType, InputType, OutputType, GradType, T> Copy
-    for AutoDiff<StaticArgsType, InputType, OutputType, GradType, T>
+    for Diff<StaticArgsType, InputType, OutputType, GradType, T>
 where
     StaticArgsType: Clone,
     InputType: Clone,
     OutputType: Clone,
     GradType: Clone,
-    T: Copy,
-    for<'a> InputType: Arithmetic<'a>,
-    for<'a> &'a InputType: CastingArithmetic<'a, InputType, InputType>,
-    for<'a> OutputType: WeakAssociatedArithmetic<'a, GradType>,
-    for<'a> &'a OutputType:
-        CastingArithmetic<'a, OutputType, OutputType> + CastingArithmetic<'a, GradType, GradType>,
-    for<'a> GradType: StrongAssociatedArithmetic<'a, OutputType>,
-    for<'a> &'a GradType:
-        CastingArithmetic<'a, GradType, GradType> + CastingArithmetic<'a, OutputType, GradType>,
-    for<'a> T: AutoDiffable<'a, StaticArgsType, InputType, OutputType, GradType>,
+    T: Copy + Diffable<StaticArgsType, InputType, OutputType, GradType>,
 {
 }
 
-/// Impl of new for AutoDiff
+/// Impl of new for Diff
 impl<StaticArgsType, InputType, OutputType, GradType, T>
-    AutoDiff<StaticArgsType, InputType, OutputType, GradType, T>
+    Diff<StaticArgsType, InputType, OutputType, GradType, T>
 where
-    for<'a> InputType: Arithmetic<'a>,
-    for<'a> &'a InputType: CastingArithmetic<'a, InputType, InputType>,
-    for<'a> OutputType: WeakAssociatedArithmetic<'a, GradType>,
-    for<'a> &'a OutputType:
-        CastingArithmetic<'a, OutputType, OutputType> + CastingArithmetic<'a, GradType, GradType>,
-    for<'a> GradType: StrongAssociatedArithmetic<'a, OutputType>,
-    for<'a> &'a GradType:
-        CastingArithmetic<'a, GradType, GradType> + CastingArithmetic<'a, OutputType, GradType>,
-    for<'a> T: AutoDiffable<'a, StaticArgsType, InputType, OutputType, GradType>,
+    T: Diffable<StaticArgsType, InputType, OutputType, GradType>,
 {
     #[allow(dead_code)]
     pub fn new(t: T) -> Self {
@@ -66,21 +41,12 @@ where
     }
 }
 
-/// Impl of Diffable for AutoDiff
+/// Impl of Diffable for Diff
 impl<StaticArgsType, InputType, OutputType, GradType, T>
     Diffable<StaticArgsType, InputType, OutputType, GradType>
     for AutoDiff<StaticArgsType, InputType, OutputType, GradType, T>
 where
     T: Diffable<StaticArgsType, InputType, OutputType, GradType>,
-    for<'b> InputType: Arithmetic<'b>,
-    for<'b> &'b InputType: CastingArithmetic<'b, InputType, InputType>,
-    for<'b> OutputType: WeakAssociatedArithmetic<'b, GradType>,
-    for<'b> &'b OutputType:
-        CastingArithmetic<'b, OutputType, OutputType> + CastingArithmetic<'b, GradType, GradType>,
-    for<'b> GradType: StrongAssociatedArithmetic<'b, OutputType>,
-    for<'b> &'b GradType:
-        CastingArithmetic<'b, GradType, GradType> + CastingArithmetic<'b, OutputType, GradType>,
-    for<'b> T: AutoDiffable<'b, StaticArgsType, InputType, OutputType, GradType>,
 {
     fn eval(&self, x: &InputType, static_args: &StaticArgsType) -> OutputType {
         self.0.eval(x, static_args)
@@ -91,38 +57,13 @@ where
     }
 }
 
-/// Impl of AutoDiffable for AutoDiff
-impl<'a, StaticArgsType, InputType, OutputType, GradType, T>
-    AutoDiffable<'a, StaticArgsType, InputType, OutputType, GradType>
-    for AutoDiff<StaticArgsType, InputType, OutputType, GradType, T>
-where
-    for<'b> InputType: Arithmetic<'b>,
-    for<'b> &'b InputType: CastingArithmetic<'b, InputType, InputType>,
-    for<'b> OutputType: WeakAssociatedArithmetic<'b, GradType>,
-    for<'b> &'b OutputType:
-        CastingArithmetic<'b, OutputType, OutputType> + CastingArithmetic<'b, GradType, GradType>,
-    for<'b> GradType: StrongAssociatedArithmetic<'b, OutputType>,
-    for<'b> &'b GradType:
-        CastingArithmetic<'b, GradType, GradType> + CastingArithmetic<'b, OutputType, GradType>,
-    for<'b> T: AutoDiffable<'b, StaticArgsType, InputType, OutputType, GradType>,
-{
-}
-
-/// Impl of Add for AutoDiff
+/// Impl of Add for Diff
 impl<StaticArgsType, InputType, OutputType, GradType, A, B>
-    Add<AutoDiff<StaticArgsType, InputType, OutputType, GradType, B>>
-    for AutoDiff<StaticArgsType, InputType, OutputType, GradType, A>
+    Add<Diff<StaticArgsType, InputType, OutputType, GradType, B>>
+    for Diff<StaticArgsType, InputType, OutputType, GradType, A>
 where
-    for<'b> InputType: Arithmetic<'b>,
-    for<'b> &'b InputType: CastingArithmetic<'b, InputType, InputType>,
-    for<'b> OutputType: WeakAssociatedArithmetic<'b, GradType>,
-    for<'b> &'b OutputType:
-        CastingArithmetic<'b, OutputType, OutputType> + CastingArithmetic<'b, GradType, GradType>,
-    for<'b> GradType: StrongAssociatedArithmetic<'b, OutputType>,
-    for<'b> &'b GradType:
-        CastingArithmetic<'b, GradType, GradType> + CastingArithmetic<'b, OutputType, GradType>,
-    for<'b> A: AutoDiffable<'b, StaticArgsType, InputType, OutputType, GradType>,
-    for<'b> B: AutoDiffable<'b, StaticArgsType, InputType, OutputType, GradType>,
+    A: Diffable<StaticArgsType, InputType, OutputType, GradType> + Add<B>,
+    B: Diffable<StaticArgsType, InputType, OutputType, GradType>,
 {
     type Output = AutoDiff<StaticArgsType, InputType, OutputType, GradType, ADAdd<A, B>>;
 
