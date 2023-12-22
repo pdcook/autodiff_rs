@@ -15,6 +15,12 @@ pub trait AutoDiffable<
     &'a GradType:
         CastingArithmetic<'a, GradType, GradType> + CastingArithmetic<'a, OutputType, GradType>,
 {
+    /// required methods
     fn eval(&self, x: &InputType, static_args: &StaticArgsType) -> OutputType;
-    fn grad(&self, x: &InputType, static_args: &StaticArgsType) -> GradType;
+    fn eval_grad(&self, x: &InputType, static_args: &StaticArgsType) -> (OutputType, GradType);
+
+    /// provided methods
+    fn grad(&self, x: &InputType, static_args: &StaticArgsType) -> GradType {
+        self.eval_grad(x, static_args).1
+    }
 }

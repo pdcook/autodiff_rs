@@ -8,3 +8,6 @@ pub mod traits;
 
 #[cfg(feature = "ndarray")]
 pub mod ad_ndarray;
+
+#[cfg(test)]
+mod test_autodiff;

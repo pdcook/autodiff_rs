@@ -4,6 +4,9 @@ use crate::arithmetic::*;
 use crate::autodiffable::AutoDiffable;
 use std::marker::PhantomData;
 
+#[cfg(test)]
+use crate::autodiff::AutoDiff;
+
 #[derive(Debug, Clone)]
 pub struct Identity<I>(pub PhantomData<I>);
 
@@ -30,9 +33,17 @@ where
         x.clone()
     }
 
-    fn grad(&self, x: &I, _: &()) -> I {
-        x.one()
+    fn eval_grad(&self, x: &I, s: &()) -> (I, I) {
+        (self.eval(x, s), x.one())
     }
+}
+
+#[test]
+fn test_identity() {
+    let x = 2.0;
+    let id = AutoDiff::new(Identity::new());
+    assert_eq!(id.eval(&x, &()), x);
+    assert_eq!(id.eval_grad(&x, &()), (x, 1.0));
 }
 
 #[derive(Debug, Clone)]
@@ -57,9 +68,17 @@ where
         self.0.clone()
     }
 
-    fn grad(&self, _: &I, _: &()) -> O {
-        self.0.zero()
+    fn eval_grad(&self, x: &I, s: &()) -> (O, O) {
+        (self.eval(x, s), self.0.zero())
     }
+}
+
+#[test]
+fn test_constant() {
+    let x = 2.0;
+    let c = AutoDiff::new(Constant::new(3.0));
+    assert_eq!(c.eval(&x, &()), 3.0);
+    assert_eq!(c.eval_grad(&x, &()), (3.0, 0.0));
 }
 
 #[derive(Debug, Clone)]
@@ -90,17 +109,36 @@ where
         res
     }
 
-    fn grad(&self, x: &I, _: &()) -> O {
+    fn eval_grad(&self, x: &I, _: &()) -> (O, O) {
         let mut res = self.0[0].zero();
+        let mut grad = self.0[0].zero();
         let mut x_pow = self.0[0].one();
-        let mut pow = self.0[0].one();
-        for c in &self.0[1..] {
-            res = res + c * &pow * &x_pow;
-            pow = &pow + self.0[0].one();
+        let mut pow = self.0[0].zero();
+
+        for i in 0..self.0.len() {
+            res = res + &self.0[i] * &x_pow;
+            if i < self.0.len() - 1 {
+                pow = pow + self.0[0].one();
+                grad = grad + &self.0[i + 1] * &pow * &x_pow;
+            }
             x_pow = &x_pow * x;
         }
-        res
+
+        (res, grad)
     }
+}
+
+#[test]
+fn test_polynomial() {
+    // p(x) = 3 + 2x + x^2
+    // p'(x) = 2 + 2x
+    // p(2) = 3 + 4 + 4 = 11
+    // p'(2) = 2 + 4 = 6
+
+    let x = 2.0;
+    let p = AutoDiff::new(Polynomial::new(vec![3.0, 2.0, 1.0]));
+    assert_eq!(p.eval(&x, &()), 11.0);
+    assert_eq!(p.eval_grad(&x, &()), (11.0, 6.0));
 }
 
 #[derive(Debug, Clone)]
@@ -125,7 +163,22 @@ where
         x.clone().pow(&self.0)
     }
 
-    fn grad(&self, x: &I, _: &()) -> I {
-        &self.0 * x.clone().pow(&self.0 - self.0.one())
+    fn eval_grad(&self, x: &I, _: &()) -> (I, I) {
+        let x_pow = x.clone().pow(&self.0 - self.0.one());
+        (&x_pow * x, x_pow * &self.0)
+        //&self.0 * x.clone().pow(&self.0 - self.0.one())
     }
+}
+
+#[test]
+fn test_monomial() {
+    // p(x) = x^3
+    // p'(x) = 3x^2
+    // p(2) = 8
+    // p'(2) = 12
+
+    let x = 2.0;
+    let p = AutoDiff::new(Monomial::new(3.0));
+    assert_eq!(p.eval(&x, &()), 8.0);
+    assert_eq!(p.eval_grad(&x, &()), (8.0, 12.0));
 }

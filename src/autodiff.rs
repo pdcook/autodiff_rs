@@ -84,8 +84,8 @@ where
         self.0.eval(x, static_args)
     }
 
-    fn grad(&self, x: &InputType, static_args: &StaticArgsType) -> GradType {
-        self.0.grad(x, static_args)
+    fn eval_grad(&self, x: &InputType, static_args: &StaticArgsType) -> (OutputType, GradType) {
+        self.0.eval_grad(x, static_args)
     }
 }
 

@@ -1,7 +1,6 @@
 use crate::arithmetic::*;
 use crate::autodiffable::AutoDiffable;
 use num::traits::bounds::UpperBounded;
-use num::traits::Signed;
 use std::marker::PhantomData;
 
 #[derive(Debug, Clone, Copy)]
@@ -25,8 +24,11 @@ where
         self.0.eval(x, static_args) + self.1.eval(x, static_args)
     }
 
-    fn grad(&self, x: &InputType, static_args: &StaticArgsType) -> GradType {
-        self.0.grad(x, static_args) + self.1.grad(x, static_args)
+    fn eval_grad(&self, x: &InputType, static_args: &StaticArgsType) -> (OutputType, GradType) {
+        let (f, df) = self.0.eval_grad(x, static_args);
+        let (g, dg) = self.1.eval_grad(x, static_args);
+
+        (f + g, df + dg)
     }
 }
 
@@ -51,8 +53,11 @@ where
         self.0.eval(x, static_args) - self.1.eval(x, static_args)
     }
 
-    fn grad(&self, x: &InputType, static_args: &StaticArgsType) -> GradType {
-        self.0.grad(x, static_args) - self.1.grad(x, static_args)
+    fn eval_grad(&self, x: &InputType, static_args: &StaticArgsType) -> (OutputType, GradType) {
+        let (f, df) = self.0.eval_grad(x, static_args);
+        let (g, dg) = self.1.eval_grad(x, static_args);
+
+        (f - g, df - dg)
     }
 }
 
@@ -77,11 +82,12 @@ where
         self.0.eval(x, static_args) * self.1.eval(x, static_args)
     }
 
-    fn grad(&self, x: &InputType, static_args: &StaticArgsType) -> GradType {
-        // product rule, (fg)' = f'g + fg'
+    fn eval_grad(&self, x: &InputType, static_args: &StaticArgsType) -> (OutputType, GradType) {
+        let (f, df) = self.0.eval_grad(x, static_args);
+        let (g, dg) = self.1.eval_grad(x, static_args);
 
-        self.0.grad(x, static_args) * self.1.eval(x, static_args)
-            + self.0.eval(x, static_args) * self.1.grad(x, static_args)
+        // product rule, (fg)' = f'g + fg'
+        (&f * &g, &df * &g + &f * &dg)
     }
 }
 
@@ -106,17 +112,13 @@ where
         self.0.eval(x, static_args) / self.1.eval(x, static_args)
     }
 
-    fn grad(&self, x: &InputType, static_args: &StaticArgsType) -> GradType {
+    fn eval_grad(&self, x: &InputType, static_args: &StaticArgsType) -> (OutputType, GradType) {
+        let (f, df) = self.0.eval_grad(x, static_args);
+        let (g, dg) = self.1.eval_grad(x, static_args);
+
         // quotient rule, (f/g)' = (f'g - fg')/g^2
-
-        let f = self.0.eval(x, static_args);
-        let g = self.1.eval(x, static_args);
-
-        let f_prime = self.0.grad(x, static_args);
-        let g_prime = self.1.grad(x, static_args);
-
-        //(f_prime * g - f * g_prime) / (g * g)
-        f_prime / &g - f * g_prime / (&g * &g)
+        // = (df * g - f * dg) / (g * g)
+        (&f / &g, &df / &g - &f * &dg / (&g * &g))
     }
 }
 
@@ -140,8 +142,10 @@ where
         -self.0.eval(x, static_args)
     }
 
-    fn grad(&self, x: &InputType, static_args: &StaticArgsType) -> GradType {
-        -self.0.grad(x, static_args)
+    fn eval_grad(&self, x: &InputType, static_args: &StaticArgsType) -> (OutputType, GradType) {
+        let (f, df) = self.0.eval_grad(x, static_args);
+
+        (-f, -df)
     }
 }
 
@@ -283,14 +287,16 @@ where
         self.0.eval(&self.1.eval(x, static_args), static_args)
     }
 
-    fn grad(&self, x: &InputType, static_args: &StaticArgsType) -> OuterGradType {
+    fn eval_grad(
+        &self,
+        x: &InputType,
+        static_args: &StaticArgsType,
+    ) -> (OuterOutputType, OuterGradType) {
+        let (inner, d_inner) = self.1.eval_grad(x, static_args);
+        let (outer, d_outer) = self.0.eval_grad(&inner, static_args);
+
         // chain rule, (f(g(x)))' = f'(g(x)) * g'(x)
-        let inner_output = self.1.eval(x, static_args);
-        let inner_grad = self.1.grad(x, static_args);
-
-        let outer_grad = self.0.grad(&inner_output, static_args);
-
-        outer_grad * inner_grad
+        (outer, d_outer * d_inner)
     }
 }
 
@@ -315,8 +321,9 @@ where
         self.0.eval(x, static_args) + &self.1
     }
 
-    fn grad(&self, x: &InputType, static_args: &StaticArgsType) -> GradType {
-        self.0.grad(x, static_args)
+    fn eval_grad(&self, x: &InputType, static_args: &StaticArgsType) -> (OutputType, GradType) {
+        let (f, df) = self.0.eval_grad(x, static_args);
+        (f + &self.1, df)
     }
 }
 
@@ -341,8 +348,9 @@ where
         self.0.eval(x, static_args) - &self.1
     }
 
-    fn grad(&self, x: &InputType, static_args: &StaticArgsType) -> GradType {
-        self.0.grad(x, static_args)
+    fn eval_grad(&self, x: &InputType, static_args: &StaticArgsType) -> (OutputType, GradType) {
+        let (f, df) = self.0.eval_grad(x, static_args);
+        (f - &self.1, df)
     }
 }
 
@@ -367,8 +375,9 @@ where
         self.0.eval(x, static_args) * &self.1
     }
 
-    fn grad(&self, x: &InputType, static_args: &StaticArgsType) -> GradType {
-        self.0.grad(x, static_args) * &self.1
+    fn eval_grad(&self, x: &InputType, static_args: &StaticArgsType) -> (OutputType, GradType) {
+        let (f, df) = self.0.eval_grad(x, static_args);
+        (f * &self.1, df * &self.1)
     }
 }
 
@@ -396,11 +405,12 @@ where
         self.0.eval(x, static_args) / &self.1
     }
 
-    fn grad(&self, x: &InputType, static_args: &StaticArgsType) -> GradType {
+    fn eval_grad(&self, x: &InputType, static_args: &StaticArgsType) -> (OutputType, GradType) {
         if self.1.is_zero() {
             panic!("Division by zero");
         }
-        self.0.grad(x, static_args) / &self.1
+        let (f, df) = self.0.eval_grad(x, static_args);
+        (f / &self.1, df / &self.1)
     }
 }
 
@@ -425,30 +435,28 @@ where
         self.0.eval(x, static_args).pow(&self.1)
     }
 
-    fn grad(&self, x: &InputType, static_args: &StaticArgsType) -> GradType {
+    fn eval_grad(&self, x: &InputType, static_args: &StaticArgsType) -> (OutputType, GradType) {
+        let (f, df) = self.0.eval_grad(x, static_args);
+
         // chain rule on power, (f(x)^g)' = f(x)^(p-1) * p * f'(x)
 
-        let f_prime = self.0.grad(x, static_args);
-
         if self.1.is_zero() {
-            return f_prime.zero();
+            return (f.one(), df.zero());
         } else if self.1.is_one() {
-            return f_prime;
+            return (f, df);
         }
-
-        let f = self.0.eval(x, static_args);
 
         let g = &self.1;
 
         // g.one() provided by InstOne, in Arithmetic
-        f.pow(g - g.one()) * g * f_prime
+        (f.clone().pow(&self.1), f.pow(g - g.one()) * g * df)
     }
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct ADAbs<A>(pub A);
 
-impl<'a, StaticArgsType, InputType, OutputType: Signed, GradType, A>
+impl<'a, StaticArgsType, InputType, OutputType: num::traits::Signed, GradType, A>
     AutoDiffable<'a, StaticArgsType, InputType, OutputType, GradType> for ADAbs<A>
 where
     for<'b> InputType: Arithmetic<'b>,
@@ -465,20 +473,19 @@ where
         self.0.eval(x, static_args).abs()
     }
 
-    fn grad(&self, x: &InputType, static_args: &StaticArgsType) -> GradType {
+    fn eval_grad(&self, x: &InputType, static_args: &StaticArgsType) -> (OutputType, GradType) {
         // chain rule on abs, (|f(x)|)' = f'(x) * sign(f(x))
 
-        let f = self.0.eval(x, static_args);
-        let f_prime = self.0.grad(x, static_args);
+        let (f, df) = self.0.eval_grad(x, static_args);
 
-        f_prime * f.signum()
+        (f.abs(), df * f.signum())
     }
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct ADSignum<A>(pub A);
 
-impl<'a, StaticArgsType, InputType, OutputType: Signed, GradType: UpperBounded, A>
+impl<'a, StaticArgsType, InputType, OutputType: num::traits::Signed, GradType: UpperBounded, A>
     AutoDiffable<'a, StaticArgsType, InputType, OutputType, GradType> for ADSignum<A>
 where
     for<'b> InputType: Arithmetic<'b>,
@@ -495,14 +502,17 @@ where
         self.0.eval(x, static_args).signum()
     }
 
-    fn grad(&self, x: &InputType, static_args: &StaticArgsType) -> GradType {
+    fn eval_grad(&self, x: &InputType, static_args: &StaticArgsType) -> (OutputType, GradType) {
         // chain rule on signum, (sign(f(x)))' = 2 delta(x)
         // we approximate delta(x) as
         // delta(x) = GradType::MAX if x == 0, 0 otherwise
+
+        let (f, df) = self.0.eval_grad(x, static_args);
+
         if x.is_zero() {
-            GradType::max_value()
+            (f.signum(), df * GradType::max_value())
         } else {
-            self.0.grad(x, static_args).zero()
+            (f.signum(), df.zero())
         }
     }
 }
