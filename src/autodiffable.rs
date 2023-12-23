@@ -1,6 +1,7 @@
 use crate::arithmetic::{
     Arithmetic, CastingArithmetic, StrongAssociatedArithmetic, WeakAssociatedArithmetic,
 };
+use crate::diffable::Diffable;
 
 pub trait AutoDiffable<
     'a,
@@ -8,19 +9,29 @@ pub trait AutoDiffable<
     InputType: Arithmetic<'a>,
     OutputType: WeakAssociatedArithmetic<'a, GradType>,
     GradType: StrongAssociatedArithmetic<'a, OutputType>,
-> where
+>: Diffable<StaticArgsType, InputType, OutputType, GradType> where
     &'a InputType: CastingArithmetic<'a, InputType, InputType>,
     &'a OutputType:
         CastingArithmetic<'a, OutputType, OutputType> + CastingArithmetic<'a, GradType, GradType>,
     &'a GradType:
         CastingArithmetic<'a, GradType, GradType> + CastingArithmetic<'a, OutputType, GradType>,
 {
-    /// required methods
-    fn eval(&self, x: &InputType, static_args: &StaticArgsType) -> OutputType;
-    fn eval_grad(&self, x: &InputType, static_args: &StaticArgsType) -> (OutputType, GradType);
+}
 
-    /// provided methods
-    fn grad(&self, x: &InputType, static_args: &StaticArgsType) -> GradType {
-        self.eval_grad(x, static_args).1
-    }
+// implement AutoDiffable for T: Diffable with types that are arithmetic types
+impl<
+        'a,
+        StaticArgsType,
+        InputType: Arithmetic<'a>,
+        OutputType: WeakAssociatedArithmetic<'a, GradType>,
+        GradType: StrongAssociatedArithmetic<'a, OutputType>,
+        T: Diffable<StaticArgsType, InputType, OutputType, GradType>,
+    > AutoDiffable<'a, StaticArgsType, InputType, OutputType, GradType> for T
+where
+    &'a InputType: CastingArithmetic<'a, InputType, InputType>,
+    &'a OutputType:
+        CastingArithmetic<'a, OutputType, OutputType> + CastingArithmetic<'a, GradType, GradType>,
+    &'a GradType:
+        CastingArithmetic<'a, GradType, GradType> + CastingArithmetic<'a, OutputType, GradType>,
+{
 }

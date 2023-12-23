@@ -1,13 +1,15 @@
 use crate::arithmetic::*;
 use crate::autodiffable::AutoDiffable;
+use crate::diffable::Diffable;
 use num::traits::bounds::UpperBounded;
 use std::marker::PhantomData;
 
 #[derive(Debug, Clone, Copy)]
 pub struct ADAdd<A, B>(pub A, pub B);
 
-impl<'a, StaticArgsType, InputType, OutputType, GradType, A, B>
-    AutoDiffable<'a, StaticArgsType, InputType, OutputType, GradType> for ADAdd<A, B>
+impl<StaticArgsType, InputType, OutputType, GradType, A, B>
+    Diffable<StaticArgsType, InputType, OutputType, GradType>
+    for ADAdd<A, B>
 where
     for<'b> InputType: Arithmetic<'b>,
     for<'b> &'b InputType: CastingArithmetic<'b, InputType, InputType>,
@@ -35,8 +37,9 @@ where
 #[derive(Debug, Clone, Copy)]
 pub struct ADSub<A, B>(pub A, pub B);
 
-impl<'a, StaticArgsType, InputType, OutputType, GradType, A, B>
-    AutoDiffable<'a, StaticArgsType, InputType, OutputType, GradType> for ADSub<A, B>
+impl<StaticArgsType, InputType, OutputType, GradType, A, B>
+    Diffable<StaticArgsType, InputType, OutputType, GradType>
+    for ADSub<A, B>
 where
     for<'b> InputType: Arithmetic<'b>,
     for<'b> &'b InputType: CastingArithmetic<'b, InputType, InputType>,
@@ -64,8 +67,9 @@ where
 #[derive(Debug, Clone, Copy)]
 pub struct ADMul<A, B>(pub A, pub B);
 
-impl<'a, StaticArgsType, InputType, OutputType, GradType, A, B>
-    AutoDiffable<'a, StaticArgsType, InputType, OutputType, GradType> for ADMul<A, B>
+impl<StaticArgsType, InputType, OutputType, GradType, A, B>
+    Diffable<StaticArgsType, InputType, OutputType, GradType>
+    for ADMul<A, B>
 where
     for<'b> InputType: Arithmetic<'b>,
     for<'b> &'b InputType: CastingArithmetic<'b, InputType, InputType>,
@@ -94,8 +98,9 @@ where
 #[derive(Debug, Clone, Copy)]
 pub struct ADDiv<A, B>(pub A, pub B);
 
-impl<'a, StaticArgsType, InputType, OutputType, GradType, A, B>
-    AutoDiffable<'a, StaticArgsType, InputType, OutputType, GradType> for ADDiv<A, B>
+impl<StaticArgsType, InputType, OutputType, GradType, A, B>
+    Diffable<StaticArgsType, InputType, OutputType, GradType>
+    for ADDiv<A, B>
 where
     for<'b> InputType: Arithmetic<'b>,
     for<'b> &'b InputType: CastingArithmetic<'b, InputType, InputType>,
@@ -125,8 +130,9 @@ where
 #[derive(Debug, Clone, Copy)]
 pub struct ADNeg<A>(pub A);
 
-impl<'a, StaticArgsType, InputType, OutputType, GradType, A>
-    AutoDiffable<'a, StaticArgsType, InputType, OutputType, GradType> for ADNeg<A>
+impl<StaticArgsType, InputType, OutputType, GradType, A>
+    Diffable<StaticArgsType, InputType, OutputType, GradType>
+    for ADNeg<A>
 where
     for<'b> InputType: Arithmetic<'b>,
     for<'b> &'b InputType: CastingArithmetic<'b, InputType, InputType>,
@@ -240,7 +246,6 @@ where
 }
 
 impl<
-        'a,
         StaticArgsType,
         InputType,
         InnerOutputType,
@@ -249,7 +254,7 @@ impl<
         OuterGradType,
         Outer,
         Inner,
-    > AutoDiffable<'a, StaticArgsType, InputType, OuterOutputType, OuterGradType>
+    > Diffable<StaticArgsType, InputType, OuterOutputType, OuterGradType>
     for ADCompose<
         Outer,
         Inner,
@@ -303,8 +308,8 @@ where
 #[derive(Debug, Clone, Copy)]
 pub struct ADConstantAdd<A, B>(pub A, pub B);
 
-impl<'a, StaticArgsType, InputType, OutputType, GradType, A>
-    AutoDiffable<'a, StaticArgsType, InputType, OutputType, GradType>
+impl<StaticArgsType, InputType, OutputType, GradType, A>
+    Diffable<StaticArgsType, InputType, OutputType, GradType>
     for ADConstantAdd<A, OutputType>
 where
     for<'b> InputType: Arithmetic<'b>,
@@ -330,8 +335,8 @@ where
 #[derive(Debug, Clone, Copy)]
 pub struct ADConstantSub<A, B>(pub A, pub B);
 
-impl<'a, StaticArgsType, InputType, OutputType, GradType, A>
-    AutoDiffable<'a, StaticArgsType, InputType, OutputType, GradType>
+impl<StaticArgsType, InputType, OutputType, GradType, A>
+    Diffable<StaticArgsType, InputType, OutputType, GradType>
     for ADConstantSub<A, OutputType>
 where
     for<'b> InputType: Arithmetic<'b>,
@@ -357,8 +362,8 @@ where
 #[derive(Debug, Clone, Copy)]
 pub struct ADConstantMul<A, B>(pub A, pub B);
 
-impl<'a, StaticArgsType, InputType, OutputType, GradType, A>
-    AutoDiffable<'a, StaticArgsType, InputType, OutputType, GradType>
+impl<StaticArgsType, InputType, OutputType, GradType, A>
+    Diffable<StaticArgsType, InputType, OutputType, GradType>
     for ADConstantMul<A, OutputType>
 where
     for<'b> InputType: Arithmetic<'b>,
@@ -384,8 +389,8 @@ where
 #[derive(Debug, Clone, Copy)]
 pub struct ADConstantDiv<A, B>(pub A, pub B);
 
-impl<'a, StaticArgsType, InputType, OutputType, GradType, A>
-    AutoDiffable<'a, StaticArgsType, InputType, OutputType, GradType>
+impl<StaticArgsType, InputType, OutputType, GradType, A>
+    Diffable<StaticArgsType, InputType, OutputType, GradType>
     for ADConstantDiv<A, OutputType>
 where
     for<'b> InputType: Arithmetic<'b>,
@@ -417,8 +422,8 @@ where
 #[derive(Debug, Clone, Copy)]
 pub struct ADConstantPow<A, B>(pub A, pub B);
 
-impl<'a, StaticArgsType, InputType, OutputType, GradType, A>
-    AutoDiffable<'a, StaticArgsType, InputType, OutputType, GradType>
+impl<StaticArgsType, InputType, OutputType, GradType, A>
+    Diffable<StaticArgsType, InputType, OutputType, GradType>
     for ADConstantPow<A, OutputType>
 where
     for<'b> InputType: Arithmetic<'b>,
@@ -456,8 +461,9 @@ where
 #[derive(Debug, Clone, Copy)]
 pub struct ADAbs<A>(pub A);
 
-impl<'a, StaticArgsType, InputType, OutputType: num::traits::Signed, GradType, A>
-    AutoDiffable<'a, StaticArgsType, InputType, OutputType, GradType> for ADAbs<A>
+impl<StaticArgsType, InputType, OutputType: num::traits::Signed, GradType, A>
+    Diffable<StaticArgsType, InputType, OutputType, GradType>
+    for ADAbs<A>
 where
     for<'b> InputType: Arithmetic<'b>,
     for<'b> &'b InputType: CastingArithmetic<'b, InputType, InputType>,
@@ -485,8 +491,9 @@ where
 #[derive(Debug, Clone, Copy)]
 pub struct ADSignum<A>(pub A);
 
-impl<'a, StaticArgsType, InputType, OutputType: num::traits::Signed, GradType: UpperBounded, A>
-    AutoDiffable<'a, StaticArgsType, InputType, OutputType, GradType> for ADSignum<A>
+impl<StaticArgsType, InputType, OutputType: num::traits::Signed, GradType: UpperBounded, A>
+    Diffable<StaticArgsType, InputType, OutputType, GradType>
+    for ADSignum<A>
 where
     for<'b> InputType: Arithmetic<'b>,
     for<'b> &'b InputType: CastingArithmetic<'b, InputType, InputType>,

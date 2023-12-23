@@ -1,6 +1,7 @@
 use crate::adops::*;
 use crate::arithmetic::*;
 use crate::autodiffable::AutoDiffable;
+use crate::diffable::Diffable;
 use crate::func_traits;
 use num::traits::bounds::UpperBounded;
 use num::traits::{Pow, Signed};
@@ -65,11 +66,12 @@ where
     }
 }
 
-/// Impl of AutoDiffable for AutoDiff
-impl<'a, StaticArgsType, InputType, OutputType, GradType, T>
-    AutoDiffable<'a, StaticArgsType, InputType, OutputType, GradType>
+/// Impl of Diffable for AutoDiff
+impl<StaticArgsType, InputType, OutputType, GradType, T>
+    Diffable<StaticArgsType, InputType, OutputType, GradType>
     for AutoDiff<StaticArgsType, InputType, OutputType, GradType, T>
 where
+    T: Diffable<StaticArgsType, InputType, OutputType, GradType>,
     for<'b> InputType: Arithmetic<'b>,
     for<'b> &'b InputType: CastingArithmetic<'b, InputType, InputType>,
     for<'b> OutputType: WeakAssociatedArithmetic<'b, GradType>,
