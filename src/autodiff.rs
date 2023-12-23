@@ -91,23 +91,6 @@ where
     }
 }
 
-/// Impl of AutoDiffable for AutoDiff
-impl<'a, StaticArgsType, InputType, OutputType, GradType, T>
-    AutoDiffable<'a, StaticArgsType, InputType, OutputType, GradType>
-    for AutoDiff<StaticArgsType, InputType, OutputType, GradType, T>
-where
-    for<'b> InputType: Arithmetic<'b>,
-    for<'b> &'b InputType: CastingArithmetic<'b, InputType, InputType>,
-    for<'b> OutputType: WeakAssociatedArithmetic<'b, GradType>,
-    for<'b> &'b OutputType:
-        CastingArithmetic<'b, OutputType, OutputType> + CastingArithmetic<'b, GradType, GradType>,
-    for<'b> GradType: StrongAssociatedArithmetic<'b, OutputType>,
-    for<'b> &'b GradType:
-        CastingArithmetic<'b, GradType, GradType> + CastingArithmetic<'b, OutputType, GradType>,
-    for<'b> T: AutoDiffable<'b, StaticArgsType, InputType, OutputType, GradType>,
-{
-}
-
 /// Impl of Add for AutoDiff
 impl<StaticArgsType, InputType, OutputType, GradType, A, B>
     Add<AutoDiff<StaticArgsType, InputType, OutputType, GradType, B>>

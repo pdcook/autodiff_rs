@@ -2,6 +2,7 @@ pub mod adops;
 pub mod arithmetic;
 pub mod autodiff;
 pub mod autodiffable;
+pub mod diff;
 pub mod diffable;
 pub mod func_traits;
 pub mod funcs;

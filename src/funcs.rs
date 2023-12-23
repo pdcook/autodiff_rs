@@ -1,7 +1,5 @@
 #![allow(dead_code)]
 
-use crate::arithmetic::*;
-use crate::autodiffable::AutoDiffable;
 use crate::diffable::Diffable;
 use std::marker::PhantomData;
 use crate::traits::{InstOne, InstZero};
@@ -38,13 +36,6 @@ impl<I: Clone + InstOne> Diffable<(), I, I, I> for Identity<I> {
     }
 }
 
-impl<'a, I> AutoDiffable<'a, (), I, I, I> for Identity<I>
-where
-    for<'b> I: StrongAssociatedArithmetic<'b, I> + WeakAssociatedArithmetic<'b, I>,
-    for<'b> &'b I: CastingArithmetic<'b, I, I>,
-{
-}
-
 #[test]
 fn test_identity() {
     let x = 2.0;
@@ -72,15 +63,6 @@ impl<I, O: InstOne+InstZero+Clone> Diffable<(), I, O, O> for Constant<I, O> {
     fn eval_grad(&self, x: &I, s: &()) -> (O, O) {
         (self.eval(x, s), self.0.zero())
     }
-}
-
-impl<'a, I, O> AutoDiffable<'a, (), I, O, O> for Constant<I, O>
-where
-    for<'b> I: Arithmetic<'b>,
-    for<'b> O: StrongAssociatedArithmetic<'b, O> + WeakAssociatedArithmetic<'b, O>,
-    for<'b> &'b I: CastingArithmetic<'b, I, I>,
-    for<'b> &'b O: CastingArithmetic<'b, O, O>,
-{
 }
 
 #[test]
@@ -135,17 +117,6 @@ where
     }
 }
 
-impl<'a, I, O> AutoDiffable<'a, (), I, O, O> for Polynomial<I, O>
-where
-    for<'b> I: Arithmetic<'b>,
-    for<'b> O: StrongAssociatedArithmetic<'b, I>
-        + WeakAssociatedArithmetic<'b, O>
-        + StrongAssociatedArithmetic<'b, O>,
-    for<'b> &'b I: CastingArithmetic<'b, I, I> + CastingArithmetic<'b, O, O>,
-    for<'b> &'b O: CastingArithmetic<'b, O, O> + CastingArithmetic<'b, I, O>,
-{
-}
-
 #[test]
 fn test_polynomial() {
     // p(x) = 3 + 2x + x^2
@@ -184,15 +155,6 @@ where
         let x_pow = x.clone().pow(&self.0 - self.0.one());
         (&x_pow * x, x_pow * &self.0)
     }
-}
-
-impl<'a, I, P> AutoDiffable<'a, (), I, I, I> for Monomial<I, P>
-where
-    for<'b> I: ExtendedArithmetic<'b> + StrongAssociatedExtendedArithmetic<'b, P>,
-    for<'b> P: WeakAssociatedExtendedArithmetic<'b, I>,
-    for<'b> &'b I: CastingArithmetic<'b, I, I> + CastingArithmetic<'b, P, I>,
-    for<'b> &'b P: CastingArithmetic<'b, P, P> + CastingArithmetic<'b, I, I>,
-{
 }
 
 #[test]
