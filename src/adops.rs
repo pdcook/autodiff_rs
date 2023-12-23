@@ -8,8 +8,7 @@ use std::marker::PhantomData;
 pub struct ADAdd<A, B>(pub A, pub B);
 
 impl<StaticArgsType, InputType, OutputType, GradType, A, B>
-    Diffable<StaticArgsType, InputType, OutputType, GradType>
-    for ADAdd<A, B>
+    Diffable<StaticArgsType, InputType, OutputType, GradType> for ADAdd<A, B>
 where
     for<'b> InputType: Arithmetic<'b>,
     for<'b> &'b InputType: CastingArithmetic<'b, InputType, InputType>,
@@ -38,8 +37,7 @@ where
 pub struct ADSub<A, B>(pub A, pub B);
 
 impl<StaticArgsType, InputType, OutputType, GradType, A, B>
-    Diffable<StaticArgsType, InputType, OutputType, GradType>
-    for ADSub<A, B>
+    Diffable<StaticArgsType, InputType, OutputType, GradType> for ADSub<A, B>
 where
     for<'b> InputType: Arithmetic<'b>,
     for<'b> &'b InputType: CastingArithmetic<'b, InputType, InputType>,
@@ -68,8 +66,7 @@ where
 pub struct ADMul<A, B>(pub A, pub B);
 
 impl<StaticArgsType, InputType, OutputType, GradType, A, B>
-    Diffable<StaticArgsType, InputType, OutputType, GradType>
-    for ADMul<A, B>
+    Diffable<StaticArgsType, InputType, OutputType, GradType> for ADMul<A, B>
 where
     for<'b> InputType: Arithmetic<'b>,
     for<'b> &'b InputType: CastingArithmetic<'b, InputType, InputType>,
@@ -99,8 +96,7 @@ where
 pub struct ADDiv<A, B>(pub A, pub B);
 
 impl<StaticArgsType, InputType, OutputType, GradType, A, B>
-    Diffable<StaticArgsType, InputType, OutputType, GradType>
-    for ADDiv<A, B>
+    Diffable<StaticArgsType, InputType, OutputType, GradType> for ADDiv<A, B>
 where
     for<'b> InputType: Arithmetic<'b>,
     for<'b> &'b InputType: CastingArithmetic<'b, InputType, InputType>,
@@ -131,8 +127,7 @@ where
 pub struct ADNeg<A>(pub A);
 
 impl<StaticArgsType, InputType, OutputType, GradType, A>
-    Diffable<StaticArgsType, InputType, OutputType, GradType>
-    for ADNeg<A>
+    Diffable<StaticArgsType, InputType, OutputType, GradType> for ADNeg<A>
 where
     for<'b> InputType: Arithmetic<'b>,
     for<'b> &'b InputType: CastingArithmetic<'b, InputType, InputType>,
@@ -309,8 +304,7 @@ where
 pub struct ADConstantAdd<A, B>(pub A, pub B);
 
 impl<StaticArgsType, InputType, OutputType, GradType, A>
-    Diffable<StaticArgsType, InputType, OutputType, GradType>
-    for ADConstantAdd<A, OutputType>
+    Diffable<StaticArgsType, InputType, OutputType, GradType> for ADConstantAdd<A, OutputType>
 where
     for<'b> InputType: Arithmetic<'b>,
     for<'b> &'b InputType: CastingArithmetic<'b, InputType, InputType>,
@@ -336,8 +330,7 @@ where
 pub struct ADConstantSub<A, B>(pub A, pub B);
 
 impl<StaticArgsType, InputType, OutputType, GradType, A>
-    Diffable<StaticArgsType, InputType, OutputType, GradType>
-    for ADConstantSub<A, OutputType>
+    Diffable<StaticArgsType, InputType, OutputType, GradType> for ADConstantSub<A, OutputType>
 where
     for<'b> InputType: Arithmetic<'b>,
     for<'b> &'b InputType: CastingArithmetic<'b, InputType, InputType>,
@@ -363,8 +356,7 @@ where
 pub struct ADConstantMul<A, B>(pub A, pub B);
 
 impl<StaticArgsType, InputType, OutputType, GradType, A>
-    Diffable<StaticArgsType, InputType, OutputType, GradType>
-    for ADConstantMul<A, OutputType>
+    Diffable<StaticArgsType, InputType, OutputType, GradType> for ADConstantMul<A, OutputType>
 where
     for<'b> InputType: Arithmetic<'b>,
     for<'b> &'b InputType: CastingArithmetic<'b, InputType, InputType>,
@@ -390,8 +382,7 @@ where
 pub struct ADConstantDiv<A, B>(pub A, pub B);
 
 impl<StaticArgsType, InputType, OutputType, GradType, A>
-    Diffable<StaticArgsType, InputType, OutputType, GradType>
-    for ADConstantDiv<A, OutputType>
+    Diffable<StaticArgsType, InputType, OutputType, GradType> for ADConstantDiv<A, OutputType>
 where
     for<'b> InputType: Arithmetic<'b>,
     for<'b> &'b InputType: CastingArithmetic<'b, InputType, InputType>,
@@ -423,8 +414,7 @@ where
 pub struct ADConstantPow<A, B>(pub A, pub B);
 
 impl<StaticArgsType, InputType, OutputType, GradType, A>
-    Diffable<StaticArgsType, InputType, OutputType, GradType>
-    for ADConstantPow<A, OutputType>
+    Diffable<StaticArgsType, InputType, OutputType, GradType> for ADConstantPow<A, OutputType>
 where
     for<'b> InputType: Arithmetic<'b>,
     for<'b> &'b InputType: CastingArithmetic<'b, InputType, InputType>,
@@ -462,8 +452,7 @@ where
 pub struct ADAbs<A>(pub A);
 
 impl<StaticArgsType, InputType, OutputType: num::traits::Signed, GradType, A>
-    Diffable<StaticArgsType, InputType, OutputType, GradType>
-    for ADAbs<A>
+    Diffable<StaticArgsType, InputType, OutputType, GradType> for ADAbs<A>
 where
     for<'b> InputType: Arithmetic<'b>,
     for<'b> &'b InputType: CastingArithmetic<'b, InputType, InputType>,
@@ -492,8 +481,7 @@ where
 pub struct ADSignum<A>(pub A);
 
 impl<StaticArgsType, InputType, OutputType: num::traits::Signed, GradType: UpperBounded, A>
-    Diffable<StaticArgsType, InputType, OutputType, GradType>
-    for ADSignum<A>
+    Diffable<StaticArgsType, InputType, OutputType, GradType> for ADSignum<A>
 where
     for<'b> InputType: Arithmetic<'b>,
     for<'b> &'b InputType: CastingArithmetic<'b, InputType, InputType>,

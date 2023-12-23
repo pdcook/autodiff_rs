@@ -1,5 +1,5 @@
-use crate::diffable::Diffable;
 use crate::autodiff::AutoDiff;
+use crate::diffable::Diffable;
 use crate::func_traits::*;
 use crate::funcs::*;
 use num::traits::Pow;

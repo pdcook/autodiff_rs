@@ -1,6 +1,5 @@
-use crate::diffable::Diffable;
 use crate::diff::Diff;
-use crate::autodiff::AutoDiff;
+use crate::diffable::Diffable;
 use crate::func_traits::Compose;
 use crate::funcs::*;
 use std::ops::Add;
@@ -25,11 +24,11 @@ fn test_manual() {
         }
     }
 
-    impl Diffable<(), F, F, (F, F,)> for Swap {
+    impl Diffable<(), F, F, (F, F)> for Swap {
         fn eval(&self, x: &F, _: &()) -> F {
             F(x.1, x.0)
         }
-        fn eval_grad(&self, x: &F, _: &()) -> (F, (F, F,)) {
+        fn eval_grad(&self, x: &F, _: &()) -> (F, (F, F)) {
             (self.eval(x, &()), (F(0.0, 1.0), F(1.0, 0.0)))
         }
     }
@@ -42,22 +41,27 @@ fn test_manual() {
     #[derive(Debug, Clone, Copy)]
     struct AddSwap(Swap, Swap);
 
-    impl Diffable<(), F, F, (F,F,)> for AddSwap {
+    impl Diffable<(), F, F, (F, F)> for AddSwap {
         fn eval(&self, x: &F, _: &()) -> F {
             let f0 = self.0.eval(x, &());
             let f1 = self.1.eval(x, &());
             F(f0.0 + f1.0, f0.1 + f1.1)
-
         }
-        fn eval_grad(&self, x: &F, _: &()) -> (F, (F,F)) {
+        fn eval_grad(&self, x: &F, _: &()) -> (F, (F, F)) {
             let (f0, (f0x, f0y)) = self.0.eval_grad(x, &());
             let (f1, (f1x, f1y)) = self.1.eval_grad(x, &());
-            (F(f0.0 + f1.0, f0.1 + f1.1), (F(f0x.0 + f1x.0, f0x.1 + f1x.1), F(f0y.0 + f1y.0, f0y.1 + f1y.1)))
+            (
+                F(f0.0 + f1.0, f0.1 + f1.1),
+                (
+                    F(f0x.0 + f1x.0, f0x.1 + f1x.1),
+                    F(f0y.0 + f1y.0, f0y.1 + f1y.1),
+                ),
+            )
         }
     }
 
     impl Add for Swap {
-        type Output = Diff<(), F, F, (F, F,), AddSwap> ;
+        type Output = Diff<(), F, F, (F, F), AddSwap>;
         fn add(self, rhs: Swap) -> Self::Output {
             Diff::new(AddSwap(self, rhs))
         }
@@ -65,23 +69,26 @@ fn test_manual() {
 
     // manuall define composition for Monomial(Swap)
     // first we have to manuall implement Diffable<(), F, F, (F, F,)> for Monomial
-    impl Diffable<(), F, F, (F, F,)> for Monomial<F, f64> {
+    impl Diffable<(), F, F, (F, F)> for Monomial<F, f64> {
         fn eval(&self, x: &F, _: &()) -> F {
             F(x.0.powf(self.0), x.1.powf(self.0))
         }
-        fn eval_grad(&self, x: &F, _: &()) -> (F, (F, F,)) {
+        fn eval_grad(&self, x: &F, _: &()) -> (F, (F, F)) {
             let (f0, f1) = (x.0.powf(self.0), x.1.powf(self.0));
-            (F(f0, f1), (F(self.0 * f0 / x.0, 0.0), F(0.0, self.0 * f1 / x.1)))
+            (
+                F(f0, f1),
+                (F(self.0 * f0 / x.0, 0.0), F(0.0, self.0 * f1 / x.1)),
+            )
         }
     }
 
     struct ComposeMonomialSwap(Monomial<F, f64>, Swap);
 
-    impl Diffable<(), F, F, (F, F,)> for ComposeMonomialSwap {
+    impl Diffable<(), F, F, (F, F)> for ComposeMonomialSwap {
         fn eval(&self, x: &F, _: &()) -> F {
             self.0.eval(&self.1.eval(x, &()), &())
         }
-        fn eval_grad(&self, x: &F, _: &()) -> (F, (F, F,)) {
+        fn eval_grad(&self, x: &F, _: &()) -> (F, (F, F)) {
             let (f, (fx, fy)) = self.1.eval_grad(x, &());
             let (fg, (fgx, fgy)) = self.0.eval_grad(&f, &());
             let (fxx, fxy) = (fx.0, fx.1);
@@ -89,13 +96,16 @@ fn test_manual() {
             let (fgxx, fgxy) = (fgx.0, fgx.1);
             let (fgyx, fgyy) = (fgy.0, fgy.1);
             // chain rule, elementwise
-            let grad = (F(fgxx * fxx + fgxy * fyx, fgxx * fxy + fgxy * fyy), F(fgyx * fxx + fgyy * fyx, fgyx * fxy + fgyy * fyy));
+            let grad = (
+                F(fgxx * fxx + fgxy * fyx, fgxx * fxy + fgxy * fyy),
+                F(fgyx * fxx + fgyy * fyx, fgyx * fxy + fgyy * fyy),
+            );
             (fg, grad)
         }
     }
 
     impl Compose<Swap> for Monomial<F, f64> {
-        type Output = Diff<(), F, F, (F, F,), ComposeMonomialSwap> ;
+        type Output = Diff<(), F, F, (F, F), ComposeMonomialSwap>;
         fn compose(self, rhs: Swap) -> Self::Output {
             Diff::new(ComposeMonomialSwap(self, rhs))
         }
@@ -125,5 +135,4 @@ fn test_manual() {
     assert_eq!(f.eval(&x, &()), F(2.0, 1.0));
     assert_eq!(f2.eval(&x, &()), F(4.0, 2.0));
     assert_eq!(f3.eval(&x, &()), F(4.0, 1.0));
-
 }

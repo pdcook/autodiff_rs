@@ -1,9 +1,9 @@
 #![allow(dead_code)]
 
 use crate::diffable::Diffable;
-use std::marker::PhantomData;
 use crate::traits::{InstOne, InstZero};
 use num::traits::Pow;
+use std::marker::PhantomData;
 use std::ops::{Mul, Sub};
 
 #[cfg(test)]
@@ -55,7 +55,7 @@ impl<I, O> Constant<I, O> {
     }
 }
 
-impl<I, O: InstOne+InstZero+Clone> Diffable<(), I, O, O> for Constant<I, O> {
+impl<I, O: InstOne + InstZero + Clone> Diffable<(), I, O, O> for Constant<I, O> {
     fn eval(&self, _: &I, _: &()) -> O {
         self.0.clone()
     }
@@ -141,7 +141,8 @@ impl<I, P> Monomial<I, P> {
     }
 }
 
-impl<I: Clone + InstOne + Pow<P, Output = I> + Mul<I, Output = I>, P: InstOne> Diffable<(), I, I, I> for Monomial<I, P>
+impl<I: Clone + InstOne + Pow<P, Output = I> + Mul<I, Output = I>, P: InstOne> Diffable<(), I, I, I>
+    for Monomial<I, P>
 where
     for<'b> I: Mul<&'b I, Output = I> + Mul<&'b P, Output = I> + Pow<&'b P, Output = I>,
     for<'b> &'b I: Mul<&'b I, Output = I>,
