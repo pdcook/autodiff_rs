@@ -23,9 +23,12 @@ where
     }
 }
 
-pub trait Signed {
-    type AbsType;
-    type SignType;
-    fn abs(self) -> Self::AbsType;
-    fn signum(self) -> Self::SignType;
+pub trait Abs {
+    type Output;
+    fn abs(self) -> Self::Output;
+}
+
+pub trait Signum {
+    type Output;
+    fn signum(self) -> Self::Output;
 }

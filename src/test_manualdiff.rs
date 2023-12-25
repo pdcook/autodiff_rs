@@ -1,5 +1,5 @@
-use crate::diff::Diff;
-use crate::diffable::Diffable;
+use crate::autodiff::AutoDiff;
+use crate::autodiffable::AutoDiffable;
 use crate::func_traits::Compose;
 use crate::funcs::*;
 use std::ops::Add;
@@ -24,7 +24,7 @@ fn test_manual() {
         }
     }
 
-    impl Diffable<(), F, F, (F, F)> for Swap {
+    impl AutoDiffable<(), F, F, (F, F)> for Swap {
         fn eval(&self, x: &F, _: &()) -> F {
             F(x.1, x.0)
         }
@@ -33,15 +33,11 @@ fn test_manual() {
         }
     }
 
-    // this shouldn't compile
-    // TODO: use the compiletest_rs crate to ensure that this doesn't compile
-    // let f = AutoDiff::new(Swap::new());
-
     // manually define addition for Swap + Swap
     #[derive(Debug, Clone, Copy)]
     struct AddSwap(Swap, Swap);
 
-    impl Diffable<(), F, F, (F, F)> for AddSwap {
+    impl AutoDiffable<(), F, F, (F, F)> for AddSwap {
         fn eval(&self, x: &F, _: &()) -> F {
             let f0 = self.0.eval(x, &());
             let f1 = self.1.eval(x, &());
@@ -61,15 +57,15 @@ fn test_manual() {
     }
 
     impl Add for Swap {
-        type Output = Diff<(), F, F, (F, F), AddSwap>;
+        type Output = AutoDiff<(), F, F, (F, F), AddSwap>;
         fn add(self, rhs: Swap) -> Self::Output {
-            Diff::new(AddSwap(self, rhs))
+            AutoDiff::new(AddSwap(self, rhs))
         }
     }
 
     // manuall define composition for Monomial(Swap)
-    // first we have to manuall implement Diffable<(), F, F, (F, F,)> for Monomial
-    impl Diffable<(), F, F, (F, F)> for Monomial<F, f64> {
+    // first we have to manuall implement AutoDiffable<(), F, F, (F, F,)> for Monomial
+    impl AutoDiffable<(), F, F, (F, F)> for Monomial<F, f64> {
         fn eval(&self, x: &F, _: &()) -> F {
             F(x.0.powf(self.0), x.1.powf(self.0))
         }
@@ -84,7 +80,7 @@ fn test_manual() {
 
     struct ComposeMonomialSwap(Monomial<F, f64>, Swap);
 
-    impl Diffable<(), F, F, (F, F)> for ComposeMonomialSwap {
+    impl AutoDiffable<(), F, F, (F, F)> for ComposeMonomialSwap {
         fn eval(&self, x: &F, _: &()) -> F {
             self.0.eval(&self.1.eval(x, &()), &())
         }
@@ -105,9 +101,9 @@ fn test_manual() {
     }
 
     impl Compose<Swap> for Monomial<F, f64> {
-        type Output = Diff<(), F, F, (F, F), ComposeMonomialSwap>;
+        type Output = AutoDiff<(), F, F, (F, F), ComposeMonomialSwap>;
         fn compose(self, rhs: Swap) -> Self::Output {
-            Diff::new(ComposeMonomialSwap(self, rhs))
+            AutoDiff::new(ComposeMonomialSwap(self, rhs))
         }
     }
 
@@ -115,7 +111,7 @@ fn test_manual() {
     // well as *a + *b)
 
     // f(x,y) = (y,x)
-    let f = Diff::new(Swap::new());
+    let f = AutoDiff::new(Swap::new());
 
     // this doesn't compile
     // let f2 = f + f;
@@ -135,4 +131,8 @@ fn test_manual() {
     assert_eq!(f.eval(&x, &()), F(2.0, 1.0));
     assert_eq!(f2.eval(&x, &()), F(4.0, 2.0));
     assert_eq!(f3.eval(&x, &()), F(4.0, 1.0));
+
+    // this shouldn't compile
+    // TODO: use the compiletest_rs crate to ensure that this doesn't compile
+    // let f4 = *f / *f;
 }

@@ -213,9 +213,9 @@ pub struct ADCompose<
     OuterOutputType,
     OuterGradType,
 >(
-    Outer,
-    Inner,
-    PhantomData<(
+    pub Outer,
+    pub Inner,
+    pub PhantomData<(
         StaticArgsType,
         InnerInputType,
         InnerOutputType,
@@ -293,94 +293,6 @@ where
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct ADConstantAdd<A, B, OutputType>(pub A, pub B, pub PhantomData<OutputType>);
-
-impl<StaticArgsType, InputType, OutputType, GradType, A, B>
-    AutoDiffable<StaticArgsType, InputType, <OutputType as Add<B>>::Output, GradType> for ADConstantAdd<A, B, OutputType>
-where
-    OutputType: Add<B>,
-    GradType: Add<B>,
-    A: AutoDiffable<StaticArgsType, InputType, OutputType, GradType>,
-    B: Clone,
-{
-    fn eval(&self, x: &InputType, static_args: &StaticArgsType) -> <OutputType as Add<B>>::Output {
-        self.0.eval(x, static_args).add(self.1.clone())
-    }
-
-    fn eval_grad(&self, x: &InputType, static_args: &StaticArgsType) -> (<OutputType as Add<B>>::Output, GradType) {
-        let (f, df) = self.0.eval_grad(x, static_args);
-
-        (f.add(self.1.clone()), df)
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct ADConstantSub<A, B, OutputType>(pub A, pub B, pub PhantomData<OutputType>);
-
-impl<StaticArgsType, InputType, OutputType, GradType, A, B>
-    AutoDiffable<StaticArgsType, InputType, <OutputType as Sub<B>>::Output, GradType> for ADConstantSub<A, B, OutputType>
-where
-    OutputType: Sub<B>,
-    GradType: Sub<B>,
-    A: AutoDiffable<StaticArgsType, InputType, OutputType, GradType>,
-    B: Clone,
-{
-    fn eval(&self, x: &InputType, static_args: &StaticArgsType) -> <OutputType as Sub<B>>::Output {
-        self.0.eval(x, static_args).sub(self.1.clone())
-    }
-
-    fn eval_grad(&self, x: &InputType, static_args: &StaticArgsType) -> (<OutputType as Sub<B>>::Output, GradType) {
-        let (f, df) = self.0.eval_grad(x, static_args);
-
-        (f.sub(self.1.clone()), df)
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct ADConstantMul<A, B, OutputType, GradType>(pub A, pub B, pub PhantomData<(OutputType, GradType)>);
-
-impl<StaticArgsType, InputType, OutputType, GradType, A, B>
-    AutoDiffable<StaticArgsType, InputType, <OutputType as Mul<B>>::Output, <GradType as Mul<B>>::Output> for ADConstantMul<A, B, OutputType, GradType>
-where
-    OutputType: Mul<B>,
-    GradType: Mul<B>,
-    A: AutoDiffable<StaticArgsType, InputType, OutputType, GradType>,
-    B: Clone,
-{
-    fn eval(&self, x: &InputType, static_args: &StaticArgsType) -> <OutputType as Mul<B>>::Output {
-        self.0.eval(x, static_args).mul(self.1.clone())
-    }
-
-    fn eval_grad(&self, x: &InputType, static_args: &StaticArgsType) -> (<OutputType as Mul<B>>::Output, <GradType as Mul<B>>::Output) {
-        let (f, df) = self.0.eval_grad(x, static_args);
-
-        (f.mul(self.1.clone()), df.mul(self.1.clone()))
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct ADConstantDiv<A, B, OutputType, GradType>(pub A, pub B, pub PhantomData<(OutputType, GradType)>);
-
-impl<StaticArgsType, InputType, OutputType, GradType, A, B>
-    AutoDiffable<StaticArgsType, InputType, <OutputType as Div<B>>::Output, <GradType as Div<B>>::Output> for ADConstantDiv<A, B, OutputType, GradType>
-where
-    OutputType: Div<B>,
-    GradType: Div<B>,
-    A: AutoDiffable<StaticArgsType, InputType, OutputType, GradType>,
-    B: Clone,
-{
-    fn eval(&self, x: &InputType, static_args: &StaticArgsType) -> <OutputType as Div<B>>::Output {
-        self.0.eval(x, static_args).div(self.1.clone())
-    }
-
-    fn eval_grad(&self, x: &InputType, static_args: &StaticArgsType) -> (<OutputType as Div<B>>::Output, <GradType as Div<B>>::Output) {
-        let (f, df) = self.0.eval_grad(x, static_args);
-
-        (f.div(self.1.clone()), df.div(self.1.clone()))
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
 pub struct ADConstantPow<A, B, OutputType, GradType>(pub A, pub B, pub PhantomData<(OutputType, GradType)>);
 
 impl<StaticArgsType, InputType, OutputType, GradType, A, B>
@@ -410,106 +322,52 @@ where
     }
 }
 
-
-/*
 #[derive(Debug, Clone, Copy)]
-pub struct ADConstantPow<A, B>(pub A, pub B);
+pub struct ADAbs<A, GradType>(pub A, pub PhantomData<GradType>);
 
 impl<StaticArgsType, InputType, OutputType, GradType, A>
-    AutoDiffable<StaticArgsType, InputType, OutputType, GradType> for ADConstantPow<A, OutputType>
+    AutoDiffable<StaticArgsType, InputType, OutputType, <GradType as Mul<OutputType>>::Output> for ADAbs<A, GradType>
 where
-    for<'b> InputType: Arithmetic<'b>,
-    for<'b> &'b InputType: CastingArithmetic<'b, InputType, InputType>,
-    for<'b> OutputType: WeakAssociatedExtendedArithmetic<'b, GradType>,
-    for<'b> &'b OutputType:
-        CastingArithmetic<'b, OutputType, OutputType> + CastingArithmetic<'b, GradType, GradType>,
-    for<'b> GradType: StrongAssociatedExtendedArithmetic<'b, OutputType>,
-    for<'b> &'b GradType:
-        CastingArithmetic<'b, GradType, GradType> + CastingArithmetic<'b, OutputType, GradType>,
-    for<'b> A: AutoDiffable<'b, StaticArgsType, InputType, OutputType, GradType>,
-{
-    fn eval(&self, x: &InputType, static_args: &StaticArgsType) -> OutputType {
-        self.0.eval(x, static_args).pow(&self.1)
-    }
-
-    fn eval_grad(&self, x: &InputType, static_args: &StaticArgsType) -> (OutputType, GradType) {
-        let (f, df) = self.0.eval_grad(x, static_args);
-
-        // chain rule on power, (f(x)^g)' = f(x)^(p-1) * p * f'(x)
-
-        if self.1.is_zero() {
-            return (f.one(), df.zero());
-        } else if self.1.is_one() {
-            return (f, df);
-        }
-
-        let g = &self.1;
-
-        // g.one() provided by InstOne, in Arithmetic
-        (f.clone().pow(&self.1), f.pow(g - g.one()) * g * df)
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct ADAbs<A>(pub A);
-
-impl<StaticArgsType, InputType, OutputType: num::traits::Signed, GradType, A>
-    AutoDiffable<StaticArgsType, InputType, OutputType, GradType> for ADAbs<A>
-where
-    for<'b> InputType: Arithmetic<'b>,
-    for<'b> &'b InputType: CastingArithmetic<'b, InputType, InputType>,
-    for<'b> OutputType: WeakAssociatedExtendedArithmetic<'b, GradType>,
-    for<'b> &'b OutputType:
-        CastingArithmetic<'b, OutputType, OutputType> + CastingArithmetic<'b, GradType, GradType>,
-    for<'b> GradType: StrongAssociatedExtendedArithmetic<'b, OutputType>,
-    for<'b> &'b GradType:
-        CastingArithmetic<'b, GradType, GradType> + CastingArithmetic<'b, OutputType, GradType>,
-    for<'b> A: AutoDiffable<'b, StaticArgsType, InputType, OutputType, GradType>,
+    OutputType: Signed,
+    GradType: Signed + Mul<OutputType>,
+    A: AutoDiffable<StaticArgsType, InputType, OutputType, GradType>,
 {
     fn eval(&self, x: &InputType, static_args: &StaticArgsType) -> OutputType {
         self.0.eval(x, static_args).abs()
     }
 
-    fn eval_grad(&self, x: &InputType, static_args: &StaticArgsType) -> (OutputType, GradType) {
-        // chain rule on abs, (|f(x)|)' = f'(x) * sign(f(x))
-
+    fn eval_grad(&self, x: &InputType, static_args: &StaticArgsType) -> (OutputType, <GradType as Mul<OutputType>>::Output) {
         let (f, df) = self.0.eval_grad(x, static_args);
 
-        (f.abs(), df * f.signum())
+        (f.abs(), df.mul(f.signum()))
     }
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct ADSignum<A>(pub A);
 
-impl<StaticArgsType, InputType, OutputType: num::traits::Signed, GradType: UpperBounded, A>
+impl<StaticArgsType, InputType, OutputType, GradType, A>
     AutoDiffable<StaticArgsType, InputType, OutputType, GradType> for ADSignum<A>
 where
-    for<'b> InputType: Arithmetic<'b>,
-    for<'b> &'b InputType: CastingArithmetic<'b, InputType, InputType>,
-    for<'b> OutputType: WeakAssociatedExtendedArithmetic<'b, GradType>,
-    for<'b> &'b OutputType:
-        CastingArithmetic<'b, OutputType, OutputType> + CastingArithmetic<'b, GradType, GradType>,
-    for<'b> GradType: StrongAssociatedExtendedArithmetic<'b, OutputType>,
-    for<'b> &'b GradType:
-        CastingArithmetic<'b, GradType, GradType> + CastingArithmetic<'b, OutputType, GradType>,
-    for<'b> A: AutoDiffable<'b, StaticArgsType, InputType, OutputType, GradType>,
+    OutputType: InstZero + Signed,
+    GradType: InstZero + UpperBounded,
+    A: AutoDiffable<StaticArgsType, InputType, OutputType, GradType>,
 {
     fn eval(&self, x: &InputType, static_args: &StaticArgsType) -> OutputType {
         self.0.eval(x, static_args).signum()
     }
 
     fn eval_grad(&self, x: &InputType, static_args: &StaticArgsType) -> (OutputType, GradType) {
-        // chain rule on signum, (sign(f(x)))' = 2 delta(x)
+        // chain rule on signum, (sign(f(x)))' = 2 delta(f(x))
         // we approximate delta(x) as
         // delta(x) = GradType::MAX if x == 0, 0 otherwise
 
         let (f, df) = self.0.eval_grad(x, static_args);
 
-        if x.is_zero() {
-            (f.signum(), df * GradType::max_value())
+        if InstZero::is_zero(&f) {
+            (f.signum(), GradType::max_value())
         } else {
             (f.signum(), df.zero())
         }
     }
-}*/
+}

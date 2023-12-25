@@ -1,5 +1,5 @@
 use crate::autodiff::AutoDiff;
-use crate::diffable::Diffable;
+use crate::autodiffable::AutoDiffable;
 use crate::func_traits::*;
 use crate::funcs::*;
 use num::traits::Pow;
@@ -29,19 +29,20 @@ fn test_all_ops() {
     assert_eq!((p_x.signum(), 0.0), p.clone().signum().eval_grad(&x, &()));
 
     // binary ops with constants
-    assert_eq!((p_x + 1.0, dp_x), (p.clone() + 1.0).eval_grad(&x, &()));
-    assert_eq!((p_x - 1.0, dp_x), (p.clone() - 1.0).eval_grad(&x, &()));
+    let c = AutoDiff::new(2.0_f64);
+    assert_eq!((p_x + *c, dp_x), (p.clone() + c).eval_grad(&x, &()));
+    assert_eq!((p_x - *c, dp_x), (p.clone() - c).eval_grad(&x, &()));
     assert_eq!(
-        (p_x * 2.0, dp_x * 2.0),
-        (p.clone() * 2.0).eval_grad(&x, &())
+        (p_x * *c, dp_x * *c),
+        (p.clone() * c).eval_grad(&x, &())
     );
     assert_eq!(
-        (p_x / 2.0, dp_x / 2.0),
-        (p.clone() / 2.0).eval_grad(&x, &())
+        (p_x / *c, dp_x / *c),
+        (p.clone() / c).eval_grad(&x, &())
     );
     assert_eq!(
-        (p_x.pow(2.0), 2.0 * p_x * dp_x),
-        (p.clone().pow(2.0)).eval_grad(&x, &())
+        (p_x.pow(*c), *c * p_x * dp_x),
+        (p.clone().pow(*c)).eval_grad(&x, &())
     );
 
     // binary ops with other functions
