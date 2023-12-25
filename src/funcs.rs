@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use crate::diffable::Diffable;
+use crate::autodiffable::AutoDiffable;
 use crate::traits::{InstOne, InstZero};
 use num::traits::Pow;
 use std::marker::PhantomData;
@@ -26,7 +26,7 @@ impl<I> Default for Identity<I> {
     }
 }
 
-impl<I: Clone + InstOne> Diffable<(), I, I, I> for Identity<I> {
+impl<I: Clone + InstOne> AutoDiffable<(), I, I, I> for Identity<I> {
     fn eval(&self, x: &I, _: &()) -> I {
         x.clone()
     }
@@ -55,7 +55,7 @@ impl<I, O> Constant<I, O> {
     }
 }
 
-impl<I, O: InstOne + InstZero + Clone> Diffable<(), I, O, O> for Constant<I, O> {
+impl<I, O: InstOne + InstZero + Clone> AutoDiffable<(), I, O, O> for Constant<I, O> {
     fn eval(&self, _: &I, _: &()) -> O {
         self.0.clone()
     }
@@ -82,7 +82,7 @@ impl<I, O> Polynomial<I, O> {
     }
 }
 
-impl<I, O: InstZero + InstOne> Diffable<(), I, O, O> for Polynomial<I, O>
+impl<I, O: InstZero + InstOne> AutoDiffable<(), I, O, O> for Polynomial<I, O>
 where
     for<'b> O: Mul<&'b O, Output = O>,
     for<'b> &'b I: Mul<&'b O, Output = O>,
@@ -141,7 +141,7 @@ impl<I, P> Monomial<I, P> {
     }
 }
 
-impl<I: Clone + InstOne + Pow<P, Output = I> + Mul<I, Output = I>, P: InstOne> Diffable<(), I, I, I>
+impl<I: Clone + InstOne + Pow<P, Output = I> + Mul<I, Output = I>, P: InstOne> AutoDiffable<(), I, I, I>
     for Monomial<I, P>
 where
     for<'b> I: Mul<&'b I, Output = I> + Mul<&'b P, Output = I> + Pow<&'b P, Output = I>,

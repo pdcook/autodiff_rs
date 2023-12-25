@@ -1,7 +1,5 @@
 use crate::adops::*;
-use crate::arithmetic::*;
 use crate::autodiffable::AutoDiffable;
-use crate::diffable::Diffable;
 use crate::func_traits;
 use num::traits::bounds::UpperBounded;
 use num::traits::{Pow, Signed};
@@ -13,19 +11,9 @@ use std::ops::{Add, Div, Mul, Neg, Sub};
 pub struct AutoDiff<StaticArgsType, InputType, OutputType, GradType, T>(
     pub T,
     pub PhantomData<(StaticArgsType, InputType, OutputType, GradType)>,
-)
-where
-    for<'a> InputType: Arithmetic<'a>,
-    for<'a> &'a InputType: CastingArithmetic<'a, InputType, InputType>,
-    for<'a> OutputType: WeakAssociatedArithmetic<'a, GradType>,
-    for<'a> &'a OutputType:
-        CastingArithmetic<'a, OutputType, OutputType> + CastingArithmetic<'a, GradType, GradType>,
-    for<'a> GradType: StrongAssociatedArithmetic<'a, OutputType>,
-    for<'a> &'a GradType:
-        CastingArithmetic<'a, GradType, GradType> + CastingArithmetic<'a, OutputType, GradType>,
-    for<'a> T: AutoDiffable<'a, StaticArgsType, InputType, OutputType, GradType>;
+);
 
-/// Impl Copy for AutoDiff if T is Copy and all the other types are Clone
+/// Impl Copy for AutoDiff if T is Copy and all other types are Clone
 impl<StaticArgsType, InputType, OutputType, GradType, T> Copy
     for AutoDiff<StaticArgsType, InputType, OutputType, GradType, T>
 where
@@ -34,15 +22,6 @@ where
     OutputType: Clone,
     GradType: Clone,
     T: Copy,
-    for<'a> InputType: Arithmetic<'a>,
-    for<'a> &'a InputType: CastingArithmetic<'a, InputType, InputType>,
-    for<'a> OutputType: WeakAssociatedArithmetic<'a, GradType>,
-    for<'a> &'a OutputType:
-        CastingArithmetic<'a, OutputType, OutputType> + CastingArithmetic<'a, GradType, GradType>,
-    for<'a> GradType: StrongAssociatedArithmetic<'a, OutputType>,
-    for<'a> &'a GradType:
-        CastingArithmetic<'a, GradType, GradType> + CastingArithmetic<'a, OutputType, GradType>,
-    for<'a> T: AutoDiffable<'a, StaticArgsType, InputType, OutputType, GradType>,
 {
 }
 
@@ -50,15 +29,6 @@ where
 impl<StaticArgsType, InputType, OutputType, GradType, T>
     AutoDiff<StaticArgsType, InputType, OutputType, GradType, T>
 where
-    for<'a> InputType: Arithmetic<'a>,
-    for<'a> &'a InputType: CastingArithmetic<'a, InputType, InputType>,
-    for<'a> OutputType: WeakAssociatedArithmetic<'a, GradType>,
-    for<'a> &'a OutputType:
-        CastingArithmetic<'a, OutputType, OutputType> + CastingArithmetic<'a, GradType, GradType>,
-    for<'a> GradType: StrongAssociatedArithmetic<'a, OutputType>,
-    for<'a> &'a GradType:
-        CastingArithmetic<'a, GradType, GradType> + CastingArithmetic<'a, OutputType, GradType>,
-    for<'a> T: AutoDiffable<'a, StaticArgsType, InputType, OutputType, GradType>,
 {
     #[allow(dead_code)]
     pub fn new(t: T) -> Self {
@@ -66,21 +36,12 @@ where
     }
 }
 
-/// Impl of Diffable for AutoDiff
+/// Impl of AutoDiffable for AutoDiff
 impl<StaticArgsType, InputType, OutputType, GradType, T>
-    Diffable<StaticArgsType, InputType, OutputType, GradType>
+    AutoDiffable<StaticArgsType, InputType, OutputType, GradType>
     for AutoDiff<StaticArgsType, InputType, OutputType, GradType, T>
 where
-    T: Diffable<StaticArgsType, InputType, OutputType, GradType>,
-    for<'b> InputType: Arithmetic<'b>,
-    for<'b> &'b InputType: CastingArithmetic<'b, InputType, InputType>,
-    for<'b> OutputType: WeakAssociatedArithmetic<'b, GradType>,
-    for<'b> &'b OutputType:
-        CastingArithmetic<'b, OutputType, OutputType> + CastingArithmetic<'b, GradType, GradType>,
-    for<'b> GradType: StrongAssociatedArithmetic<'b, OutputType>,
-    for<'b> &'b GradType:
-        CastingArithmetic<'b, GradType, GradType> + CastingArithmetic<'b, OutputType, GradType>,
-    for<'b> T: AutoDiffable<'b, StaticArgsType, InputType, OutputType, GradType>,
+    T: AutoDiffable<StaticArgsType, InputType, OutputType, GradType>,
 {
     fn eval(&self, x: &InputType, static_args: &StaticArgsType) -> OutputType {
         self.0.eval(x, static_args)
@@ -92,31 +53,72 @@ where
 }
 
 /// Impl of Add for AutoDiff
-impl<StaticArgsType, InputType, OutputType, GradType, A, B>
-    Add<AutoDiff<StaticArgsType, InputType, OutputType, GradType, B>>
-    for AutoDiff<StaticArgsType, InputType, OutputType, GradType, A>
+impl<StaticArgsType, InputType, AOutputType, BOutputType, AGradType, BGradType, A, B>
+    Add<AutoDiff<StaticArgsType, InputType, BOutputType, BGradType, B>>
+    for AutoDiff<StaticArgsType, InputType, AOutputType, AGradType, A>
 where
-    for<'b> InputType: Arithmetic<'b>,
-    for<'b> &'b InputType: CastingArithmetic<'b, InputType, InputType>,
-    for<'b> OutputType: WeakAssociatedArithmetic<'b, GradType>,
-    for<'b> &'b OutputType:
-        CastingArithmetic<'b, OutputType, OutputType> + CastingArithmetic<'b, GradType, GradType>,
-    for<'b> GradType: StrongAssociatedArithmetic<'b, OutputType>,
-    for<'b> &'b GradType:
-        CastingArithmetic<'b, GradType, GradType> + CastingArithmetic<'b, OutputType, GradType>,
-    for<'b> A: AutoDiffable<'b, StaticArgsType, InputType, OutputType, GradType>,
-    for<'b> B: AutoDiffable<'b, StaticArgsType, InputType, OutputType, GradType>,
+    AOutputType: Add<BOutputType>,
+    AGradType: Add<BGradType>,
+    A: AutoDiffable<StaticArgsType, InputType, AOutputType, AGradType>,
+    B: AutoDiffable<StaticArgsType, InputType, BOutputType, BGradType>,
 {
-    type Output = AutoDiff<StaticArgsType, InputType, OutputType, GradType, ADAdd<A, B>>;
+    type Output = AutoDiff<StaticArgsType, InputType, AOutputType, AGradType, ADAdd<A, B, AOutputType, AGradType, BOutputType, BGradType>>;
 
     fn add(
         self,
-        _other: AutoDiff<StaticArgsType, InputType, OutputType, GradType, B>,
-    ) -> AutoDiff<StaticArgsType, InputType, OutputType, GradType, ADAdd<A, B>> {
-        AutoDiff(ADAdd(self.0, _other.0), PhantomData)
+        _other: AutoDiff<StaticArgsType, InputType, BOutputType, BGradType, B>,
+    ) -> Self::Output {
+        AutoDiff(ADAdd(self.0, _other.0, PhantomData), PhantomData)
     }
 }
 
+/// Impl of Sub for AutoDiff
+impl<StaticArgsType, InputType, AOutputType, BOutputType, AGradType, BGradType, A, B>
+    Sub<AutoDiff<StaticArgsType, InputType, BOutputType, BGradType, B>>
+    for AutoDiff<StaticArgsType, InputType, AOutputType, AGradType, A>
+where
+    AOutputType: Sub<BOutputType>,
+    AGradType: Sub<BGradType>,
+    A: AutoDiffable<StaticArgsType, InputType, AOutputType, AGradType>,
+    B: AutoDiffable<StaticArgsType, InputType, BOutputType, BGradType>,
+{
+    type Output = AutoDiff<StaticArgsType, InputType, AOutputType, AGradType, ADSub<A, B, AOutputType, AGradType, BOutputType, BGradType>>;
+
+    fn sub(
+        self,
+        _other: AutoDiff<StaticArgsType, InputType, BOutputType, BGradType, B>,
+    ) -> Self::Output {
+        AutoDiff(ADSub(self.0, _other.0, PhantomData), PhantomData)
+    }
+}
+
+/// Impl of Mul for AutoDiff
+impl<'a, 'b, StaticArgsType, InputType, AOutputType, BOutputType, AGradType, BGradType, A, B>
+    Mul<AutoDiff<StaticArgsType, InputType, BOutputType, BGradType, B>>
+    for AutoDiff<StaticArgsType, InputType, AOutputType, AGradType, A>
+where
+    AOutputType: Mul<BOutputType> + Clone,
+    BOutputType: Clone,
+    AGradType: Mul<BOutputType>,
+    BGradType: Mul<AOutputType>,
+    <AGradType as Mul<BOutputType>>::Output: Add<<BGradType as Mul<AOutputType>>::Output>,
+    A: AutoDiffable<StaticArgsType, InputType, AOutputType, AGradType>,
+    B: AutoDiffable<StaticArgsType, InputType, BOutputType, BGradType>,
+{
+    type Output = AutoDiff<StaticArgsType, InputType, AOutputType, AGradType, ADMul<A, B, AOutputType, AGradType, BOutputType, BGradType>>;
+
+    fn mul(
+        self,
+        _other: AutoDiff<StaticArgsType, InputType, BOutputType, BGradType, B>,
+    ) -> Self::Output {
+        AutoDiff(ADMul(self.0, _other.0, PhantomData), PhantomData)
+    }
+}
+
+
+
+
+/*
 /// Impl of Sub for AutoDiff
 impl<StaticArgsType, InputType, OutputType, GradType, A, B>
     Sub<AutoDiff<StaticArgsType, InputType, OutputType, GradType, B>>
@@ -455,4 +457,4 @@ where
     fn signum(self) -> AutoDiff<StaticArgsType, InputType, OutputType, GradType, ADSignum<A>> {
         AutoDiff(ADSignum(self.0), PhantomData)
     }
-}
+}*/
