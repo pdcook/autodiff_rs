@@ -87,6 +87,7 @@ macro_rules! autotuple_binary_op {
     ($trt:ident, $mth:ident, $($idx:literal),+) =>
     {
         paste! {
+            // AutoTuple op AutoTuple
             impl<$([<T $idx>],)+ $([<U $idx>],)+> $trt<AutoTuple<($([<U $idx>],)+)>> for AutoTuple<($([<T $idx>],)+)>
             where
                 $([<T $idx>]: $trt<[<U $idx>], Output=[<T $idx>]>,)+
@@ -97,6 +98,19 @@ macro_rules! autotuple_binary_op {
 
                 fn $mth(self, rhs: AutoTuple<($([<U $idx>],)+)>) -> Self::Output {
                     AutoTuple::new(($( self.0.$idx.$mth(rhs.0.$idx), )+))
+                }
+            }
+            // AutoTuple op (U0, U1, U2)
+            impl<$([<T $idx>],)+ $([<U $idx>],)+> $trt<($([<U $idx>],)+)> for AutoTuple<($([<T $idx>],)+)>
+            where
+                $([<T $idx>]: $trt<[<U $idx>], Output=[<T $idx>]>,)+
+                ($([<T $idx>],)+): Clone + PartialEq,
+                $([<U $idx>]: Clone + PartialEq,)+
+            {
+                type Output = AutoTuple<($([<T $idx>],)+)>;
+
+                fn $mth(self, rhs: ($([<U $idx>],)+)) -> Self::Output {
+                    AutoTuple::new(($( self.0.$idx.$mth(rhs.$idx.clone()), )+))
                 }
             }
         }
@@ -120,20 +134,20 @@ macro_rules! autotuple_binary_ops {
 // implement all binary ops for autotuples up to length 16
 autotuple_binary_ops!(0);
 autotuple_binary_ops!(0, 1);
-autotuple_binary_ops!(0, 1, 2);
-autotuple_binary_ops!(0, 1, 2, 3);
-autotuple_binary_ops!(0, 1, 2, 3, 4);
-autotuple_binary_ops!(0, 1, 2, 3, 4, 5);
-autotuple_binary_ops!(0, 1, 2, 3, 4, 5, 6);
-autotuple_binary_ops!(0, 1, 2, 3, 4, 5, 6, 7);
-autotuple_binary_ops!(0, 1, 2, 3, 4, 5, 6, 7, 8);
-autotuple_binary_ops!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
-autotuple_binary_ops!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
-autotuple_binary_ops!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11);
-autotuple_binary_ops!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 ,12);
-autotuple_binary_ops!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ,11, 12, 13);
-autotuple_binary_ops!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ,11, 12, 13, 14);
-autotuple_binary_ops!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ,11, 12, 13, 14, 15);
+//autotuple_binary_ops!(0, 1, 2);
+//autotuple_binary_ops!(0, 1, 2, 3);
+//autotuple_binary_ops!(0, 1, 2, 3, 4);
+//autotuple_binary_ops!(0, 1, 2, 3, 4, 5);
+//autotuple_binary_ops!(0, 1, 2, 3, 4, 5, 6);
+//autotuple_binary_ops!(0, 1, 2, 3, 4, 5, 6, 7);
+//autotuple_binary_ops!(0, 1, 2, 3, 4, 5, 6, 7, 8);
+//autotuple_binary_ops!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
+//autotuple_binary_ops!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+//autotuple_binary_ops!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11);
+//autotuple_binary_ops!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 ,12);
+//autotuple_binary_ops!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ,11, 12, 13);
+//autotuple_binary_ops!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ,11, 12, 13, 14);
+//autotuple_binary_ops!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ,11, 12, 13, 14, 15);
 
 // macro for implementing unary operations on autotuples
 macro_rules! autotuple_unary_ops {
@@ -244,7 +258,10 @@ autotuple_unary_ops!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,11,12,13,14,15);
 #[test]
 fn test_autotuple() {
     let a = AutoTuple::new((1u32, 1.0_f64));
-    let b = AutoTuple::new((2u32, -1.0_f64));
-    let c = a + b;
-    assert_eq!(c, AutoTuple::new((3, 0.0)));
+    let b_tup = (2u32, -1.0_f64);
+    let b = AutoTuple::new(b_tup);
+    let c1 = a + b;
+    let c2 = a + b_tup;
+    assert_eq!(c1, AutoTuple::new((3, 0.0)));
+    assert_eq!(c2, AutoTuple::new((3, 0.0)));
 }
