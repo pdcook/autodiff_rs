@@ -77,6 +77,25 @@ autotuple_from!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13);
 autotuple_from!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14);
 autotuple_from!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 ,15);
 
+// macro for implementing AutoTuple From<T> for T, used for constants
+// so AutoTuple::From(f32) -> AutoTuple<(f32,)>
+// i.e. AutoTuple::From(f32) = AutoTuple::From((f32,))
+
+macro_rules! autotuple_from_primitive {
+    ($($type:ty),+) =>
+    {
+        $(
+            impl From<$type> for AutoTuple<($type,)> {
+                fn from(t: $type) -> Self {
+                    AutoTuple::new((t,))
+                }
+            }
+        )+
+    }
+}
+
+autotuple_from_primitive!(f32, f64, i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize);
+
 // macro for implementing binary operations between autotuples with
 // the same number of elements
 // example: autotuple_binary_op!(Add, add, 0, 1, 2);
@@ -148,6 +167,64 @@ autotuple_binary_ops!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 ,12);
 autotuple_binary_ops!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ,11, 12, 13);
 autotuple_binary_ops!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ,11, 12, 13, 14);
 autotuple_binary_ops!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ,11, 12, 13, 14, 15);
+
+// macro for operations between autotuples of any length and
+// anything that implements Into<AutoTuple<T>>
+// so that it can do constant operations on AutoTuples of any length
+
+macro_rules! autotuple_const_op {
+    ($trt:ident, $mth:ident, $($idx:literal),+) =>
+    {
+        paste! {
+            // AutoTuple op AutoTuple
+            impl<$([<T $idx>],)+ U> $trt<U> for AutoTuple<($([<T $idx>],)+)>
+            where
+                $([<T $idx>]: $trt<U, Output=[<T $idx>]>,)+
+                ($([<T $idx>],)+): Clone + PartialEq,
+                U: Into<AutoTuple<(U,)>> + Clone + PartialEq,
+            {
+                type Output = AutoTuple<($([<T $idx>],)+)>;
+
+                fn $mth(self, rhs: U) -> Self::Output {
+                    let rhs: AutoTuple<(U,)> = rhs.into();
+                    AutoTuple::new(($( self.0.$idx.$mth(rhs.0.0.clone()), )+))
+                }
+            }
+        }
+    }
+}
+
+// macro for implementing all binary ops between autotuples with
+// specified length
+macro_rules! autotuple_const_ops {
+    ($($idx:literal),+) =>
+    {
+        autotuple_const_op!(Add, add, $($idx),+);
+        autotuple_const_op!(Sub, sub, $($idx),+);
+        autotuple_const_op!(Mul, mul, $($idx),+);
+        autotuple_const_op!(Div, div, $($idx),+);
+        autotuple_const_op!(Rem, rem, $($idx),+);
+        autotuple_const_op!(Pow, pow, $($idx),+);
+    }
+}
+
+// implement all binary ops for autotuples up to length 16
+autotuple_const_ops!(0);
+autotuple_const_ops!(0, 1);
+autotuple_const_ops!(0, 1, 2);
+autotuple_const_ops!(0, 1, 2, 3);
+autotuple_const_ops!(0, 1, 2, 3, 4);
+autotuple_const_ops!(0, 1, 2, 3, 4, 5);
+autotuple_const_ops!(0, 1, 2, 3, 4, 5, 6);
+autotuple_const_ops!(0, 1, 2, 3, 4, 5, 6, 7);
+autotuple_const_ops!(0, 1, 2, 3, 4, 5, 6, 7, 8);
+autotuple_const_ops!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
+autotuple_const_ops!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+autotuple_const_ops!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ,11);
+autotuple_const_ops!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ,11, 12);
+autotuple_const_ops!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ,11, 12, 13);
+autotuple_const_ops!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ,11, 12, 13, 14);
+autotuple_const_ops!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ,11, 12, 13, 14, 15);
 
 // macro for implementing unary operations on autotuples
 macro_rules! autotuple_unary_ops {
@@ -264,4 +341,11 @@ fn test_autotuple() {
     let c2 = a + b_tup;
     assert_eq!(c1, AutoTuple::new((3, 0.0)));
     assert_eq!(c2, AutoTuple::new((3, 0.0)));
+
+    let d = AutoTuple::new((-1.0_f64, 1.0_f64));
+    let cnst = 2.0_f64;
+    let e1 = d * cnst;
+    let e2 = d + cnst;
+    assert_eq!(e1, AutoTuple::new((-2.0, 2.0)));
+    assert_eq!(e2, AutoTuple::new((1.0, 3.0)));
 }
