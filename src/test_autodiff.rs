@@ -3,6 +3,7 @@ use crate::autodiffable::AutoDiffable;
 use crate::func_traits::*;
 use crate::funcs::*;
 use num::traits::Pow;
+use std::ops::Deref;
 
 #[test]
 fn test_all_ops() {
@@ -75,4 +76,23 @@ fn test_all_ops() {
         (p_of_q_x, dp_of_q_x * dq_x),
         p.clone().compose(q.clone()).eval_grad(&x, &())
     );
+
+
+    // test custom wrapper type with Deref
+    #[derive(Copy, Clone, Debug, PartialEq)]
+    struct Wrapper<T>(T);
+
+    impl<T> Deref for Wrapper<T> {
+        type Target = T;
+
+        fn deref(&self) -> &Self::Target {
+            &self.0
+        }
+    }
+
+    let w = Wrapper(2.0_f64);
+
+    let (p_w, dp_w) = p.eval_grad(&w, &());
+
+    assert_eq!((p_w, dp_w), (p_x, dp_x));
 }
