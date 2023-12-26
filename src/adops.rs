@@ -3,7 +3,7 @@ use num::traits::bounds::UpperBounded;
 use num::traits::{Signed, Pow};
 use std::marker::PhantomData;
 use std::ops::{Add, Sub, Mul, Div, Neg};
-use crate::traits::{InstZero, InstOne};
+use crate::traits::{InstZero, InstOne, ComposedGradMul};
 
 #[derive(Debug, Clone, Copy)]
 pub struct ADAdd<A, B, AOutputType, AGradType, BOutputType, BGradType>(pub A, pub B, pub PhantomData<( AOutputType, AGradType, BOutputType, BGradType,)>);
@@ -241,7 +241,7 @@ impl<
         StaticArgsType,
         InnerInputType,
         OuterOutputType,
-        <OuterGradType as Mul<InnerGradType>>::Output,
+        <OuterGradType as ComposedGradMul<InnerInputType, OuterOutputType, InnerGradType>>::Output,
     >
     for ADCompose<
         Outer,
@@ -268,7 +268,8 @@ where
         InnerGradType,
     >,
     OuterInputType: From<InnerOutputType>,
-    OuterGradType: Mul<InnerGradType>,
+    OuterGradType: ComposedGradMul<InnerInputType, OuterOutputType, InnerGradType>,
+    OuterOutputType: Clone,
 {
     fn eval(
         &self,
@@ -282,15 +283,20 @@ where
         &self,
         x: &InnerInputType,
         static_args: &StaticArgsType,
-    ) -> (OuterOutputType, <OuterGradType as Mul<InnerGradType>>::Output) {
+    ) -> (OuterOutputType, <OuterGradType as ComposedGradMul<InnerInputType, OuterOutputType, InnerGradType>>::Output) {
         let (g, dg) = self.1.eval_grad(x, static_args);
         let (f_of_g, df_of_g) = self.0.eval_grad(&g.into(), static_args);
 
         // chain rule
         // (f(g))' = f'(g) * g'
-        (f_of_g, df_of_g.mul(dg))
+        // mul here has to be compose_mul, not the usual mul
+        // since this type of multiplication may be different from the usual,
+        // specifically for things like arrays in which case
+        // compose_mul = mul followed by sum over all trailing dimensions
+        (f_of_g.clone(), df_of_g.compose_mul(x, &f_of_g, &dg))
     }
 }
+
 
 #[derive(Debug, Clone, Copy)]
 pub struct ADConstantPow<A, B, OutputType, GradType>(pub A, pub B, pub PhantomData<(OutputType, GradType)>);

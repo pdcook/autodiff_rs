@@ -4,6 +4,45 @@ use num::{Integer, Num, One, Zero};
 use std::num::Wrapping;
 use std::ops::{Add, Mul};
 
+pub trait ComposedGradMul<InnerInputType, OuterOutputType, InnerGradType> {
+    type Output;
+
+    fn compose_mul(
+        &self,
+        _x: &InnerInputType,
+        _f_of_g: &OuterOutputType,
+        _dg: &InnerGradType,
+    ) -> Self::Output;
+}
+
+macro_rules! impl_composed_grad_mul {
+    ($($t:ty),*) => {
+        $(
+            impl<IIT, OOT, IGT> ComposedGradMul<IIT, OOT, IGT> for $t
+            where
+                IGT: Mul<$t, Output = IGT>,
+                IIT: Clone,
+                OOT: Clone,
+                IGT: Clone,
+            {
+                type Output = IGT;
+
+                fn compose_mul(
+                    &self,
+                    _x: &IIT,
+                    _f_of_g: &OOT,
+                    dg: &IGT,
+                ) -> Self::Output {
+                    dg.clone() * *self
+                }
+            }
+        )*
+    };
+}
+
+impl_composed_grad_mul!(f32, f64, i8, i16, i32, i64, u8, u16, u32, u64, usize, isize, Complex<f32>, Complex<f64>);
+
+
 pub trait InstZero: Sized + Add<Self, Output = Self> {
     // required methods
     fn zero(&self) -> Self;

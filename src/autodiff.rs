@@ -5,7 +5,7 @@ use num::traits::bounds::UpperBounded;
 use num::traits::{Pow, Signed};
 use std::marker::PhantomData;
 use std::ops::{Add, Div, Mul, Neg, Sub, Deref};
-use crate::traits::{InstZero, InstOne};
+use crate::traits::{InstZero, InstOne, ComposedGradMul};
 
 /// A wrapper type for an AutoDiffable type.
 #[derive(Debug, Clone)]
@@ -232,13 +232,15 @@ where
         InnerGradType,
     >,
     OuterInputType: From<InnerOutputType>,
-    OuterGradType: Mul<InnerGradType>,
+    //OuterGradType: Mul<InnerGradType>,
+    OuterGradType: ComposedGradMul<InnerInputType, OuterOutputType, InnerGradType>,
 {
     type Output = AutoDiff<
         StaticArgsType,
         InnerInputType,
         OuterOutputType,
-        <OuterGradType as Mul<InnerGradType>>::Output,
+        //<OuterGradType as Mul<InnerGradType>>::Output,
+        <OuterGradType as ComposedGradMul<InnerInputType, OuterOutputType, InnerGradType>>::Output,
         ADCompose<
         Outer,
         Inner,
