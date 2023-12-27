@@ -141,8 +141,8 @@ impl<I, P> Monomial<I, P> {
     }
 }
 
-impl<I: Clone + InstOne + Pow<P, Output = I> + Mul<I, Output = I>, P: InstOne> AutoDiffable<(), I, I, I>
-    for Monomial<I, P>
+impl<I: Clone + InstOne + Pow<P, Output = I> + Mul<I, Output = I>, P: InstOne>
+    AutoDiffable<(), I, I, I> for Monomial<I, P>
 where
     for<'b> I: Mul<&'b I, Output = I> + Mul<&'b P, Output = I> + Pow<&'b P, Output = I>,
     for<'b> &'b I: Mul<&'b I, Output = I>,

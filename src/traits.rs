@@ -20,12 +20,12 @@ macro_rules! impl_composed_grad_mul {
         $(
             impl<IIT, OOT, IGT> ComposedGradMul<IIT, OOT, IGT> for $t
             where
-                IGT: Mul<$t, Output = IGT>,
+                $t: Mul<IGT>,
                 IIT: Clone,
                 OOT: Clone,
                 IGT: Clone,
             {
-                type Output = IGT;
+                type Output = <$t as Mul<IGT>>::Output;
 
                 fn compose_mul(
                     &self,
@@ -33,15 +33,29 @@ macro_rules! impl_composed_grad_mul {
                     _f_of_g: &OOT,
                     dg: &IGT,
                 ) -> Self::Output {
-                    dg.clone() * *self
+                    *self * dg.clone()
                 }
             }
         )*
     };
 }
 
-impl_composed_grad_mul!(f32, f64, i8, i16, i32, i64, u8, u16, u32, u64, usize, isize, Complex<f32>, Complex<f64>);
-
+impl_composed_grad_mul!(
+    f32,
+    f64,
+    i8,
+    i16,
+    i32,
+    i64,
+    u8,
+    u16,
+    u32,
+    u64,
+    usize,
+    isize,
+    Complex<f32>,
+    Complex<f64>
+);
 
 pub trait InstZero: Sized + Add<Self, Output = Self> {
     // required methods

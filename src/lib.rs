@@ -1,11 +1,15 @@
-pub mod adops;
-pub mod autodiff;
+#[rustfmt::skip]
+pub mod adops; // rustfmt breaks this module
+
+#[rustfmt::skip]
+pub mod autodiff; // rustfmt breaks this module
+
 pub mod autodiffable;
+pub mod autotuple;
 pub mod func_traits;
 pub mod funcs;
-pub mod traits;
 pub mod impls;
-pub mod autotuple;
+pub mod traits;
 
 #[cfg(feature = "ndarray")]
 pub mod ad_ndarray;

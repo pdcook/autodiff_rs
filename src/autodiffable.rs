@@ -1,9 +1,4 @@
-pub trait AutoDiffable<
-    StaticArgsType,
-    InputType,
-    OutputType,
-    GradType,
-> {
+pub trait AutoDiffable<StaticArgsType, InputType, OutputType, GradType> {
     /// Evaluate the function for a given input and static arguments.
     fn eval(&self, x: &InputType, static_args: &StaticArgsType) -> OutputType;
     /// Evaluate the function and its gradient for a given input and static arguments.

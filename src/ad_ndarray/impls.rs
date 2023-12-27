@@ -1,5 +1,8 @@
-use crate::traits::{InstOne, InstZero, ComposedGradMul};
-use ndarray::{ArrayBase, DimMax, DataOwned, Dimension, DimAdd, Axis, RemoveAxis, OwnedRepr};
+use crate::autotuple::AutoTuple;
+use crate::traits::{ComposedGradMul, InstOne, InstZero};
+use ndarray::{
+    ArrayBase, Axis, DataOwned, DimAdd, DimMax, Dimension, OwnedRepr, RawDataClone, RemoveAxis,
+};
 use num::traits::{One, Zero};
 use std::ops::{Add, Mul};
 
@@ -31,6 +34,18 @@ where
 {
     fn one(&self) -> Self {
         Self::ones(self.dim())
+    }
+}
+
+// implement From<ArrayBase<S, D>> for AutoTuple<(ArrayBase<S, D>,)>
+impl<A, S, D> From<ArrayBase<S, D>> for AutoTuple<(ArrayBase<S, D>,)>
+where
+    D: Dimension,
+    S: DataOwned<Elem = A> + RawDataClone,
+    A: Clone + PartialEq,
+{
+    fn from(arr: ArrayBase<S, D>) -> Self {
+        AutoTuple::new((arr,))
     }
 }
 
@@ -75,14 +90,12 @@ where
         sum_over_final_axes::<<DInput as DimAdd<DOutput>>::Output, _, _, _>(oversized_res)
     }
 }*/
-impl<
-    AInput, DInput,
-    AOutput, DOutput,
-    AGrad, DGrad,
-    ASelf, DSelf,
-    >
-    ComposedGradMul<ArrayBase<OwnedRepr<AInput>, DInput>, ArrayBase<OwnedRepr<AOutput>, DOutput>, ArrayBase<OwnedRepr<AGrad>, DGrad>>
-    for ArrayBase<OwnedRepr<ASelf>, DSelf>
+impl<AInput, DInput, AOutput, DOutput, AGrad, DGrad, ASelf, DSelf>
+    ComposedGradMul<
+        ArrayBase<OwnedRepr<AInput>, DInput>,
+        ArrayBase<OwnedRepr<AOutput>, DOutput>,
+        ArrayBase<OwnedRepr<AGrad>, DGrad>,
+    > for ArrayBase<OwnedRepr<ASelf>, DSelf>
 where
     DInput: Dimension + DimAdd<DOutput>,
     DOutput: Dimension,
@@ -102,36 +115,42 @@ where
         _f_of_g: &ArrayBase<OwnedRepr<AOutput>, DOutput>,
         dg: &ArrayBase<OwnedRepr<AGrad>, DGrad>,
     ) -> Self::Output {
-
-        let oversized_res: ArrayBase<OwnedRepr<ASelf>, <DSelf as DimMax<DGrad>>::Output> = self.clone() * dg.clone();
+        let oversized_res: ArrayBase<OwnedRepr<ASelf>, <DSelf as DimMax<DGrad>>::Output> =
+            self.clone() * dg.clone();
 
         // sum over all dimensions except the first N + M
-        let res: Self::Output = sum_over_final_axes::<<DInput as DimAdd<DOutput>>::Output, ASelf, <DSelf as DimMax<DGrad>>::Output>(oversized_res);
+        let res: Self::Output = sum_over_final_axes::<
+            <DInput as DimAdd<DOutput>>::Output,
+            ASelf,
+            <DSelf as DimMax<DGrad>>::Output,
+        >(oversized_res);
 
         res
     }
 }
 
-fn sum_over_final_axes<OutDim, A, D>
-    (
-        arr: ArrayBase<OwnedRepr<A>, D>
-    ) -> ArrayBase<OwnedRepr<A>, OutDim>
-    where
+fn sum_over_final_axes<OutDim, A, D>(
+    arr: ArrayBase<OwnedRepr<A>, D>,
+) -> ArrayBase<OwnedRepr<A>, OutDim>
+where
     A: Clone + Zero,
     //S: DataOwned<Elem = A>,
     D: Dimension + RemoveAxis,
     OutDim: Dimension,
     ArrayBase<OwnedRepr<A>, D>: Clone,
-    {
-        let mut a = arr.clone();
-        let n = OutDim::NDIM.unwrap().min(a.ndim());
+{
+    let mut a = arr.clone();
+    let n = OutDim::NDIM.unwrap().min(a.ndim());
 
-        for i in n..(a.ndim()-1) {
-            a.merge_axes(Axis(i), Axis(i+1));
-        }
-        let a_dyn = a.sum_axis(Axis(a.ndim()-1)).into_shape(&(a.shape()[..n])).unwrap();
-        a_dyn.into_dimensionality::<OutDim>().unwrap()
+    for i in n..(a.ndim() - 1) {
+        a.merge_axes(Axis(i), Axis(i + 1));
     }
+    let a_dyn = a
+        .sum_axis(Axis(a.ndim() - 1))
+        .into_shape(&(a.shape()[..n]))
+        .unwrap();
+    a_dyn.into_dimensionality::<OutDim>().unwrap()
+}
 
 #[test]
 fn test_sum_over_final_axes() {

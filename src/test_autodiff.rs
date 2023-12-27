@@ -33,14 +33,8 @@ fn test_all_ops() {
     let c = AutoDiff::new(2.0_f64);
     assert_eq!((p_x + *c, dp_x), (p.clone() + c).eval_grad(&x, &()));
     assert_eq!((p_x - *c, dp_x), (p.clone() - c).eval_grad(&x, &()));
-    assert_eq!(
-        (p_x * *c, dp_x * *c),
-        (p.clone() * c).eval_grad(&x, &())
-    );
-    assert_eq!(
-        (p_x / *c, dp_x / *c),
-        (p.clone() / c).eval_grad(&x, &())
-    );
+    assert_eq!((p_x * *c, dp_x * *c), (p.clone() * c).eval_grad(&x, &()));
+    assert_eq!((p_x / *c, dp_x / *c), (p.clone() / c).eval_grad(&x, &()));
     assert_eq!(
         (p_x.pow(*c), *c * p_x * dp_x),
         (p.clone().pow(*c)).eval_grad(&x, &())
@@ -76,7 +70,6 @@ fn test_all_ops() {
         (p_of_q_x, dp_of_q_x * dq_x),
         p.clone().compose(q.clone()).eval_grad(&x, &())
     );
-
 
     // test custom wrapper type with Deref
     #[derive(Copy, Clone, Debug, PartialEq)]
