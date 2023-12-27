@@ -6,7 +6,6 @@ use crate::func_traits::Compose;
 use crate::funcs::Identity;
 use crate::traits::InstOne;
 use ndarray::prelude::*;
-use crate::traits::*;
 
 #[test]
 fn test_ad_ndarray() {
@@ -256,6 +255,14 @@ fn test_ad_ndarray() {
     let (su_x, dsu_dx) = su.eval_grad(&x, &());
 
     assert_eq!(su_x, s_of_u);
-    assert_eq!((*dsu_dx).0, ((*dsu).0.clone() * (*dy_dx).0.clone()).sum_axis(Axis(2)).sum_axis(Axis(1)));
-    assert_eq!((*dsu_dx).1, ((*dsu).1.clone() * (*dy_dx).1.clone()).sum_axis(Axis(1)));
+    assert_eq!(
+        (*dsu_dx).0,
+        ((*dsu).0.clone() * (*dy_dx).0.clone())
+            .sum_axis(Axis(2))
+            .sum_axis(Axis(1))
+    );
+    assert_eq!(
+        (*dsu_dx).1,
+        ((*dsu).1.clone() * (*dy_dx).1.clone()).sum_axis(Axis(1))
+    );
 }
