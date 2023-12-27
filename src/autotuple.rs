@@ -222,7 +222,7 @@ macro_rules! autotuple_composed_grad_mul {
 }
 
 // implement ComposedGradMul for autotuples up to length 16
-autotuple_composed_grad_mul!(0);
+//autotuple_composed_grad_mul!(0);
 autotuple_composed_grad_mul!(0, 1);
 autotuple_composed_grad_mul!(0, 1, 2);
 autotuple_composed_grad_mul!(0, 1, 2, 3);
@@ -479,28 +479,31 @@ macro_rules! autotuple_const_composed_grad_mul {
                     AutoTuple::new(($(self.0.$idx.compose_mul(&x.0.0, &f_of_g.0.0, &dg.0.0),)+))
                 }
             }
-            /*
-            /// <length 1 autotuples>.compose_mul(<length n autotuples>)
+        }
+    }
+}
+macro_rules! autotuple_const_composed_grad_mul_reversed {
+    ($($idx:literal),+) =>
+    {
+        paste! {
+            /// <len 1>.compose_mul(<len n>, <len n>, <len n>)
             impl<T, $([<IIT $idx>],)+ $([<OOT $idx>],)+ $([<IGT $idx>],)+> ComposedGradMul<
                 AutoTuple<($([<IIT $idx>],)+)>,
                 AutoTuple<($([<OOT $idx>],)+)>,
                 AutoTuple<($([<IGT $idx>],)+)>,
                 > for AutoTuple<(T,)>
             where
+                $(
+                    T: ComposedGradMul<[<IIT $idx>], [<OOT $idx>], [<IGT $idx>],>,
+                )+
                 T: Clone + PartialEq,
-                $([<IIT $idx>]: Clone + PartialEq,)+
-                $([<OOT $idx>]: Clone + PartialEq,)+
-                $([<IGT $idx>]: Clone + PartialEq,)+
                 ($([<IIT $idx>],)+): Clone + PartialEq,
                 ($([<OOT $idx>],)+): Clone + PartialEq,
                 ($([<IGT $idx>],)+): Clone + PartialEq,
-                $(
-                    T: ComposedGradMul<[<IIT $idx>], [<OOT $idx>], [<IGT $idx>]>,
-                )+
+                $(<T as ComposedGradMul<[<IIT $idx>], [<OOT $idx>], [<IGT $idx>]>>::Output: Clone + PartialEq,)+
                 ($(<T as ComposedGradMul<[<IIT $idx>], [<OOT $idx>], [<IGT $idx>]>>::Output,)+): Clone + PartialEq,
             {
                 type Output = AutoTuple<($(<T as ComposedGradMul<[<IIT $idx>], [<OOT $idx>], [<IGT $idx>]>>::Output,)+)>;
-
                 fn compose_mul(
                     &self,
                     x: &AutoTuple<($([<IIT $idx>],)+)>,
@@ -510,7 +513,163 @@ macro_rules! autotuple_const_composed_grad_mul {
                     AutoTuple::new(($(self.0.0.compose_mul(&x.0.$idx, &f_of_g.0.$idx, &dg.0.$idx),)+))
                 }
             }
-            */
+            /// <len 1>.compose_mul(<len n>, <len n>, <len 1>)
+            impl<T, $([<IIT $idx>],)+ $([<OOT $idx>],)+ IGT> ComposedGradMul<
+                AutoTuple<($([<IIT $idx>],)+)>,
+                AutoTuple<($([<OOT $idx>],)+)>,
+                AutoTuple<(IGT,)>,
+                > for AutoTuple<(T,)>
+            where
+                $(
+                    T: ComposedGradMul<[<IIT $idx>], [<OOT $idx>], IGT>,
+                )+
+                T: Clone + PartialEq,
+                ($([<IIT $idx>],)+): Clone + PartialEq,
+                ($([<OOT $idx>],)+): Clone + PartialEq,
+                IGT: Clone + PartialEq,
+                $(<T as ComposedGradMul<[<IIT $idx>], [<OOT $idx>], IGT>>::Output: Clone + PartialEq,)+
+                ($(<T as ComposedGradMul<[<IIT $idx>], [<OOT $idx>], IGT>>::Output,)+): Clone + PartialEq,
+            {
+                type Output = AutoTuple<($(<T as ComposedGradMul<[<IIT $idx>], [<OOT $idx>], IGT>>::Output,)+)>;
+                fn compose_mul(
+                    &self,
+                    x: &AutoTuple<($([<IIT $idx>],)+)>,
+                    f_of_g: &AutoTuple<($([<OOT $idx>],)+)>,
+                    dg: &AutoTuple<(IGT,)>,
+                ) -> Self::Output {
+                    AutoTuple::new(($(self.0.0.compose_mul(&x.0.$idx, &f_of_g.0.$idx, &dg.0.0),)+))
+                }
+            }
+            /// <len 1>.compose_mul(<len n>, <len 1>, <len n>)
+            impl<T, $([<IIT $idx>],)+ OOT, $([<IGT $idx>],)+> ComposedGradMul<
+                AutoTuple<($([<IIT $idx>],)+)>,
+                AutoTuple<(OOT,)>,
+                AutoTuple<($([<IGT $idx>],)+)>,
+                > for AutoTuple<(T,)>
+            where
+                $(
+                    T: ComposedGradMul<[<IIT $idx>], OOT, [<IGT $idx>],>,
+                )+
+                T: Clone + PartialEq,
+                ($([<IIT $idx>],)+): Clone + PartialEq,
+                OOT: Clone + PartialEq,
+                ($([<IGT $idx>],)+): Clone + PartialEq,
+                $(<T as ComposedGradMul<[<IIT $idx>], OOT, [<IGT $idx>]>>::Output: Clone + PartialEq,)+
+                ($(<T as ComposedGradMul<[<IIT $idx>], OOT, [<IGT $idx>]>>::Output,)+): Clone + PartialEq,
+            {
+                type Output = AutoTuple<($(<T as ComposedGradMul<[<IIT $idx>], OOT, [<IGT $idx>]>>::Output,)+)>;
+                fn compose_mul(
+                    &self,
+                    x: &AutoTuple<($([<IIT $idx>],)+)>,
+                    f_of_g: &AutoTuple<(OOT,)>,
+                    dg: &AutoTuple<($([<IGT $idx>],)+)>,
+                ) -> Self::Output {
+                    AutoTuple::new(($(self.0.0.compose_mul(&x.0.$idx, &f_of_g.0.0, &dg.0.$idx),)+))
+                }
+            }
+            /// <len 1>.compose_mul(<len n>, <len 1>, <len 1>)
+            impl<T, $([<IIT $idx>],)+ OOT, IGT> ComposedGradMul<
+                AutoTuple<($([<IIT $idx>],)+)>,
+                AutoTuple<(OOT,)>,
+                AutoTuple<(IGT,)>,
+                > for AutoTuple<(T,)>
+            where
+                $(
+                    T: ComposedGradMul<[<IIT $idx>], OOT, IGT>,
+                )+
+                T: Clone + PartialEq,
+                ($([<IIT $idx>],)+): Clone + PartialEq,
+                OOT: Clone + PartialEq,
+                IGT: Clone + PartialEq,
+                $(<T as ComposedGradMul<[<IIT $idx>], OOT, IGT>>::Output: Clone + PartialEq,)+
+                ($(<T as ComposedGradMul<[<IIT $idx>], OOT, IGT>>::Output,)+): Clone + PartialEq,
+            {
+                type Output = AutoTuple<($(<T as ComposedGradMul<[<IIT $idx>], OOT, IGT>>::Output,)+)>;
+                fn compose_mul(
+                    &self,
+                    x: &AutoTuple<($([<IIT $idx>],)+)>,
+                    f_of_g: &AutoTuple<(OOT,)>,
+                    dg: &AutoTuple<(IGT,)>,
+                ) -> Self::Output {
+                    AutoTuple::new(($(self.0.0.compose_mul(&x.0.$idx, &f_of_g.0.0, &dg.0.0),)+))
+                }
+            }
+            /// <len 1>.compose_mul(<len 1>, <len n>, <len n>)
+            impl<T, IIT, $([<OOT $idx>],)+ $([<IGT $idx>],)+> ComposedGradMul<
+                AutoTuple<(IIT,)>,
+                AutoTuple<($([<OOT $idx>],)+)>,
+                AutoTuple<($([<IGT $idx>],)+)>,
+                > for AutoTuple<(T,)>
+            where
+                $(T: ComposedGradMul<IIT, [<OOT $idx>], [<IGT $idx>],>,)+
+                T: Clone + PartialEq,
+                IIT: Clone + PartialEq,
+                ($([<OOT $idx>],)+): Clone + PartialEq,
+                ($([<IGT $idx>],)+): Clone + PartialEq,
+                $(<T as ComposedGradMul<IIT, [<OOT $idx>], [<IGT $idx>]>>::Output: Clone + PartialEq,)+
+                ($(<T as ComposedGradMul<IIT, [<OOT $idx>], [<IGT $idx>]>>::Output,)+): Clone + PartialEq,
+            {
+                type Output = AutoTuple<($(<T as ComposedGradMul<IIT, [<OOT $idx>], [<IGT $idx>]>>::Output,)+)>;
+                fn compose_mul(
+                    &self,
+                    x: &AutoTuple<(IIT,)>,
+                    f_of_g: &AutoTuple<($([<OOT $idx>],)+)>,
+                    dg: &AutoTuple<($([<IGT $idx>],)+)>,
+                ) -> Self::Output {
+                    AutoTuple::new(($(self.0.0.compose_mul(&x.0.0, &f_of_g.0.$idx, &dg.0.$idx),)+))
+                }
+            }
+            /// <len 1>.compose_mul(<len 1>, <len n>, <len 1>)
+            impl<T, IIT, $([<OOT $idx>],)+ IGT> ComposedGradMul<
+                AutoTuple<(IIT,)>,
+                AutoTuple<($([<OOT $idx>],)+)>,
+                AutoTuple<(IGT,)>,
+                > for AutoTuple<(T,)>
+            where
+                $(T: ComposedGradMul<IIT, [<OOT $idx>], IGT>,)+
+                T: Clone + PartialEq,
+                IIT: Clone + PartialEq,
+                ($([<OOT $idx>],)+): Clone + PartialEq,
+                IGT: Clone + PartialEq,
+                $(<T as ComposedGradMul<IIT, [<OOT $idx>], IGT>>::Output: Clone + PartialEq,)+
+                ($(<T as ComposedGradMul<IIT, [<OOT $idx>], IGT>>::Output,)+): Clone + PartialEq,
+            {
+                type Output = AutoTuple<($(<T as ComposedGradMul<IIT, [<OOT $idx>], IGT>>::Output,)+)>;
+                fn compose_mul(
+                    &self,
+                    x: &AutoTuple<(IIT,)>,
+                    f_of_g: &AutoTuple<($([<OOT $idx>],)+)>,
+                    dg: &AutoTuple<(IGT,)>,
+                ) -> Self::Output {
+                    AutoTuple::new(($(self.0.0.compose_mul(&x.0.0, &f_of_g.0.$idx, &dg.0.0),)+))
+                }
+            }
+            /// <len 1>.compose_mul(<len 1>, <len 1>, <len n>)
+            impl<T, IIT, OOT, $([<IGT $idx>],)+> ComposedGradMul<
+                AutoTuple<(IIT,)>,
+                AutoTuple<(OOT,)>,
+                AutoTuple<($([<IGT $idx>],)+)>,
+                > for AutoTuple<(T,)>
+            where
+                $(T: ComposedGradMul<IIT, OOT, [<IGT $idx>],>,)+
+                T: Clone + PartialEq,
+                IIT: Clone + PartialEq,
+                OOT: Clone + PartialEq,
+                ($([<IGT $idx>],)+): Clone + PartialEq,
+                $(<T as ComposedGradMul<IIT, OOT, [<IGT $idx>]>>::Output: Clone + PartialEq,)+
+                ($(<T as ComposedGradMul<IIT, OOT, [<IGT $idx>]>>::Output,)+): Clone + PartialEq,
+            {
+                type Output = AutoTuple<($(<T as ComposedGradMul<IIT, OOT, [<IGT $idx>]>>::Output,)+)>;
+                fn compose_mul(
+                    &self,
+                    x: &AutoTuple<(IIT,)>,
+                    f_of_g: &AutoTuple<(OOT,)>,
+                    dg: &AutoTuple<($([<IGT $idx>],)+)>,
+                ) -> Self::Output {
+                    AutoTuple::new(($(self.0.0.compose_mul(&x.0.0, &f_of_g.0.0, &dg.0.$idx),)+))
+                }
+            }
+
         }
     }
 }
@@ -532,6 +691,22 @@ autotuple_const_composed_grad_mul!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12);
 autotuple_const_composed_grad_mul!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13);
 autotuple_const_composed_grad_mul!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14);
 autotuple_const_composed_grad_mul!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+//autotuple_const_composed_grad_mul_reversed!(0);
+autotuple_const_composed_grad_mul_reversed!(0, 1);
+autotuple_const_composed_grad_mul_reversed!(0, 1, 2);
+autotuple_const_composed_grad_mul_reversed!(0, 1, 2, 3);
+autotuple_const_composed_grad_mul_reversed!(0, 1, 2, 3, 4);
+autotuple_const_composed_grad_mul_reversed!(0, 1, 2, 3, 4, 5);
+autotuple_const_composed_grad_mul_reversed!(0, 1, 2, 3, 4, 5, 6);
+autotuple_const_composed_grad_mul_reversed!(0, 1, 2, 3, 4, 5, 6, 7);
+autotuple_const_composed_grad_mul_reversed!(0, 1, 2, 3, 4, 5, 6, 7, 8);
+autotuple_const_composed_grad_mul_reversed!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
+autotuple_const_composed_grad_mul_reversed!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+autotuple_const_composed_grad_mul_reversed!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11);
+autotuple_const_composed_grad_mul_reversed!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12);
+autotuple_const_composed_grad_mul_reversed!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13);
+autotuple_const_composed_grad_mul_reversed!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14);
+autotuple_const_composed_grad_mul_reversed!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
 
 // macro for implementing unary operations on autotuples
 macro_rules! autotuple_unary_ops {
