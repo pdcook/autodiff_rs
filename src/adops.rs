@@ -1,4 +1,4 @@
-use crate::autodiffable::AutoDiffable;
+use crate::autodiffable::{AutoDiffable, CustomForwardDiff};
 use num::traits::bounds::UpperBounded;
 use num::traits::{Signed, Pow};
 use std::marker::PhantomData;
