@@ -388,7 +388,7 @@ where
     ) -> (OuterOutputType, OutputGradType)
     {
         let (g, dg) = self.1.eval_grad(x, static_args);
-        self.0.forward_eval_grad(&g.clone().into(), Some(&dg), static_args)
+        self.0.forward_eval_grad(&g.clone().into(), &dg, static_args)
     }
 }
 

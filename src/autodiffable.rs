@@ -16,14 +16,14 @@ pub trait CustomForwardDiff<StaticArgsType, InputType, OutputType, OutputGradTyp
     fn forward_eval_grad(
         &self,
         _x: &InputType,
-        _dx: Option<&ForwardGradType>,
+        _dx: &ForwardGradType,
         _static_args: &StaticArgsType,
     ) -> (OutputType, OutputGradType);
 
     fn forward_grad(
         &self,
         x: &InputType,
-        dx: Option<&ForwardGradType>,
+        dx: &ForwardGradType,
         static_args: &StaticArgsType,
     ) -> OutputGradType {
         self.forward_eval_grad(x, dx, static_args).1
