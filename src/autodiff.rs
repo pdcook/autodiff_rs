@@ -1,5 +1,5 @@
 use crate::adops::*;
-use crate::autodiffable::AutoDiffable;
+use crate::autodiffable::{AutoDiffable, CustomForwardDiff};
 use crate::func_traits;
 use num::traits::bounds::UpperBounded;
 use num::traits::{Pow, Signed};
@@ -189,6 +189,83 @@ where
 
     fn neg(self) -> Self::Output {
         AutoDiff(ADNeg(self.0, PhantomData), PhantomData)
+    }
+}
+
+/// Impl of Custom_Compose for CustomForwardDiff
+impl<
+    StaticArgsType,
+    InnerInputType,
+    InnerOutputType,
+    InnerGradType,
+    OuterInputType,
+    OuterOutputType,
+    OuterGradType,
+    OutputGradType,
+    Outer,
+    Inner,
+> func_traits::CustomCompose<
+    AutoDiff<
+        StaticArgsType,
+        InnerInputType,
+        InnerOutputType,
+        InnerGradType,
+        Inner,
+    >,
+    OutputGradType,
+> for AutoDiff<
+    StaticArgsType,
+    OuterInputType,
+    OuterOutputType,
+    OuterGradType,
+    Outer,
+>
+where
+    Outer: AutoDiffable<
+        StaticArgsType,
+        OuterInputType,
+        OuterOutputType,
+        OuterGradType,
+    > + CustomForwardDiff<StaticArgsType, OuterInputType, OuterOutputType, OutputGradType, InnerGradType>,
+    Inner: AutoDiffable<
+        StaticArgsType,
+        InnerInputType,
+        InnerOutputType,
+        InnerGradType,
+    >,
+    OuterInputType: From<InnerOutputType>,
+    InnerOutputType: Clone,
+    OuterOutputType: Clone,
+{
+    type Output = AutoDiff<
+        StaticArgsType,
+        InnerInputType,
+        OuterOutputType,
+        OutputGradType,
+        ADCustomCompose<
+        Outer,
+        Inner,
+        StaticArgsType,
+        InnerInputType,
+        InnerOutputType,
+        InnerGradType,
+        OuterInputType,
+        OuterOutputType,
+        OuterGradType,
+        OutputGradType,
+    >>;
+
+    fn custom_compose(
+        self,
+        _other: AutoDiff<
+            StaticArgsType,
+            InnerInputType,
+            InnerOutputType,
+            InnerGradType,
+            Inner,
+        >,
+    ) -> Self::Output {
+        AutoDiff(ADCustomCompose(self.0, _other.0, PhantomData), PhantomData)
     }
 }
 

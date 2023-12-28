@@ -10,14 +10,7 @@ pub trait AutoDiffable<StaticArgsType, InputType, OutputType, GradType> {
     }
 }
 
-pub trait CustomForwardDiff<
-    StaticArgsType,
-    InputType,
-    OutputType,
-    GradType,
-    OutputGradType,
-    ForwardGradType,
->
+pub trait CustomForwardDiff<StaticArgsType, InputType, OutputType, OutputGradType, ForwardGradType>
 {
     /// Propagate the gradient forward, possibly different than the chain rule.
     fn forward_eval_grad(
@@ -25,30 +18,14 @@ pub trait CustomForwardDiff<
         _x: &InputType,
         _dx: Option<&ForwardGradType>,
         _static_args: &StaticArgsType,
-    ) -> Result<(OutputType, OutputGradType), &'static str> {
-        Err("Forward mode not implemented for this function")
-    }
+    ) -> (OutputType, OutputGradType);
+
     fn forward_grad(
         &self,
         x: &InputType,
         dx: Option<&ForwardGradType>,
         static_args: &StaticArgsType,
-    ) -> Result<OutputGradType, &'static str> {
-        self.forward_eval_grad(x, dx, static_args)
-            .map(|(_, grad)| grad)
+    ) -> OutputGradType {
+        self.forward_eval_grad(x, dx, static_args).1
     }
-}
-
-impl<StaticArgsType, InputType, OutputType, GradType, OutputGradType, ForwardGradType, T>
-    CustomForwardDiff<
-        StaticArgsType,
-        InputType,
-        OutputType,
-        GradType,
-        OutputGradType,
-        ForwardGradType,
-    > for T
-where
-    T: AutoDiffable<StaticArgsType, InputType, OutputType, GradType>,
-{
 }

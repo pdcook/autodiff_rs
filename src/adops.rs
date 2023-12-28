@@ -287,15 +287,6 @@ where
     ) -> (OuterOutputType, <OuterGradType as ComposedGradMul<InnerInputType, OuterOutputType, InnerGradType>>::Output) {
 
         let (g, dg) = self.1.eval_grad(x, static_args);
-
-        // try to use forward_eval_grad for custom composition
-        // if it's not implemented, use the chain rule
-        // it will return Ok((f_of_g, d_f_of_g)) or Err(str)
-        let res = self.0.forward_eval_grad(&g.clone().into(), Some(&dg), static_args);
-        if let Ok((f_of_g, d_f_of_g)) = res {
-            return (f_of_g, d_f_of_g);
-        }
-
         let (f_of_g, df_of_g) = self.0.eval_grad(&g.into(), static_args);
         // chain rule
         // (f(g))' = f'(g) * g'
@@ -304,6 +295,100 @@ where
         // specifically for things like arrays in which case
         // compose_mul = mul followed by sum over all trailing dimensions
         (f_of_g.clone(), df_of_g.compose_mul(x, &f_of_g, &dg))
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ADCustomCompose<
+    Outer,
+    Inner,
+    StaticArgsType,
+    InnerInputType,
+    InnerOutputType,
+    InnerGradType,
+    OuterInputType,
+    OuterOutputType,
+    OuterGradType,
+    OutputGradType,
+>(
+    pub Outer,
+    pub Inner,
+    pub PhantomData<(
+        StaticArgsType,
+        InnerInputType,
+        InnerOutputType,
+        InnerGradType,
+        OuterInputType,
+        OuterOutputType,
+        OuterGradType,
+        OutputGradType,
+    )>,
+);
+
+impl<
+        StaticArgsType,
+        InnerInputType,
+        InnerOutputType,
+        InnerGradType,
+        OuterInputType,
+        OuterOutputType,
+        OuterGradType,
+        OutputGradType,
+        Outer,
+        Inner,
+    >
+    AutoDiffable<
+        StaticArgsType,
+        InnerInputType,
+        OuterOutputType,
+        OutputGradType,
+    >
+    for ADCustomCompose<
+        Outer,
+        Inner,
+        StaticArgsType,
+        InnerInputType,
+        InnerOutputType,
+        InnerGradType,
+        OuterInputType,
+        OuterOutputType,
+        OuterGradType,
+        OutputGradType,
+    >
+where
+    Outer: AutoDiffable<
+        StaticArgsType,
+        OuterInputType,
+        OuterOutputType,
+        OuterGradType,
+    > + CustomForwardDiff<StaticArgsType, OuterInputType, OuterOutputType, OutputGradType, InnerGradType>
+    ,
+    Inner: AutoDiffable<
+        StaticArgsType,
+        InnerInputType,
+        InnerOutputType,
+        InnerGradType,
+    >,
+    OuterInputType: From<InnerOutputType>,
+    InnerOutputType: Clone,
+    OuterOutputType: Clone,
+{
+    fn eval(
+        &self,
+        x: &InnerInputType,
+        static_args: &StaticArgsType,
+    ) -> OuterOutputType {
+        self.0.eval(&self.1.eval(x, static_args).into(), static_args)
+    }
+
+    fn eval_grad(
+        &self,
+        x: &InnerInputType,
+        static_args: &StaticArgsType,
+    ) -> (OuterOutputType, OutputGradType)
+    {
+        let (g, dg) = self.1.eval_grad(x, static_args);
+        self.0.forward_eval_grad(&g.clone().into(), Some(&dg), static_args)
     }
 }
 
