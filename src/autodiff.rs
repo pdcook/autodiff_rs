@@ -54,9 +54,9 @@ where
 }
 
 /// Impl of CustomForwardDiff for AutoDiff
-impl<StaticArgsType, InputType, OutputType, GradType, ForwardGradType, T>
+impl<StaticArgsType, InputType, OutputType, InnerGradType, GradType, ForwardGradType, T>
     CustomForwardDiff<StaticArgsType, InputType, OutputType, GradType, ForwardGradType>
-    for AutoDiff<StaticArgsType, InputType, OutputType, GradType, T>
+    for AutoDiff<StaticArgsType, InputType, OutputType, InnerGradType, T>
 where
     T: CustomForwardDiff<StaticArgsType, InputType, OutputType, GradType, ForwardGradType>,
 {
