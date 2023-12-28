@@ -53,6 +53,23 @@ where
     }
 }
 
+/// Impl of CustomForwardDiff for AutoDiff
+impl<StaticArgsType, InputType, OutputType, GradType, ForwardGradType, T>
+    CustomForwardDiff<StaticArgsType, InputType, OutputType, GradType, ForwardGradType>
+    for AutoDiff<StaticArgsType, InputType, OutputType, GradType, T>
+where
+    T: CustomForwardDiff<StaticArgsType, InputType, OutputType, GradType, ForwardGradType>,
+{
+    fn forward_eval_grad(
+        &self,
+        x: &InputType,
+        dx: &ForwardGradType,
+        static_args: &StaticArgsType,
+    ) -> (OutputType, GradType) {
+        self.0.forward_eval_grad(x, dx, static_args)
+    }
+}
+
 /// Impl of Deref for AutoDiff
 impl<StaticArgsType, InputType, OutputType, GradType, T> Deref
     for AutoDiff<StaticArgsType, InputType, OutputType, GradType, T>
