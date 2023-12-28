@@ -269,6 +269,7 @@ where
     >,
     OuterInputType: From<InnerOutputType>,
     OuterGradType: ComposedGradMul<InnerInputType, OuterOutputType, InnerGradType>,
+    InnerOutputType: Clone,
     OuterOutputType: Clone,
 {
     fn eval(
@@ -284,9 +285,18 @@ where
         x: &InnerInputType,
         static_args: &StaticArgsType,
     ) -> (OuterOutputType, <OuterGradType as ComposedGradMul<InnerInputType, OuterOutputType, InnerGradType>>::Output) {
-        let (g, dg) = self.1.eval_grad(x, static_args);
-        let (f_of_g, df_of_g) = self.0.eval_grad(&g.into(), static_args);
 
+        let (g, dg) = self.1.eval_grad(x, static_args);
+
+        // try to use forward_eval_grad for custom composition
+        // if it's not implemented, use the chain rule
+        // it will return Ok((f_of_g, d_f_of_g)) or Err(str)
+        let res = self.0.forward_eval_grad(&g.clone().into(), Some(&dg), static_args);
+        if let Ok((f_of_g, d_f_of_g)) = res {
+            return (f_of_g, d_f_of_g);
+        }
+
+        let (f_of_g, df_of_g) = self.0.eval_grad(&g.into(), static_args);
         // chain rule
         // (f(g))' = f'(g) * g'
         // mul here has to be compose_mul, not the usual mul

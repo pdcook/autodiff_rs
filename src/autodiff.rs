@@ -232,14 +232,14 @@ where
         InnerGradType,
     >,
     OuterInputType: From<InnerOutputType>,
-    //OuterGradType: Mul<InnerGradType>,
     OuterGradType: ComposedGradMul<InnerInputType, OuterOutputType, InnerGradType>,
+    InnerOutputType: Clone,
+    OuterOutputType: Clone,
 {
     type Output = AutoDiff<
         StaticArgsType,
         InnerInputType,
         OuterOutputType,
-        //<OuterGradType as Mul<InnerGradType>>::Output,
         <OuterGradType as ComposedGradMul<InnerInputType, OuterOutputType, InnerGradType>>::Output,
         ADCompose<
         Outer,
