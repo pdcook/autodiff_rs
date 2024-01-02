@@ -6,14 +6,9 @@ use std::ops::Add;
 
 #[test]
 fn test_manual() {
-    // define a function which takes in a tuple and outputs a f64
-    // manually define addition and composition for this function
-
     // newtype for (f64, f64)
     #[derive(Debug, Clone, Copy, PartialEq)]
     struct F(f64, f64);
-
-    // define a function which takes in an F and outputs a f64
 
     #[derive(Debug, Clone, Copy)]
     struct Swap;
@@ -24,12 +19,12 @@ fn test_manual() {
         }
     }
 
-    impl AutoDiffable<(), F, F, (F, F)> for Swap {
+    impl AutoDiffable<(), F, F, F, F> for Swap {
         fn eval(&self, x: &F, _: &()) -> F {
             F(x.1, x.0)
         }
-        fn eval_grad(&self, x: &F, _: &()) -> (F, (F, F)) {
-            (self.eval(x, &()), (F(0.0, 1.0), F(1.0, 0.0)))
+        fn eval_grad(&self, x: &F, dx: &F, _: &()) -> (F, F) {
+            (self.eval(x, &()), F(dx.1, dx.0))
         }
     }
 
@@ -37,27 +32,21 @@ fn test_manual() {
     #[derive(Debug, Clone, Copy)]
     struct AddSwap(Swap, Swap);
 
-    impl AutoDiffable<(), F, F, (F, F)> for AddSwap {
+    impl AutoDiffable<(), F, F, F, F> for AddSwap {
         fn eval(&self, x: &F, _: &()) -> F {
             let f0 = self.0.eval(x, &());
             let f1 = self.1.eval(x, &());
             F(f0.0 + f1.0, f0.1 + f1.1)
         }
-        fn eval_grad(&self, x: &F, _: &()) -> (F, (F, F)) {
-            let (f0, (f0x, f0y)) = self.0.eval_grad(x, &());
-            let (f1, (f1x, f1y)) = self.1.eval_grad(x, &());
-            (
-                F(f0.0 + f1.0, f0.1 + f1.1),
-                (
-                    F(f0x.0 + f1x.0, f0x.1 + f1x.1),
-                    F(f0y.0 + f1y.0, f0y.1 + f1y.1),
-                ),
-            )
+        fn eval_grad(&self, x: &F, dx: &F, _: &()) -> (F, F) {
+            let (f0, df0) = self.0.eval_grad(x, dx, &());
+            let (f1, df1) = self.1.eval_grad(x, dx, &());
+            (F(f0.0 + f1.0, f0.1 + f1.1), F(df0.0 + df1.0, df0.1 + df1.1))
         }
     }
 
     impl Add for Swap {
-        type Output = AutoDiff<(), F, F, (F, F), AddSwap>;
+        type Output = AutoDiff<(), F, F, F, F, AddSwap>;
         fn add(self, rhs: Swap) -> Self::Output {
             AutoDiff::new(AddSwap(self, rhs))
         }
@@ -65,43 +54,33 @@ fn test_manual() {
 
     // manuall define composition for Monomial(Swap)
     // first we have to manuall implement AutoDiffable<(), F, F, (F, F,)> for Monomial
-    impl AutoDiffable<(), F, F, (F, F)> for Monomial<F, f64> {
+    impl AutoDiffable<(), F, F, F, F> for Monomial<F, f64> {
         fn eval(&self, x: &F, _: &()) -> F {
             F(x.0.powf(self.0), x.1.powf(self.0))
         }
-        fn eval_grad(&self, x: &F, _: &()) -> (F, (F, F)) {
+        fn eval_grad(&self, x: &F, dx: &F, _: &()) -> (F, F) {
             let (f0, f1) = (x.0.powf(self.0), x.1.powf(self.0));
             (
                 F(f0, f1),
-                (F(self.0 * f0 / x.0, 0.0), F(0.0, self.0 * f1 / x.1)),
+                F(dx.0 * self.0 * f0 / x.0, dx.1 * self.0 * f1 / x.1),
             )
         }
     }
 
     struct ComposeMonomialSwap(Monomial<F, f64>, Swap);
 
-    impl AutoDiffable<(), F, F, (F, F)> for ComposeMonomialSwap {
+    impl AutoDiffable<(), F, F, F, F> for ComposeMonomialSwap {
         fn eval(&self, x: &F, _: &()) -> F {
             self.0.eval(&self.1.eval(x, &()), &())
         }
-        fn eval_grad(&self, x: &F, _: &()) -> (F, (F, F)) {
-            let (f, (fx, fy)) = self.1.eval_grad(x, &());
-            let (fg, (fgx, fgy)) = self.0.eval_grad(&f, &());
-            let (fxx, fxy) = (fx.0, fx.1);
-            let (fyx, fyy) = (fy.0, fy.1);
-            let (fgxx, fgxy) = (fgx.0, fgx.1);
-            let (fgyx, fgyy) = (fgy.0, fgy.1);
-            // chain rule, elementwise
-            let grad = (
-                F(fgxx * fxx + fgxy * fyx, fgxx * fxy + fgxy * fyy),
-                F(fgyx * fxx + fgyy * fyx, fgyx * fxy + fgyy * fyy),
-            );
-            (fg, grad)
+        fn eval_grad(&self, x: &F, dx: &F, _: &()) -> (F, F) {
+            let (f, df) = self.1.eval_grad(x, dx, &());
+            self.0.eval_grad(&f, &df, &())
         }
     }
 
     impl Compose<Swap> for Monomial<F, f64> {
-        type Output = AutoDiff<(), F, F, (F, F), ComposeMonomialSwap>;
+        type Output = AutoDiff<(), F, F, F, F, ComposeMonomialSwap>;
         fn compose(self, rhs: Swap) -> Self::Output {
             AutoDiff::new(ComposeMonomialSwap(self, rhs))
         }
