@@ -19,7 +19,9 @@ fn test_manual() {
         }
     }
 
-    impl AutoDiffable<(), F, F, F, F> for Swap {
+    impl AutoDiffable<()> for Swap {
+        type Input = F;
+        type Output = F;
         fn eval(&self, x: &F, _: &()) -> F {
             F(x.1, x.0)
         }
@@ -32,7 +34,9 @@ fn test_manual() {
     #[derive(Debug, Clone, Copy)]
     struct AddSwap(Swap, Swap);
 
-    impl AutoDiffable<(), F, F, F, F> for AddSwap {
+    impl AutoDiffable<()> for AddSwap {
+        type Input = F;
+        type Output = F;
         fn eval(&self, x: &F, _: &()) -> F {
             let f0 = self.0.eval(x, &());
             let f1 = self.1.eval(x, &());
@@ -46,15 +50,18 @@ fn test_manual() {
     }
 
     impl Add for Swap {
-        type Output = AutoDiff<(), F, F, F, F, AddSwap>;
+        type Output = AutoDiff<(), AddSwap>;
         fn add(self, rhs: Swap) -> Self::Output {
             AutoDiff::new(AddSwap(self, rhs))
         }
     }
 
     // manuall define composition for Monomial(Swap)
-    // first we have to manuall implement AutoDiffable<(), F, F, (F, F,)> for Monomial
-    impl AutoDiffable<(), F, F, F, F> for Monomial<F, f64> {
+    // first we have to manually implement
+    // AutoDiffable<()> for Monomial
+    impl AutoDiffable<()> for Monomial<F, f64> {
+        type Input = F;
+        type Output = F;
         fn eval(&self, x: &F, _: &()) -> F {
             F(x.0.powf(self.0), x.1.powf(self.0))
         }
@@ -69,7 +76,9 @@ fn test_manual() {
 
     struct ComposeMonomialSwap(Monomial<F, f64>, Swap);
 
-    impl AutoDiffable<(), F, F, F, F> for ComposeMonomialSwap {
+    impl AutoDiffable<()> for ComposeMonomialSwap {
+        type Input = F;
+        type Output = F;
         fn eval(&self, x: &F, _: &()) -> F {
             self.0.eval(&self.1.eval(x, &()), &())
         }
@@ -80,7 +89,7 @@ fn test_manual() {
     }
 
     impl Compose<Swap> for Monomial<F, f64> {
-        type Output = AutoDiff<(), F, F, F, F, ComposeMonomialSwap>;
+        type Output = AutoDiff<(), ComposeMonomialSwap>;
         fn compose(self, rhs: Swap) -> Self::Output {
             AutoDiff::new(ComposeMonomialSwap(self, rhs))
         }

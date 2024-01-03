@@ -12,7 +12,9 @@ fn test_ad_ndarray() {
     #[derive(Clone, Copy)]
     struct Sum1 {}
 
-    impl AutoDiffable<(), Array1<f64>, Scalar<f64>, Scalar<f64>, Array1<f64>> for Sum1 {
+    impl AutoDiffable<()> for Sum1 {
+        type Input = Array1<f64>;
+        type Output = Scalar<f64>;
         fn eval(&self, x: &Array1<f64>, _: &()) -> Scalar<f64> {
             Scalar::new(x.sum())
         }
@@ -30,7 +32,9 @@ fn test_ad_ndarray() {
     #[derive(Clone, Copy)]
     struct Sum2 {}
 
-    impl AutoDiffable<(), Array2<f64>, Scalar<f64>, Scalar<f64>, Array2<f64>> for Sum2 {
+    impl AutoDiffable<()> for Sum2 {
+        type Input = Array2<f64>;
+        type Output = Scalar<f64>;
         fn eval(&self, x: &Array2<f64>, _: &()) -> Scalar<f64> {
             Scalar::new(x.sum())
         }
@@ -52,7 +56,9 @@ fn test_ad_ndarray() {
     // dprod/dx = [[bcd, acd], [abd, abc]]
     // dprod = SUM(dx * prod) = da * bcd + db * acd + dc * abd + dd * abc
 
-    impl AutoDiffable<(), Array2<f64>, Scalar<f64>, Scalar<f64>, Array2<f64>> for Prod2 {
+    impl AutoDiffable<()> for Prod2 {
+        type Input = Array2<f64>;
+        type Output = Scalar<f64>;
         fn eval(&self, x: &Array2<f64>, _: &()) -> Scalar<f64> {
             Scalar::new(x.iter().product())
         }
@@ -80,7 +86,9 @@ fn test_ad_ndarray() {
         n: usize,
     }
 
-    impl AutoDiffable<(), Array1<f64>, Array2<f64>, Array2<f64>, Array1<f64>> for UpcastN {
+    impl AutoDiffable<()> for UpcastN {
+        type Input = Array1<f64>;
+        type Output = Array2<f64>;
         fn eval(&self, x: &Array1<f64>, _: &()) -> Array2<f64> {
             // make a 2D array with n rows all of which are x
             Array2::from_shape_fn((self.n, x.len()), |(_, i)| x[i])
@@ -168,7 +176,9 @@ fn test_ad_ndarray() {
     type SInput = AutoTuple<(Array2<f64>, Array1<f64>)>;
     type SOutput = AutoTuple<(Scalar<f64>,)>;
 
-    impl AutoDiffable<(), SInput, SOutput, SOutput, SInput> for SumAutoTuples {
+    impl AutoDiffable<()> for SumAutoTuples {
+        type Input = SInput;
+        type Output = SOutput;
         fn eval(&self, x: &SInput, _: &()) -> SOutput {
             AutoTuple::new((Scalar::new((**x).0.sum() + (**x).1.sum()),))
         }
@@ -178,8 +188,7 @@ fn test_ad_ndarray() {
         }
     }
 
-    let sum_auto_tuples: AutoDiff<(), SInput, SOutput, SOutput, SInput, SumAutoTuples> =
-        AutoDiff::new(SumAutoTuples {});
+    let sum_auto_tuples: AutoDiff<(), SumAutoTuples> = AutoDiff::new(SumAutoTuples {});
     let a2 = Array2::<f64>::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
     let a1 = Array1::<f64>::from_vec(vec![5.0, 6.0]);
     let x: SInput = AutoTuple::new((a2.clone(), a1.clone()));
@@ -200,7 +209,9 @@ fn test_ad_ndarray() {
     type UInput = AutoTuple<(Array1<f64>,)>;
     type UOutput = AutoTuple<(Array2<f64>, Array1<f64>)>;
 
-    impl AutoDiffable<(), UInput, UOutput, UOutput, UInput> for UpcastAutoTuple {
+    impl AutoDiffable<()> for UpcastAutoTuple {
+        type Input = UInput;
+        type Output = UOutput;
         fn eval(&self, x: &UInput, _: &()) -> UOutput {
             // make square matrix where the rows are x
             let x = (**x).0.clone();
@@ -236,8 +247,7 @@ fn test_ad_ndarray() {
         }
     }
 
-    let upcast_auto_tuple: AutoDiff<(), UInput, UOutput, UOutput, UInput, UpcastAutoTuple> =
-        AutoDiff::new(UpcastAutoTuple {});
+    let upcast_auto_tuple: AutoDiff<(), UpcastAutoTuple> = AutoDiff::new(UpcastAutoTuple {});
 
     let a1 = Array1::<f64>::from_vec(vec![1.0, 2.0, 3.0]);
 

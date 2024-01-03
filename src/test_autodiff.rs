@@ -14,10 +14,10 @@ fn test_all_ops() {
     let dx = 1.0_f64;
 
     let p = AutoDiff::new(Polynomial::new(vec![1.0, 2.0, 3.0]));
-    let q = AutoDiff::new(Monomial::new(5.0));
+    let q = AutoDiff::new(Monomial::<f64, f64>::new(5.0));
 
-    let (p_x, dp_x) = p.eval_grad(&x, &dx, &());
-    let (q_x, dq_x) = q.eval_grad(&x, &dx, &());
+    let (p_x, dp_x): (f64, f64) = p.eval_grad(&x, &dx, &());
+    let (q_x, dq_x): (f64, f64) = q.eval_grad(&x, &dx, &());
 
     // unary ops
     // neg
@@ -34,20 +34,14 @@ fn test_all_ops() {
     );
 
     // binary ops with constants
-    let c = AutoDiff::new(2.0_f64);
-    assert_eq!((p_x + *c, dp_x), (p.clone() + c).eval_grad(&x, &dx, &()));
-    assert_eq!((p_x - *c, dp_x), (p.clone() - c).eval_grad(&x, &dx, &()));
+    let c = 2.0_f64;
+    assert_eq!((p_x + c, dp_x), (p.clone() + c).eval_grad(&x, &dx, &()));
+    assert_eq!((p_x - c, dp_x), (p.clone() - c).eval_grad(&x, &dx, &()));
+    assert_eq!((p_x * c, dp_x * c), (p.clone() * c).eval_grad(&x, &dx, &()));
+    assert_eq!((p_x / c, dp_x / c), (p.clone() / c).eval_grad(&x, &dx, &()));
     assert_eq!(
-        (p_x * *c, dp_x * *c),
-        (p.clone() * c).eval_grad(&x, &dx, &())
-    );
-    assert_eq!(
-        (p_x / *c, dp_x / *c),
-        (p.clone() / c).eval_grad(&x, &dx, &())
-    );
-    assert_eq!(
-        (p_x.pow(*c), *c * p_x * dp_x),
-        (p.clone().pow(*c)).eval_grad(&x, &dx, &())
+        (p_x.pow(c), c * p_x * dp_x),
+        (p.clone().pow(c)).eval_grad(&x, &dx, &())
     );
 
     // binary ops with other functions

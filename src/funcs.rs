@@ -26,7 +26,9 @@ impl<I> Default for Identity<I> {
     }
 }
 
-impl<I: Clone + InstOne> AutoDiffable<(), I, I, I, I> for Identity<I> {
+impl<I: Clone + InstOne> AutoDiffable<()> for Identity<I> {
+    type Input = I;
+    type Output = I;
     fn eval(&self, x: &I, _: &()) -> I {
         x.clone()
     }
@@ -56,7 +58,9 @@ impl<I, O> Constant<I, O> {
     }
 }
 
-impl<I, O: InstOne + InstZero + Clone> AutoDiffable<(), I, O, O, I> for Constant<I, O> {
+impl<I, O: InstOne + InstZero + Clone> AutoDiffable<()> for Constant<I, O> {
+    type Input = I;
+    type Output = O;
     fn eval(&self, _: &I, _: &()) -> O {
         self.0.clone()
     }
@@ -84,12 +88,15 @@ impl<I, O> Polynomial<I, O> {
     }
 }
 
-impl<I, O: InstZero + InstOne> AutoDiffable<(), I, O, O, I> for Polynomial<I, O>
+impl<I, O: InstZero + InstOne> AutoDiffable<()> for Polynomial<I, O>
 where
     for<'b> O: Mul<&'b O, Output = O>,
     for<'b> &'b I: Mul<&'b O, Output = O>,
     for<'b> &'b O: Mul<&'b I, Output = O> + Mul<&'b O, Output = O>,
 {
+    type Input = I;
+    type Output = O;
+
     fn eval(&self, x: &I, _: &()) -> O {
         let mut res = self.0[0].zero();
         let mut x_pow = self.0[0].one();
@@ -146,13 +153,15 @@ impl<I, P> Monomial<I, P> {
     }
 }
 
-impl<I: Clone + InstOne + Pow<P, Output = I> + Mul<I, Output = I>, P: InstOne>
-    AutoDiffable<(), I, I, I, I> for Monomial<I, P>
+impl<I: Clone + InstOne + Pow<P, Output = I> + Mul<I, Output = I>, P: InstOne> AutoDiffable<()>
+    for Monomial<I, P>
 where
     for<'b> I: Mul<&'b I, Output = I> + Mul<&'b P, Output = I> + Pow<&'b P, Output = I>,
     for<'b> &'b I: Mul<&'b I, Output = I>,
     for<'b> &'b P: Sub<&'b P, Output = P> + Sub<P, Output = P>,
 {
+    type Input = I;
+    type Output = I;
     fn eval(&self, x: &I, _: &()) -> I {
         x.clone().pow(&self.0)
     }
@@ -170,10 +179,10 @@ fn test_monomial() {
     // p(2) = 8
     // p'(2) = 12dx
 
-    let x = 2.0;
-    let dx = 1.0;
-    let dx2 = 2.0;
-    let p = AutoDiff::new(Monomial::new(3.0));
+    let x = 2.0_f64;
+    let dx = 1.0_f64;
+    let dx2 = 2.0_f64;
+    let p = AutoDiff::new(Monomial::<f64, f64>::new(3.0));
     assert_eq!(p.eval(&x, &()), 8.0);
     assert_eq!(p.eval_grad(&x, &dx, &()), (8.0, 12.0));
     assert_eq!(p.eval_grad(&x, &dx2, &()), (8.0, 24.0));
