@@ -23,36 +23,6 @@ where
     }
 }
 
-pub trait CustomCompose<A, OutputGradType>
-where
-    Self: Sized,
-{
-    type Output;
-    fn custom_compose(self, _other: A) -> Self::Output;
-
-    /// alias for `custom_compose`
-    fn c_o(self, other: A) -> Self::Output {
-        self.custom_compose(other)
-    }
-    /// alias for `custom_compose`
-    fn c_of(self, other: A) -> Self::Output {
-        self.custom_compose(other)
-    }
-    /// alias for `custom_compose`
-    fn c_after(self, other: A) -> Self::Output {
-        self.custom_compose(other)
-    }
-    /// alias for `custom_compose`
-    fn c_on(self, other: A) -> Self::Output {
-        self.custom_compose(other)
-    }
-
-    /// hack
-    fn _grad_type(self, _a: OutputGradType) {
-        let _ = _a;
-    }
-}
-
 pub trait Abs {
     type Output;
     fn abs(self) -> Self::Output;

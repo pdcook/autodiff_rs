@@ -3,6 +3,72 @@ use crate::traits::{InstOne, InstZero};
 use num::traits::bounds::UpperBounded;
 use num::traits::{Pow, Signed};
 use std::ops::{Add, Div, Mul, Neg, Sub};
+use std::marker::PhantomData;
+
+#[derive(Debug, Clone, Copy)]
+pub struct ADCoerce<A, NewInput, NewOutput>(pub A, pub PhantomData<(NewInput, NewOutput)>);
+
+// coerce A's input and output to match NewInput and NewOutput
+impl<StaticArgs, Input, Output, NewInput, NewOutput, A> AutoDiffable<StaticArgs>
+for ADCoerce<A, NewInput, NewOutput>
+where
+    A: AutoDiffable<StaticArgs, Input = Input, Output = Output>,
+    NewInput: Clone,
+    Input: From<NewInput>,
+    NewOutput: From<Output>,
+{
+    type Input = NewInput;
+    type Output = NewOutput;
+
+    fn eval(&self, x: &Self::Input, static_args: &StaticArgs) -> Self::Output {
+        self.0.eval(&x.clone().into(), static_args).into()
+    }
+
+    fn eval_grad(&self, x: &Self::Input, dx: &Self::Input, static_args: &StaticArgs) -> (Self::Output, Self::Output) {
+        let (f, df) = self.0.eval_grad(&x.clone().into(), &dx.clone().into(), static_args);
+        (f.into(), df.into())
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ADAppendStaticArgs<A, NewStaticArgs>(pub A, pub PhantomData<NewStaticArgs>);
+
+impl<StaticArgs, NewStaticArgs, Input, Output, A> AutoDiffable<(StaticArgs, NewStaticArgs)>
+for ADAppendStaticArgs<A, NewStaticArgs>
+where
+    A: AutoDiffable<StaticArgs, Input = Input, Output = Output>,
+{
+    type Input = Input;
+    type Output = Output;
+
+    fn eval(&self, x: &Self::Input, static_args: &(StaticArgs, NewStaticArgs)) -> Self::Output {
+        self.0.eval(x, &static_args.0)
+    }
+
+    fn eval_grad(&self, x: &Self::Input, dx: &Self::Input, static_args: &(StaticArgs, NewStaticArgs)) -> (Self::Output, Self::Output) {
+        self.0.eval_grad(x, dx, &static_args.0)
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ADPrependStaticArgs<A, NewStaticArgs>(pub A, pub PhantomData<NewStaticArgs>);
+
+impl<StaticArgs, NewStaticArgs, Input, Output, A> AutoDiffable<(NewStaticArgs, StaticArgs)>
+for ADPrependStaticArgs<A, NewStaticArgs>
+where
+    A: AutoDiffable<StaticArgs, Input = Input, Output = Output>,
+{
+    type Input = Input;
+    type Output = Output;
+
+    fn eval(&self, x: &Self::Input, static_args: &(NewStaticArgs, StaticArgs)) -> Self::Output {
+        self.0.eval(x, &static_args.1)
+    }
+
+    fn eval_grad(&self, x: &Self::Input, dx: &Self::Input, static_args: &(NewStaticArgs, StaticArgs)) -> (Self::Output, Self::Output) {
+        self.0.eval_grad(x, dx, &static_args.1)
+    }
+}
 
 #[derive(Debug, Clone, Copy)]
 pub struct ADAdd<A, B>(pub A, pub B);

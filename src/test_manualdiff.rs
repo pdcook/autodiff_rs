@@ -59,7 +59,7 @@ fn test_manual() {
     // manuall define composition for Monomial(Swap)
     // first we have to manually implement
     // AutoDiffable<()> for Monomial
-    impl AutoDiffable<()> for Monomial<F, f64> {
+    impl AutoDiffable<()> for Monomial<(), F, f64> {
         type Input = F;
         type Output = F;
         fn eval(&self, x: &F, _: &()) -> F {
@@ -74,7 +74,7 @@ fn test_manual() {
         }
     }
 
-    struct ComposeMonomialSwap(Monomial<F, f64>, Swap);
+    struct ComposeMonomialSwap(Monomial<(), F, f64>, Swap);
 
     impl AutoDiffable<()> for ComposeMonomialSwap {
         type Input = F;
@@ -88,7 +88,7 @@ fn test_manual() {
         }
     }
 
-    impl Compose<Swap> for Monomial<F, f64> {
+    impl Compose<Swap> for Monomial<(), F, f64> {
         type Output = AutoDiff<(), ComposeMonomialSwap>;
         fn compose(self, rhs: Swap) -> Self::Output {
             AutoDiff::new(ComposeMonomialSwap(self, rhs))

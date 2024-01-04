@@ -25,15 +25,36 @@ impl<StaticArgs, T> AutoDiff<StaticArgs, T> {
     pub fn new(t: T) -> Self {
         AutoDiff(t, PhantomData)
     }
+
+    pub fn coerce<NewInputType, NewOutputType>(
+        self,
+    ) -> AutoDiff<StaticArgs, ADCoerce<T, NewInputType, NewOutputType>>
+    {
+        AutoDiff(ADCoerce(self.0, PhantomData), PhantomData)
+    }
+
+    pub fn append_static_args<NewStaticArgs>(
+        self,
+    ) -> AutoDiff<(StaticArgs, NewStaticArgs), ADAppendStaticArgs<T, NewStaticArgs>>
+    {
+        AutoDiff(ADAppendStaticArgs(self.0, PhantomData), PhantomData)
+    }
+
+    pub fn prepend_static_args<NewStaticArgs>(
+        self,
+    ) -> AutoDiff<(NewStaticArgs, StaticArgs), ADPrependStaticArgs<T, NewStaticArgs>>
+    {
+        AutoDiff(ADPrependStaticArgs(self.0, PhantomData), PhantomData)
+    }
 }
 
 /// Impl of AutoDiffable for AutoDiff
-impl<StaticArgs, Input, Output, T> AutoDiffable<StaticArgs> for AutoDiff<StaticArgs, T>
+impl<StaticArgs, T> AutoDiffable<StaticArgs> for AutoDiff<StaticArgs, T>
 where
-    T: AutoDiffable<StaticArgs, Input = Input, Output = Output>,
+    T: AutoDiffable<StaticArgs>,
 {
-    type Input = Input;
-    type Output = Output;
+    type Input = <T as AutoDiffable<StaticArgs>>::Input;
+    type Output = <T as AutoDiffable<StaticArgs>>::Output;
     fn eval(&self, x: &Self::Input, static_args: &StaticArgs) -> Self::Output {
         self.0.eval(x, static_args)
     }

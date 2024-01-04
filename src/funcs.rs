@@ -10,30 +10,30 @@ use std::ops::{Mul, Sub};
 use crate::autodiff::AutoDiff;
 
 #[derive(Debug, Clone)]
-pub struct Identity<I>(pub PhantomData<I>);
+pub struct Identity<S, I>(pub PhantomData<(S, I)>);
 
-impl<I: Clone> Copy for Identity<I> {}
+impl<S: Clone, I: Clone> Copy for Identity<S, I> {}
 
-impl<I> Identity<I> {
+impl<S, I> Identity<S, I> {
     pub fn new() -> Self {
         Identity(PhantomData)
     }
 }
 
-impl<I> Default for Identity<I> {
+impl<S, I> Default for Identity<S, I> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<I: Clone + InstOne> AutoDiffable<()> for Identity<I> {
+impl<S, I: Clone + InstOne> AutoDiffable<S> for Identity<S, I> {
     type Input = I;
     type Output = I;
-    fn eval(&self, x: &I, _: &()) -> I {
+    fn eval(&self, x: &I, _: &S) -> I {
         x.clone()
     }
 
-    fn eval_grad(&self, x: &I, dx: &I, s: &()) -> (I, I) {
+    fn eval_grad(&self, x: &I, dx: &I, s: &S) -> (I, I) {
         (self.eval(x, s), dx.clone())
     }
 }
@@ -48,24 +48,24 @@ fn test_identity() {
 }
 
 #[derive(Debug, Clone)]
-pub struct Constant<I, O>(pub O, pub PhantomData<I>);
+pub struct Constant<S, I, O>(pub O, pub PhantomData<(S, I)>);
 
-impl<I: Clone, O: Copy> Copy for Constant<I, O> {}
+impl<S: Clone, I: Clone, O: Copy> Copy for Constant<S, I, O> {}
 
-impl<I, O> Constant<I, O> {
+impl<S, I, O> Constant<S, I, O> {
     pub fn new(x: O) -> Self {
         Constant(x, PhantomData)
     }
 }
 
-impl<I, O: InstOne + InstZero + Clone> AutoDiffable<()> for Constant<I, O> {
+impl<S, I, O: InstOne + InstZero + Clone> AutoDiffable<S> for Constant<S, I, O> {
     type Input = I;
     type Output = O;
-    fn eval(&self, _: &I, _: &()) -> O {
+    fn eval(&self, _: &I, _: &S) -> O {
         self.0.clone()
     }
 
-    fn eval_grad(&self, x: &I, _: &I, s: &()) -> (O, O) {
+    fn eval_grad(&self, x: &I, _: &I, s: &S) -> (O, O) {
         (self.eval(x, s), self.0.zero())
     }
 }
@@ -80,15 +80,15 @@ fn test_constant() {
 }
 
 #[derive(Debug, Clone)]
-pub struct Polynomial<I, O>(pub Vec<O>, pub PhantomData<I>);
+pub struct Polynomial<S, I, O>(pub Vec<O>, pub PhantomData<(S, I)>);
 
-impl<I, O> Polynomial<I, O> {
+impl<S, I, O> Polynomial<S, I, O> {
     pub fn new(coeffs: Vec<O>) -> Self {
         Polynomial(coeffs, PhantomData)
     }
 }
 
-impl<I, O: InstZero + InstOne> AutoDiffable<()> for Polynomial<I, O>
+impl<S, I, O: InstZero + InstOne> AutoDiffable<S> for Polynomial<S, I, O>
 where
     for<'b> O: Mul<&'b O, Output = O>,
     for<'b> &'b I: Mul<&'b O, Output = O>,
@@ -97,7 +97,7 @@ where
     type Input = I;
     type Output = O;
 
-    fn eval(&self, x: &I, _: &()) -> O {
+    fn eval(&self, x: &I, _: &S) -> O {
         let mut res = self.0[0].zero();
         let mut x_pow = self.0[0].one();
         for c in &self.0 {
@@ -107,7 +107,7 @@ where
         res
     }
 
-    fn eval_grad(&self, x: &I, dx: &I, _: &()) -> (O, O) {
+    fn eval_grad(&self, x: &I, dx: &I, _: &S) -> (O, O) {
         let mut res = self.0[0].zero();
         let mut grad = self.0[0].zero();
         let mut x_pow = self.0[0].one();
@@ -143,18 +143,18 @@ fn test_polynomial() {
 }
 
 #[derive(Debug, Clone)]
-pub struct Monomial<I, P>(pub P, pub PhantomData<I>);
+pub struct Monomial<S, I, P>(pub P, pub PhantomData<(S, I)>);
 
-impl<I: Clone, P: Copy> Copy for Monomial<I, P> {}
+impl<S: Clone, I: Clone, P: Copy> Copy for Monomial<S, I, P> {}
 
-impl<I, P> Monomial<I, P> {
+impl<S, I, P> Monomial<S, I, P> {
     pub fn new(p: P) -> Self {
         Monomial(p, PhantomData)
     }
 }
 
-impl<I: Clone + InstOne + Pow<P, Output = I> + Mul<I, Output = I>, P: InstOne> AutoDiffable<()>
-    for Monomial<I, P>
+impl<S, I: Clone + InstOne + Pow<P, Output = I> + Mul<I, Output = I>, P: InstOne> AutoDiffable<S>
+    for Monomial<S, I, P>
 where
     for<'b> I: Mul<&'b I, Output = I> + Mul<&'b P, Output = I> + Pow<&'b P, Output = I>,
     for<'b> &'b I: Mul<&'b I, Output = I>,
@@ -162,11 +162,11 @@ where
 {
     type Input = I;
     type Output = I;
-    fn eval(&self, x: &I, _: &()) -> I {
+    fn eval(&self, x: &I, _: &S) -> I {
         x.clone().pow(&self.0)
     }
 
-    fn eval_grad(&self, x: &I, dx: &I, _: &()) -> (I, I) {
+    fn eval_grad(&self, x: &I, dx: &I, _: &S) -> (I, I) {
         let x_pow = x.clone().pow(&self.0 - self.0.one());
         (&x_pow * x, x_pow * &self.0 * dx)
     }
@@ -182,7 +182,7 @@ fn test_monomial() {
     let x = 2.0_f64;
     let dx = 1.0_f64;
     let dx2 = 2.0_f64;
-    let p = AutoDiff::new(Monomial::<f64, f64>::new(3.0));
+    let p = AutoDiff::new(Monomial::<(), f64, f64>::new(3.0));
     assert_eq!(p.eval(&x, &()), 8.0);
     assert_eq!(p.eval_grad(&x, &dx, &()), (8.0, 12.0));
     assert_eq!(p.eval_grad(&x, &dx2, &()), (8.0, 24.0));

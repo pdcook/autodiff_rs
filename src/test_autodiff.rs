@@ -14,7 +14,7 @@ fn test_all_ops() {
     let dx = 1.0_f64;
 
     let p = AutoDiff::new(Polynomial::new(vec![1.0, 2.0, 3.0]));
-    let q = AutoDiff::new(Monomial::<f64, f64>::new(5.0));
+    let q = AutoDiff::new(Monomial::<(), f64, f64>::new(5.0));
 
     let (p_x, dp_x): (f64, f64) = p.eval_grad(&x, &dx, &());
     let (q_x, dq_x): (f64, f64) = q.eval_grad(&x, &dx, &());
@@ -93,4 +93,32 @@ fn test_all_ops() {
     let (p_w, dp_w) = p.eval_grad(&w, &dw, &());
 
     assert_eq!((p_w, dp_w), (p_x, dp_x));
+
+    // test special operations
+    let p_i32: AutoDiff<(), Polynomial<(), i32, i32>> = AutoDiff::new(Polynomial::<(), i32, i32>::new(vec![1i32, 2i32, 3i32]));
+    let p_i32_coerced = p.clone().coerce::<i32, f64>();
+
+    let x_i32 = 2i32;
+    let dx_i32 = 1i32;
+
+    let (p_i32_x, dp_i32_x): (i32, i32) = p_i32.eval_grad(&x_i32, &dx_i32, &());
+    let (p_i32_coerced_x, dp_i32_coerced_x): (f64, f64) = p_i32_coerced.eval_grad(&x_i32, &dx_i32, &());
+
+    assert_eq!((p_i32_x as f64, dp_i32_x as f64), (p_i32_coerced_x, dp_i32_coerced_x));
+
+    let s1 = 0_usize;
+    let s2 = 0.0_f32;
+
+    let p_static_1: AutoDiff<usize, Polynomial<usize, f64, f64>> = AutoDiff::new(Polynomial::<usize, f64, f64>::new(vec![1.0, 2.0, 3.0]));
+    let p_static_2: AutoDiff<f32, Polynomial<f32, f64, f64>> = AutoDiff::new(Polynomial::<f32, f64, f64>::new(vec![1.0, 2.0, 3.0]));
+
+    let p1_compat = p_static_1.clone().append_static_args::<f32>();
+    let p2_compat = p_static_2.clone().prepend_static_args::<usize>();
+    let p1_p2 = p1_compat.clone() + p2_compat.clone();
+
+    let (p1_x, dp1_x): (f64, f64) = p_static_1.eval_grad(&x, &dx, &s1);
+    let (p2_x, dp2_x): (f64, f64) = p_static_2.eval_grad(&x, &dx, &s2);
+    let (p1_p2_x, dp1_p2_x): (f64, f64) = p1_p2.eval_grad(&x, &dx, &(s1, s2));
+
+    assert_eq!((p1_x + p2_x, dp1_x + dp2_x), (p1_p2_x, dp1_p2_x));
 }
