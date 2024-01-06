@@ -13,6 +13,7 @@ name = "autodiff"
 ndarray = { version = "0.15.6", optional = true }
 num = "0.4.1"
 paste = "1.0.14"
+forwarddiffable_derive = { version = "0.1.0", path = "./forwarddiffable_derive" }
 
 [features]
 ndarray = ["dep:ndarray"]

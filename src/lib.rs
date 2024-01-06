@@ -5,6 +5,8 @@ pub mod autotuple;
 pub mod func_traits;
 pub mod funcs;
 pub mod traits;
+pub mod forward;
+pub mod gradienttype;
 
 #[cfg(feature = "ndarray")]
 pub mod ad_ndarray;
