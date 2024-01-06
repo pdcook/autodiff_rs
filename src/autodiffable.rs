@@ -1,13 +1,8 @@
-use crate::forward::ForwardMul;
 use crate::gradienttype::GradientType;
-use std::ops::Mul;
 
 pub trait AutoDiffable<StaticArgs> {
     type Input: GradientType<Self::Output>;
     type Output;
-    /// Evaluate the function for a given input and static arguments.
-    /// Returns `f(x, static_args): Self::Output`
-    fn eval(&self, x: &Self::Input, static_args: &StaticArgs) -> Self::Output;
     /// Evaluate the function and its gradient for a given input and static arguments.
     /// Returns `(f(x, static_args): Self::Output, df/dx(x, static_args): <Self::Input as GradientType<Self::Output>>::GradientType)`
     fn eval_grad(
@@ -16,13 +11,23 @@ pub trait AutoDiffable<StaticArgs> {
         static_args: &StaticArgs,
     ) -> (Self::Output, <Self::Input as GradientType<Self::Output>>::GradientType);
 
+    /// Evaluate the function for a given input and static arguments.
+    /// Returns `f(x, static_args): Self::Output`
+    fn eval(&self, x: &Self::Input, static_args: &StaticArgs) -> Self::Output
+    {
+        self.eval_grad(x, static_args).0
+    }
+
     /// Evaluate the gradient for a given input and static arguments.
     fn grad(&self, x: &Self::Input, static_args: &StaticArgs) -> <Self::Input as GradientType<Self::Output>>::GradientType {
         self.eval_grad(x, static_args).1
     }
 }
 
-pub trait ForwardDiffable<StaticArgs>: AutoDiffable<StaticArgs> {
+pub trait ForwardDiffable<StaticArgs> {
+    type Input;
+    type Output;
+
     /// Evaluate the function and its gradient in forward mode for a given input `x`, derivative `dx`, and static arguments
     /// Returns `(f(x, static_args): Self::Output, df(x, dx, static_args): Self::Output)`
     /// By default, `df = df/dx * dx`. However, this can be overridden in cases where this equality
@@ -33,18 +38,23 @@ pub trait ForwardDiffable<StaticArgs>: AutoDiffable<StaticArgs> {
     /// eval_forward_grad implementation.
     fn eval_forward_grad(
         &self,
-        x: &<Self as AutoDiffable<StaticArgs>>::Input,
-        dx: &<Self as AutoDiffable<StaticArgs>>::Input,
+        x: &Self::Input,
+        dx: &Self::Input,
         static_args: &StaticArgs,
-    ) -> (<Self as AutoDiffable<StaticArgs>>::Output, <Self as AutoDiffable<StaticArgs>>::Output);
+    ) -> (Self::Output, Self::Output);
+
+    /// Evaluate the function for a given input `x` and static arguments
+    fn eval_forward(&self, x: &Self::Input, static_args: &StaticArgs) -> Self::Output {
+        self.eval_forward_grad(x, x, static_args).0
+    }
 
     /// Evaluate the gradient in forward mode for a given input `x`, derivative `dx`, and static arguments
     fn forward_grad(
         &self,
-        x: &<Self as AutoDiffable<StaticArgs>>::Input,
-        dx: &<Self as AutoDiffable<StaticArgs>>::Input,
+        x: &Self::Input,
+        dx: &Self::Input,
         static_args: &StaticArgs,
-    ) -> <Self as AutoDiffable<StaticArgs>>::Output {
+    ) -> Self::Output {
         self.eval_forward_grad(x, dx, static_args).1
     }
 }

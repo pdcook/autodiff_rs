@@ -71,6 +71,23 @@ where
     }
 }
 
+/// Impl of ForwardDiffable for AutoDiff
+impl<StaticArgs, Input, Output, T> ForwardDiffable<StaticArgs> for AutoDiff<StaticArgs, T>
+where
+    T: ForwardDiffable<StaticArgs, Input = Input, Output = Output>,
+{
+    type Input = Input;
+    type Output = Output;
+
+    fn eval_forward(&self, x: &Self::Input, static_args: &StaticArgs) -> Self::Output {
+        self.0.eval_forward(x, static_args)
+    }
+
+    fn eval_forward_grad(&self, x: &Self::Input, dx: &Self::Input, static_args: &StaticArgs) -> (Self::Output, Self::Output) {
+        self.0.eval_forward_grad(x, dx, static_args)
+    }
+}
+
 /// Impl of Deref for AutoDiff
 impl<StaticArgs, T> Deref for AutoDiff<StaticArgs, T> {
     type Target = T;
@@ -207,7 +224,7 @@ where
     Inner: AutoDiffable<StaticArgs, Input = InnerInput, Output = InnerOutput>,
     OuterInput: From<InnerOutput> + GradientType<OuterOutput, GradientType = OuterGrad>,
     InnerInput: GradientType<InnerOutput, GradientType = InnerGrad> + GradientType<OuterOutput, GradientType = Grad>,
-    OuterGrad: ForwardMul<InnerInput, OuterOutput, InnerGrad>
+    OuterGrad: ForwardMul<OuterInput, OuterOutput, InnerGrad, ResultGrad = Grad>
 {
     type Output = AutoDiff<StaticArgs, ADCompose<Outer, Inner>>;
 

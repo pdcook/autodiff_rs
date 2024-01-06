@@ -2,34 +2,44 @@ use std::ops::Mul;
 use crate::gradienttype::GradientType;
 
 /// Multiplication used for df/dx * dx -> df
-/// Types:
-/// `x: Input`
-/// `f(x): Output`
-/// `dx: Grad`
+/// s:
+/// `x: SelfInput`
+/// `f(x): SelfOutput`
+/// `df/dx(x): Self`
+/// `dx: OtherGrad`
+/// `df: Result`
 ///
 /// This is also the multiplication used in the chain rule
-/// `d/dx f(g(x)) = df/dx(g(x)).forward_mul<x's type, f(x)'s type, dg's type>(dg/dx(x))`
+/// `df(g(x)) = df/dg(g(x)).forward_mul<x's type, f(x)'s type, dg's type>(dg/dx(x))`
 /// where
-/// `x: Input`,
-/// `f(x): Output`,
-/// `dg/dx(x): Grad`
-pub trait ForwardMul<InputType, OutputType, GradType>
-where InputType: GradientType<OutputType>,
+/// `x: SelfInput`,
+/// `f(g(x)): SelfOutput`,
+/// `df/dg(g(x)): Self`,
+/// `dg/dx(x)*dx: OtherGrad`
+/// `df(x): Result`
+pub trait ForwardMul<SelfInput, SelfOutput, OtherGrad>
+where
+    SelfInput: GradientType<SelfOutput>,
 {
-    fn forward_mul(self, _other: GradType) -> <InputType as GradientType<OutputType>>::GradientType;
+    type ResultGrad;
+
+    fn forward_mul(self, other: &OtherGrad) -> Self::ResultGrad;
 }
 
 // impl forward mul for all simple types that implement Mul
-// simple types are those such that <InputType as GradientType<OutputType>>::GradientType = OutputType
-impl<T, InputType, OutputType, GradType> ForwardMul<InputType, OutputType, GradType> for T
+// simple types are those such that <Input as GradientType<Output>>::GradientType = T
+// and T * OtherGrad = Output
+impl<T, SelfInput, SelfOutput, OtherGrad> ForwardMul<SelfInput, SelfOutput, OtherGrad> for T
 where
-    InputType: GradientType<OutputType, GradientType = OutputType>,
-    T: Mul<GradType, Output = OutputType>,
+    SelfInput: GradientType<SelfOutput, GradientType = T>,
+    for<'a> T: Mul<&'a OtherGrad, Output = SelfOutput>,
 {
+    type ResultGrad = SelfOutput;
+
     fn forward_mul(
         self,
-        other: GradType,
-    ) ->  OutputType {
+        other: &OtherGrad,
+    ) ->  Self::ResultGrad {
         self * other
     }
 }

@@ -11,20 +11,22 @@ use syn::{parse_macro_input, parse_quote, DeriveInput, WhereClause, Generics};
 ///
 /// ```rust
 ///
-/// impl<__PROC_MACRO_S, __PROC_MACRO_I, __PROC_MACRO_O> autodiff::autodiffable::ForwardDiffable<__PROC_MACRO_S> for T
+/// impl<S, SelfInput, SelfOutput, SelfGradient> autodiff::autodiffable::ForwardDiffable<S> for T
 /// where
-///     Self: autodiff::autodiffable::AutoDiffable<__PROC_MACRO_S, Input = __PROC_MACRO_I, Output = __PROC_MACRO_O>,
-///     __PROC_MACRO_I: Clone + autodiff::gradienttype::GradientType<__PROC_MACRO_O, GradientType = __PROC_MACRO_O>,
-///     __PROC_MACRO_O: autodiff::forward::ForwardMul<__PROC_MACRO_I, __PROC_MACRO_O, __PROC_MACRO_I>,
+///     Self: autodiff::autodiffable::AutoDiffable<S, Input = SelfInput, Output = SelfOutput>,
+///     SelfInput: autodiff::gradienttype::GradientType<SelfOutput, GradientType = SelfGradient>,
+///     SelfGradient: autodiff::forward::ForwardMul<SelfInput, SelfOutput, SelfInput, ResultGrad = SelfOutput>,
 /// {
+///     type Input = SelfInput;
+///     type Output = SelfOutput;
 ///     fn eval_forward_grad(
 ///         &self,
-///         x: &__PROC_MACRO_I,
-///         dx: &__PROC_MACRO_I,
-///         s: &__PROC_MACRO_S,
-///     ) -> (__PROC_MACRO_O, __PROC_MACRO_O) {
+///         x: &Self::Input,
+///         dx: &Self::Input,
+///         s: &S,
+///     ) -> (Self::Output, Self::Output) {
 ///         let (f, df) = self.eval_grad(x, s);
-///         (f, df.forward_mul(dx.clone()))
+///         (f, df.forward_mul(dx))
 ///     }
 ///
 /// }
@@ -32,9 +34,8 @@ use syn::{parse_macro_input, parse_quote, DeriveInput, WhereClause, Generics};
 ///
 /// This will only work if:
 /// - the struct is AutoDiffable
-/// - the struct's AutoDiffable function's output type and gradient type are equal
-/// - the input type is Clone and GradientType<OutputType, GradientType = OutputType>
-/// - the output type is ForwardMul<InputType, OutputType, InputType>
+/// - the input type is GradientType<OutputType>
+/// - the output type is ForwardMul<InputType, OutputType, InputType, ResultGrad = OutputType>
 ///
 #[proc_macro_derive(SimpleForwardDiffable)]
 pub fn simple_forward_diffable(input: TokenStream) -> TokenStream {
@@ -61,6 +62,8 @@ pub fn simple_forward_diffable(input: TokenStream) -> TokenStream {
 
     let expanded = quote! {
         impl #impl_generics autodiff::autodiffable::ForwardDiffable<__PROC_MACRO_S> for #name #orig_ty_generics #where_clause {
+            type Input = __PROC_MACRO_I;
+            type Output = __PROC_MACRO_O;
             fn eval_forward_grad(
                 &self,
                 x: &__PROC_MACRO_I,
@@ -68,7 +71,7 @@ pub fn simple_forward_diffable(input: TokenStream) -> TokenStream {
                 s: &__PROC_MACRO_S,
             ) -> (__PROC_MACRO_O, __PROC_MACRO_O) {
                 let (f, df) = self.eval_grad(x, s);
-                (f, df.forward_mul(dx.clone()))
+                (f, df.forward_mul(dx))
             }
         }
     };
@@ -80,14 +83,15 @@ fn add_generics(mut generics: Generics) -> Generics {
     generics.params.push(parse_quote!(__PROC_MACRO_S));
     generics.params.push(parse_quote!(__PROC_MACRO_I));
     generics.params.push(parse_quote!(__PROC_MACRO_O));
+    generics.params.push(parse_quote!(__PROC_MACRO_G));
 
     generics
 }
 
 fn add_bounds(mut where_clause: WhereClause) -> WhereClause {
     where_clause.predicates.push(parse_quote!(Self: autodiff::autodiffable::AutoDiffable<__PROC_MACRO_S, Input = __PROC_MACRO_I, Output = __PROC_MACRO_O>));
-    where_clause.predicates.push(parse_quote!(__PROC_MACRO_I: Clone + autodiff::gradienttype::GradientType<__PROC_MACRO_O, GradientType = __PROC_MACRO_O>));
-    where_clause.predicates.push(parse_quote!(__PROC_MACRO_O: std::ops::Mul<__PROC_MACRO_I, Output = __PROC_MACRO_O> + autodiff::forward::ForwardMul<__PROC_MACRO_I, __PROC_MACRO_O, __PROC_MACRO_I>));
+    where_clause.predicates.push(parse_quote!(__PROC_MACRO_I: autodiff::gradienttype::GradientType<__PROC_MACRO_O, GradientType = __PROC_MACRO_G>));
+    where_clause.predicates.push(parse_quote!(__PROC_MACRO_G: autodiff::forward::ForwardMul<__PROC_MACRO_I, __PROC_MACRO_O, __PROC_MACRO_I, ResultGrad = __PROC_MACRO_O>));
 
     where_clause
 }

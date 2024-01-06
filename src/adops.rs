@@ -7,9 +7,6 @@ use std::marker::PhantomData;
 use crate::forward::ForwardMul;
 use crate::gradienttype::GradientType;
 
-use crate as autodiff;
-use forwarddiffable_derive::SimpleForwardDiffable;
-
 #[derive(Debug, Clone, Copy)]
 pub struct ADCoerce<A, NewInput, NewOutput>(pub A, pub PhantomData<(NewInput, NewOutput)>);
 
@@ -38,23 +35,23 @@ where
 }
 
 // impl ForwardDiffable for ADCoerce<A, NewInput, NewOutput>
-impl<StaticArgs, Input, Output, Grad, NewInput, NewOutput, NewGradient, A> ForwardDiffable<StaticArgs> for ADCoerce<A, NewInput, NewOutput>
+impl<StaticArgs, Input, Output, NewInput, NewOutput, A> ForwardDiffable<StaticArgs> for ADCoerce<A, NewInput, NewOutput>
 where
-    A: ForwardDiffable<StaticArgs>,
-    A: AutoDiffable<StaticArgs, Input = Input, Output = Output>,
-    Input: GradientType<Output, GradientType = Grad>,
-    NewInput: Clone + GradientType<NewOutput, GradientType = NewGradient>,
+    A: ForwardDiffable<StaticArgs, Input = Input, Output = Output>,
+    NewInput: Clone,
     Input: From<NewInput>,
     NewOutput: From<Output>,
-    NewGradient: From<Grad>,
 {
-    fn eval_forward_grad(&self, x: &Self::Input, dx: &Self::Input, static_args: &StaticArgs) -> (NewOutput, NewOutput) {
+    type Input = NewInput;
+    type Output = NewOutput;
+
+    fn eval_forward_grad(&self, x: &Self::Input, dx: &Self::Input, static_args: &StaticArgs) -> (Self::Output, Self::Output) {
         let (f, df) = self.0.eval_forward_grad(&x.clone().into(), &dx.clone().into(), static_args);
         (f.into(), df.into())
     }
 }
 
-#[derive(Debug, Clone, Copy, SimpleForwardDiffable)]
+#[derive(Debug, Clone, Copy)]
 pub struct ADAppendStaticArgs<A, NewStaticArgs>(pub A, pub PhantomData<NewStaticArgs>);
 
 impl<StaticArgs, NewStaticArgs, Input, Output, Gradient, A> AutoDiffable<(StaticArgs, NewStaticArgs)>
@@ -75,7 +72,19 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy, SimpleForwardDiffable)]
+impl<StaticArgs, NewStaticArgs, Input, Output, A> ForwardDiffable<(StaticArgs, NewStaticArgs)>
+for ADAppendStaticArgs<A, NewStaticArgs>
+where
+    A: ForwardDiffable<StaticArgs, Input = Input, Output = Output>,
+{
+    type Input = Input;
+    type Output = Output;
+    fn eval_forward_grad(&self, x: &Self::Input, dx: &Self::Input, static_args: &(StaticArgs, NewStaticArgs)) -> (Self::Output, Self::Output) {
+        self.0.eval_forward_grad(x, dx, &static_args.0)
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
 pub struct ADPrependStaticArgs<A, NewStaticArgs>(pub A, pub PhantomData<NewStaticArgs>);
 
 impl<StaticArgs, NewStaticArgs, Input, Output, Gradient, A> AutoDiffable<(NewStaticArgs, StaticArgs)>
@@ -96,7 +105,20 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy, SimpleForwardDiffable)]
+impl<StaticArgs, NewStaticArgs, Input, Output, A> ForwardDiffable<(NewStaticArgs, StaticArgs)>
+for ADPrependStaticArgs<A, NewStaticArgs>
+where
+    A: ForwardDiffable<StaticArgs, Input = Input, Output = Output>,
+{
+    type Input = Input;
+    type Output = Output;
+
+    fn eval_forward_grad(&self, x: &Self::Input, dx: &Self::Input, static_args: &(NewStaticArgs, StaticArgs)) -> (Self::Output, Self::Output) {
+        self.0.eval_forward_grad(x, dx, &static_args.1)
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
 pub struct ADAdd<A, B>(pub A, pub B);
 
 impl<StaticArgs, Input, AOutput, BOutput, AGrad, BGrad, Output, Grad, A, B> AutoDiffable<StaticArgs> for ADAdd<A, B>
@@ -129,7 +151,24 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy, SimpleForwardDiffable)]
+impl<StaticArgs, Input, AOutput, BOutput, Output, A, B> ForwardDiffable<StaticArgs> for ADAdd<A, B>
+where
+    A: ForwardDiffable<StaticArgs, Input = Input, Output = AOutput>,
+    B: ForwardDiffable<StaticArgs, Input = Input, Output = BOutput>,
+    AOutput: Add<BOutput, Output = Output>,
+{
+    type Input = Input;
+    type Output = Output;
+
+    fn eval_forward_grad(&self, x: &Self::Input, dx: &Self::Input, static_args: &StaticArgs) -> (Self::Output, Self::Output) {
+        let (f, df) = self.0.eval_forward_grad(x, dx, static_args);
+        let (g, dg) = self.1.eval_forward_grad(x, dx, static_args);
+
+        (f.add(g), df.add(dg))
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
 pub struct ADSub<A, B>(pub A, pub B);
 
 impl<StaticArgs, Input, AOutput, BOutput, AGrad, BGrad, Output, Grad, A, B> AutoDiffable<StaticArgs> for ADSub<A, B>
@@ -162,7 +201,23 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy, SimpleForwardDiffable)]
+impl<StaticArgs, Input, AOutput, BOutput, Output, A, B> ForwardDiffable<StaticArgs> for ADSub<A, B>
+where
+    A: ForwardDiffable<StaticArgs, Input = Input, Output = AOutput>,
+    B: ForwardDiffable<StaticArgs, Input = Input, Output = BOutput>,
+    AOutput: Sub<BOutput, Output = Output>,
+{
+    type Input = Input;
+    type Output = Output;
+    fn eval_forward_grad(&self, x: &Self::Input, dx: &Self::Input, static_args: &StaticArgs) -> (Self::Output, Self::Output) {
+        let (f, df) = self.0.eval_forward_grad(x, dx, static_args);
+        let (g, dg) = self.1.eval_forward_grad(x, dx, static_args);
+
+        (f.sub(g), df.sub(dg))
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
 pub struct ADMul<A, B>(pub A, pub B);
 
 impl<StaticArgs, Input, Output, Grad, AOutput, BOutput, AGrad, BGrad, DAB, ADB, A, B> AutoDiffable<StaticArgs> for ADMul<A, B>
@@ -211,7 +266,35 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy, SimpleForwardDiffable)]
+impl<StaticArgs, Input, Output, AOutput, BOutput, A, B> ForwardDiffable<StaticArgs> for ADMul<A, B>
+where
+    A: ForwardDiffable<StaticArgs, Input = Input, Output = AOutput>,
+    B: ForwardDiffable<StaticArgs, Input = Input, Output = BOutput>,
+    // make sure A and B are both Clone
+    AOutput: Clone,
+    BOutput: Clone,
+    // make sure A * B is defined and Output = Output
+    AOutput: Mul<BOutput, Output = Output>,
+    // make sure A * B + B * A is defined and Output = Output
+    Output: Add<Output, Output = Output>,
+{
+    type Input = Input;
+    type Output = Output;
+    fn eval_forward_grad(&self, x: &Self::Input, dx: &Self::Input, static_args: &StaticArgs) -> (Self::Output, Self::Output) {
+        let (f, df) = self.0.eval_forward_grad(x, dx, static_args);
+        let (g, dg) = self.1.eval_forward_grad(x, dx, static_args);
+
+        // f * g : AOutput: Mul<BOutput, Output = Output>
+        //
+        // df * g : AGrad: Mul<BOutput, Output = DAB>
+        // f * dg : BGrad: Mul<AOutput, Output = ADB>
+        // df * g + f * dg : DAB: Add<ADB, Output = Grad>
+
+        (f.clone().mul(g.clone()), df.mul(g).add(f.mul(dg)))
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
 pub struct ADDiv<A, B>(pub A, pub B);
 
 impl<StaticArgs, Input, Output, Grad, AOutput, BOutput, AGrad, BGrad, BB, ADB, DAOVB, ADBOVBB, A, B> AutoDiffable<StaticArgs>
@@ -265,7 +348,43 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy, SimpleForwardDiffable)]
+impl<StaticArgs, Input, Output, AOutput, BOutput, BB, AB, ABOVBB, A, B> ForwardDiffable<StaticArgs>
+    for ADDiv<A, B>
+where
+    A: ForwardDiffable<StaticArgs, Input = Input, Output = AOutput>,
+    B: ForwardDiffable<StaticArgs, Input = Input, Output = BOutput>,
+    // ensure f and g are both Clone
+    AOutput: Clone,
+    BOutput: Clone,
+    // ensure A/B is defined and Output = Output
+    // ensure dA/B is defined (df/g)
+    AOutput: Div<BOutput, Output = Output>,
+    // ensure B^2 is defined
+    BOutput: Mul<BOutput, Output = BB>,
+    // ensure A*dB is defined (f * dg)
+    AOutput: Mul<BOutput, Output = AB>,
+    // ensure AdB/B^2 is defined (f * dg/g^2)
+    AB: Div<BB, Output = ABOVBB>,
+    // ensure dA/B - AdB/B^2 is defined (df/g - f * dg/g^2)
+    Output: Sub<ABOVBB, Output = Output>,
+{
+    type Input = Input;
+    type Output = Output;
+    fn eval_forward_grad(&self, x: &Self::Input, dx: &Self::Input, static_args: &StaticArgs) -> (Self::Output, Self::Output) {
+        let (f, df) = self.0.eval_forward_grad(x, dx, static_args);
+        let (g, dg) = self.1.eval_forward_grad(x, dx, static_args);
+
+        // d(f/g) = (df*g - f*dg)/g^2 = df/g - f*dg/g^2
+        // = (df/g - (f*dg)/(g*g))
+
+        (
+            f.clone().div(g.clone()),
+            df.div(g.clone()).sub(f.mul(dg).div(g.clone().mul(g))),
+        )
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
 pub struct ADNeg<A>(pub A);
 
 impl<StaticArgs, Input, Output, Grad, AOutput, AGrad, A> AutoDiffable<StaticArgs> for ADNeg<A>
@@ -296,7 +415,22 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy, SimpleForwardDiffable)]
+impl<StaticArgs, Input, Output, AOutput, A> ForwardDiffable<StaticArgs> for ADNeg<A>
+where
+    A: ForwardDiffable<StaticArgs, Input = Input, Output = AOutput>,
+    // ensure A has Neg
+    AOutput: Neg<Output = Output>,
+{
+    type Input = Input;
+    type Output = Output;
+    fn eval_forward_grad(&self, x: &Self::Input, dx: &Self::Input, static_args: &StaticArgs) -> (Self::Output, Self::Output) {
+        let (f, df) = self.0.eval_forward_grad(x, dx, static_args);
+
+        (f.neg(), df.neg())
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
 pub struct ADCompose<Outer, Inner>(pub Outer, pub Inner);
 
 impl<StaticArgs, InnerInput, InnerOutput, InnerGrad, OuterInput, OuterOutput, OuterGrad, Grad, Outer, Inner>
@@ -306,7 +440,7 @@ where
     Inner: AutoDiffable<StaticArgs, Input = InnerInput, Output = InnerOutput>,
     OuterInput: From<InnerOutput> + GradientType<OuterOutput, GradientType = OuterGrad>,
     InnerInput: GradientType<InnerOutput, GradientType = InnerGrad> + GradientType<OuterOutput, GradientType = Grad>,
-    OuterGrad: ForwardMul<InnerInput, OuterOutput, InnerGrad>
+    OuterGrad: ForwardMul<OuterInput, OuterOutput, InnerGrad, ResultGrad = Grad>
 {
     type Input = InnerInput;
     type Output = OuterOutput;
@@ -323,11 +457,27 @@ where
     ) -> (Self::Output, Grad) {
         let (g, dg) = self.1.eval_grad(x, static_args);
         let (f, df) = self.0.eval_grad(&g.into(), static_args);
-        (f, df.forward_mul(dg))
+        (f, df.forward_mul(&dg))
     }
 }
 
-#[derive(Debug, Clone, Copy, SimpleForwardDiffable)]
+impl<StaticArgs, InnerInput, InnerOutput, OuterInput, OuterOutput, Outer, Inner>
+    ForwardDiffable<StaticArgs> for ADCompose<Outer, Inner>
+where
+    Outer: ForwardDiffable<StaticArgs, Input = OuterInput, Output = OuterOutput>,
+    Inner: ForwardDiffable<StaticArgs, Input = InnerInput, Output = InnerOutput>,
+    OuterInput: From<InnerOutput>,
+{
+    type Input = InnerInput;
+    type Output = OuterOutput;
+    fn eval_forward_grad(&self, x: &Self::Input, dx: &Self::Input, static_args: &StaticArgs) -> (Self::Output, Self::Output) {
+        let (g, dg) = self.1.eval_forward_grad(x, dx, static_args);
+        let (f, df) = self.0.eval_forward_grad(&g.into(), &dg.into(), static_args);
+        (f, df)
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
 pub struct ADConstantAdd<A, B>(pub A, pub B);
 
 impl<StaticArgs, Input, Output, Grad, AOutput, AGrad, A, B> AutoDiffable<StaticArgs> for ADConstantAdd<A, B>
@@ -359,7 +509,23 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy, SimpleForwardDiffable)]
+impl<StaticArgs, Input, Output, AOutput, A, B> ForwardDiffable<StaticArgs> for ADConstantAdd<A, B>
+where
+    A: ForwardDiffable<StaticArgs, Input = Input, Output = AOutput>,
+    // ensure A + B is defined and Output = Output
+    AOutput: Add<B, Output = Output>,
+    B: Clone + InstZero,
+{
+    type Input = Input;
+    type Output = Output;
+    fn eval_forward_grad(&self, x: &Self::Input, dx: &Self::Input, static_args: &StaticArgs) -> (Self::Output, Self::Output) {
+        let (f, df) = self.0.eval_forward_grad(x, dx, static_args);
+
+        (f.add(self.1.clone()), df.add(self.1.zero()))
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
 pub struct ADConstantSub<A, B>(pub A, pub B);
 
 impl<StaticArgs, Input, Output, Grad, AOutput, AGrad, A, B> AutoDiffable<StaticArgs> for ADConstantSub<A, B>
@@ -391,7 +557,23 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy, SimpleForwardDiffable)]
+impl<StaticArgs, Input, Output, AOutput, A, B> ForwardDiffable<StaticArgs> for ADConstantSub<A, B>
+where
+    A: ForwardDiffable<StaticArgs, Input = Input, Output = AOutput>,
+    // ensure A - B is defined and Output = Output
+    AOutput: Sub<B, Output = Output>,
+    B: Clone + InstZero,
+{
+    type Input = Input;
+    type Output = Output;
+    fn eval_forward_grad(&self, x: &Self::Input, dx: &Self::Input, static_args: &StaticArgs) -> (Self::Output, Self::Output) {
+        let (f, df) = self.0.eval_forward_grad(x, dx, static_args);
+
+        (f.sub(self.1.clone()), df.sub(self.1.zero()))
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
 pub struct ADConstantMul<A, B>(pub A, pub B);
 
 impl<StaticArgs, Input, Output, Grad, AOutput, AGrad, A, B> AutoDiffable<StaticArgs> for ADConstantMul<A, B>
@@ -423,7 +605,23 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy, SimpleForwardDiffable)]
+impl<StaticArgs, Input, Output, AOutput, A, B> ForwardDiffable<StaticArgs> for ADConstantMul<A, B>
+where
+    A: ForwardDiffable<StaticArgs, Input = Input, Output = AOutput>,
+    // ensure A * B is defined and Output = A * B
+    AOutput: Mul<B, Output = Output>,
+    B: Clone,
+{
+    type Input = Input;
+    type Output = Output;
+    fn eval_forward_grad(&self, x: &Self::Input, dx: &Self::Input, static_args: &StaticArgs) -> (Self::Output, Self::Output) {
+        let (f, df) = self.0.eval_forward_grad(x, dx, static_args);
+
+        (f.mul(self.1.clone()), df.mul(self.1.clone()))
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
 pub struct ADConstantDiv<A, B>(pub A, pub B);
 
 impl<StaticArgs, Input, Output, Grad, AOutput, AGrad, A, B> AutoDiffable<StaticArgs> for ADConstantDiv<A, B>
@@ -455,7 +653,23 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy, SimpleForwardDiffable)]
+impl<StaticArgs, Input, Output, AOutput, A, B> ForwardDiffable<StaticArgs> for ADConstantDiv<A, B>
+where
+    A: ForwardDiffable<StaticArgs, Input = Input, Output = AOutput>,
+    // ensure A / B is defined and Output = A * B
+    AOutput: Div<B, Output = Output>,
+    B: Clone,
+{
+    type Input = Input;
+    type Output = Output;
+    fn eval_forward_grad(&self, x: &Self::Input, dx: &Self::Input, static_args: &StaticArgs) -> (Self::Output, Self::Output) {
+        let (f, df) = self.0.eval_forward_grad(x, dx, static_args);
+
+        (f.div(self.1.clone()), df.div(self.1.clone()))
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
 pub struct ADConstantPow<A, B>(pub A, pub B);
 
 impl<StaticArgs, Input, Output, Grad, AOutput, AGrad, ADB, A, B> AutoDiffable<StaticArgs> for ADConstantPow<A, B>
@@ -496,7 +710,34 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy, SimpleForwardDiffable)]
+impl<StaticArgs, Input, Output, AOutput, APBB, A, B> ForwardDiffable<StaticArgs> for ADConstantPow<A, B>
+where
+    A: ForwardDiffable<StaticArgs, Input = Input, Output = AOutput>,
+    // ensure A is Clone and A^B is defined and is Output
+    AOutput: Clone + Pow<B, Output = Output>,
+    // ensure B is Clone and B.one is defined and B-1 is B
+    B: Clone + InstOne + Sub<B, Output = B>,
+    // ensure A^(B-1) * B is defined and is APBB
+    Output: Mul<B, Output = APBB>,
+    // ensure A * A^(B-1) * B is defined and is Output
+    AOutput: Mul<APBB, Output = Output>,
+{
+    type Input = Input;
+    type Output = Output;
+    fn eval_forward_grad(&self, x: &Self::Input, dx: &Self::Input, static_args: &StaticArgs) -> (Self::Output, Self::Output) {
+        let (f, df) = self.0.eval_forward_grad(x, dx, static_args);
+
+        // d(f^p) = p * f^(p-1) * df
+        // = df * ((f^(p-1)) * p)
+
+        (
+            f.clone().pow(self.1.clone()),
+            df.mul(f.pow(self.1.clone().sub(self.1.one())).mul(self.1.clone())),
+        )
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
 pub struct ADAbs<A>(pub A);
 
 impl<StaticArgs, Input, Output, Grad, A> AutoDiffable<StaticArgs> for ADAbs<A>
@@ -523,7 +764,21 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy, SimpleForwardDiffable)]
+impl<StaticArgs, Input, Output, A> ForwardDiffable<StaticArgs> for ADAbs<A>
+where
+    A: ForwardDiffable<StaticArgs, Input = Input, Output = Output>,
+    Output: Signed + Mul<Output, Output = Output>,
+{
+    type Input = Input;
+    type Output = Output;
+    fn eval_forward_grad(&self, x: &Self::Input, dx: &Self::Input, static_args: &StaticArgs) -> (Self::Output, Self::Output) {
+        let (f, df) = self.0.eval_forward_grad(x, dx, static_args);
+
+        (f.abs(), df.mul(f.signum()))
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
 pub struct ADSignum<A>(pub A);
 
 impl<StaticArgs, Input, Output, Grad, A> AutoDiffable<StaticArgs> for ADSignum<A>
@@ -553,6 +808,29 @@ where
 
         if InstZero::is_zero(&f) {
             (f.signum(), Grad::max_value())
+        } else {
+            (f.signum(), df.zero())
+        }
+    }
+}
+
+impl<StaticArgs, Input, Output, A> ForwardDiffable<StaticArgs> for ADSignum<A>
+where
+    A: ForwardDiffable<StaticArgs, Input = Input, Output = Output>,
+    Output: Signed + InstZero + UpperBounded,
+{
+    type Input = Input;
+    type Output = Output;
+
+    fn eval_forward_grad(&self, x: &Self::Input, dx: &Self::Input, static_args: &StaticArgs) -> (Self::Output, Self::Output) {
+        // chain rule on signum, (sign(f(x)))' = 2 delta(f(x))
+        // we approximate delta(x) as
+        // delta(x) = Grad::MAX if x == 0, 0 otherwise
+
+        let (f, df) = self.0.eval_forward_grad(x, dx, static_args);
+
+        if InstZero::is_zero(&f) {
+            (f.signum(), Output::max_value())
         } else {
             (f.signum(), df.zero())
         }
