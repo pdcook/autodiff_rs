@@ -1,8 +1,12 @@
 use crate::autodiff::AutoDiff;
-use crate::autodiffable::AutoDiffable;
+use crate::autodiffable::{AutoDiffable, ForwardDiffable};
 use crate::func_traits::Compose;
 use crate::funcs::*;
 use std::ops::Add;
+use crate::gradienttype::GradientType;
+
+use crate as autodiff;
+use forwarddiffable_derive::SimpleForwardDiffable;
 
 #[test]
 fn test_manual() {
@@ -10,7 +14,11 @@ fn test_manual() {
     #[derive(Debug, Clone, Copy, PartialEq)]
     struct F(f64, f64);
 
-    #[derive(Debug, Clone, Copy)]
+    impl GradientType<F> for F {
+        type GradientType = (F, F);
+    }
+
+    #[derive(Debug, Clone, Copy, SimpleForwardDiffable)]
     struct Swap;
 
     impl Swap {
@@ -25,13 +33,13 @@ fn test_manual() {
         fn eval(&self, x: &F, _: &()) -> F {
             F(x.1, x.0)
         }
-        fn eval_grad(&self, x: &F, dx: &F, _: &()) -> (F, F) {
-            (self.eval(x, &()), F(dx.1, dx.0))
+        fn eval_grad(&self, x: &F, _: &()) -> (F, (F,F)) {
+            (self.eval(x, &()), (F(0.0, 1.0), F(1.0, 0.0)))
         }
     }
 
     // manually define addition for Swap + Swap
-    #[derive(Debug, Clone, Copy)]
+    #[derive(Debug, Clone, Copy, SimpleForwardDiffable)]
     struct AddSwap(Swap, Swap);
 
     impl AutoDiffable<()> for AddSwap {
@@ -42,10 +50,14 @@ fn test_manual() {
             let f1 = self.1.eval(x, &());
             F(f0.0 + f1.0, f0.1 + f1.1)
         }
-        fn eval_grad(&self, x: &F, dx: &F, _: &()) -> (F, F) {
-            let (f0, df0) = self.0.eval_grad(x, dx, &());
-            let (f1, df1) = self.1.eval_grad(x, dx, &());
-            (F(f0.0 + f1.0, f0.1 + f1.1), F(df0.0 + df1.0, df0.1 + df1.1))
+        fn eval_grad(&self, x: &F, _: &()) -> (F, (F,F)) {
+            let (f0, df0) = self.0.eval_grad(x, &());
+            let (f1, df1) = self.1.eval_grad(x, &());
+
+            (F(f0.0 + f1.0, f0.1 + f1.1),
+                (F(df0.0.0 + df1.0.0, df0.0.1 + df1.0.1),
+                 F(df0.1.0 + df1.1.0, df0.1.1 + df1.1.1)))
+
         }
     }
 
@@ -56,7 +68,7 @@ fn test_manual() {
         }
     }
 
-    // manuall define composition for Monomial(Swap)
+    // manually define composition for Monomial(Swap)
     // first we have to manually implement
     // AutoDiffable<()> for Monomial
     impl AutoDiffable<()> for Monomial<(), F, f64> {
@@ -65,15 +77,17 @@ fn test_manual() {
         fn eval(&self, x: &F, _: &()) -> F {
             F(x.0.powf(self.0), x.1.powf(self.0))
         }
-        fn eval_grad(&self, x: &F, dx: &F, _: &()) -> (F, F) {
+        fn eval_grad(&self, x: &F, _: &()) -> (F, (F, F)) {
             let (f0, f1) = (x.0.powf(self.0), x.1.powf(self.0));
             (
                 F(f0, f1),
-                F(dx.0 * self.0 * f0 / x.0, dx.1 * self.0 * f1 / x.1),
+                (F(self.0 * f0 / x.0, 0.0),
+                 F(0.0, self.0 * f1 / x.1),)
             )
         }
     }
 
+    #[derive(Debug, Clone, Copy, SimpleForwardDiffable)]
     struct ComposeMonomialSwap(Monomial<(), F, f64>, Swap);
 
     impl AutoDiffable<()> for ComposeMonomialSwap {
@@ -82,9 +96,19 @@ fn test_manual() {
         fn eval(&self, x: &F, _: &()) -> F {
             self.0.eval(&self.1.eval(x, &()), &())
         }
-        fn eval_grad(&self, x: &F, dx: &F, _: &()) -> (F, F) {
-            let (f, df) = self.1.eval_grad(x, dx, &());
-            self.0.eval_grad(&f, &df, &())
+        fn eval_grad(&self, x: &F, _: &()) -> (F, (F, F)) {
+            let (f, (fx, fy)) = self.1.eval_grad(x, &());
+            let (fg, (fgx, fgy)) = self.0.eval_grad(&f, &());
+            let (fxx, fxy) = (fx.0, fx.1);
+            let (fyx, fyy) = (fy.0, fy.1);
+            let (fgxx, fgxy) = (fgx.0, fgx.1);
+            let (fgyx, fgyy) = (fgy.0, fgy.1);
+            // chain rule, elementwise
+            let grad = (
+                F(fgxx * fxx + fgxy * fyx, fgxx * fxy + fgxy * fyy),
+                F(fgyx * fxx + fgyy * fyx, fgyx * fxy + fgyy * fyy),
+            );
+            (fg, grad)
         }
     }
 
