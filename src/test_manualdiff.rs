@@ -29,8 +29,7 @@ fn test_manual() {
     /// df/dx: (F, F) - Self
     /// dx: F - OtherGrad
     /// df: F - ResultGrad
-    impl ForwardMul<F, F, F> for G {
-        type ResultGrad = F;
+    impl ForwardMul<F, F, F, F> for G {
         fn forward_mul(self, dx: &F) -> F {
             // define
             // df/dx * dx -> df

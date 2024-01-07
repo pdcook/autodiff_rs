@@ -224,7 +224,7 @@ where
     Inner: AutoDiffable<StaticArgs, Input = InnerInput, Output = InnerOutput>,
     OuterInput: From<InnerOutput> + GradientType<OuterOutput, GradientType = OuterGrad>,
     InnerInput: GradientType<InnerOutput, GradientType = InnerGrad> + GradientType<OuterOutput, GradientType = Grad>,
-    OuterGrad: ForwardMul<OuterInput, OuterOutput, InnerGrad, ResultGrad = Grad>
+    OuterGrad: ForwardMul<OuterInput, OuterOutput, InnerGrad, Grad>
 {
     type Output = AutoDiff<StaticArgs, ADCompose<Outer, Inner>>;
 

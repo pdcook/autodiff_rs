@@ -15,7 +15,7 @@ use syn::{parse_macro_input, parse_quote, DeriveInput, WhereClause, Generics};
 /// where
 ///     Self: autodiff::autodiffable::AutoDiffable<S, Input = SelfInput, Output = SelfOutput>,
 ///     SelfInput: autodiff::gradienttype::GradientType<SelfOutput, GradientType = SelfGradient>,
-///     SelfGradient: autodiff::forward::ForwardMul<SelfInput, SelfOutput, SelfInput, ResultGrad = SelfOutput>,
+///     SelfGradient: autodiff::forward::ForwardMul<SelfInput, SelfOutput, SelfInput, SelfOutput>,
 /// {
 ///     type Input = SelfInput;
 ///     type Output = SelfOutput;
@@ -35,7 +35,7 @@ use syn::{parse_macro_input, parse_quote, DeriveInput, WhereClause, Generics};
 /// This will only work if:
 /// - the struct is AutoDiffable
 /// - the input type is GradientType<OutputType>
-/// - the output type is ForwardMul<InputType, OutputType, InputType, ResultGrad = OutputType>
+/// - the output type is ForwardMul<InputType, OutputType, InputType, OutputType>
 ///
 #[proc_macro_derive(SimpleForwardDiffable)]
 pub fn simple_forward_diffable(input: TokenStream) -> TokenStream {
@@ -91,7 +91,7 @@ fn add_generics(mut generics: Generics) -> Generics {
 fn add_bounds(mut where_clause: WhereClause) -> WhereClause {
     where_clause.predicates.push(parse_quote!(Self: autodiff::autodiffable::AutoDiffable<__PROC_MACRO_S, Input = __PROC_MACRO_I, Output = __PROC_MACRO_O>));
     where_clause.predicates.push(parse_quote!(__PROC_MACRO_I: autodiff::gradienttype::GradientType<__PROC_MACRO_O, GradientType = __PROC_MACRO_G>));
-    where_clause.predicates.push(parse_quote!(__PROC_MACRO_G: autodiff::forward::ForwardMul<__PROC_MACRO_I, __PROC_MACRO_O, __PROC_MACRO_I, ResultGrad = __PROC_MACRO_O>));
+    where_clause.predicates.push(parse_quote!(__PROC_MACRO_G: autodiff::forward::ForwardMul<__PROC_MACRO_I, __PROC_MACRO_O, __PROC_MACRO_I, __PROC_MACRO_O>));
 
     where_clause
 }

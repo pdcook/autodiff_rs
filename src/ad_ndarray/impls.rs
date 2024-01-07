@@ -1,10 +1,14 @@
 use crate::autotuple::AutoTuple;
 use crate::traits::{InstOne, InstZero};
-use ndarray::{ArrayBase, DataOwned, Dimension, RawDataClone, DimAdd, RemoveAxis, DimMax, OwnedRepr};
+use ndarray::{ArrayBase, DataOwned, Dimension, RawDataClone, DimAdd, RemoveAxis, DimMax, OwnedRepr, Axis};
 use num::traits::{One, Zero};
 use std::ops::{Add, Mul};
 use crate::forward::ForwardMul;
 use crate::gradienttype::GradientType;
+use crate::ad_ndarray::dimsub::DimSub;
+
+#[cfg(test)]
+use ndarray::{arr1, arr2, Ix1};
 
 impl<A, S, D> InstZero for ArrayBase<S, D>
 where
@@ -46,45 +50,91 @@ where
     }
 }
 
-///// ForwardMul is the multiplication used in the chain rule
-///// i.e. d/dx f(g(x)) = df/dx(g(x)).forward_mul( dg/dx(x) )
-//impl<AInput, DInput, AOutput, DOutput, AGrad, DGrad, ASelf, DSelf>
-//    ForwardMul<
-//        ArrayBase<OwnedRepr<AOutput>, DOutput>,
-//    > for ArrayBase<OwnedRepr<ASelf>, DSelf>
-//where
-//    // ensure that the DGrad = DInput + DOutput
-//    DInput: Dimension + DimAdd<DOutput, Output = DGrad>,
-//    DOutput: Dimension,
-//    DGrad: Dimension + RemoveAxis + DimMax<DGrad>,
-//    AInput: Clone,
-//    AOutput: Clone,
-//    AGrad: Clone,
-//    AGrad: Clone + Zero + Mul<AGrad, Output = AGrad>,
-//    <DGrad as DimMax<DGrad>>::Output: Dimension + RemoveAxis,
-//{
-//    // gradient should be an array of dimension DGrad = DInput + DOutput
-//    type GradientType = 
+// gradienttype of two arrays is the dimensional sum of the two
+impl<AI, DI, AO, DO, AG, DG> GradientType<ArrayBase<OwnedRepr<AO>, DO>> for ArrayBase<OwnedRepr<AI>, DI>
+where
+    DI: Dimension,
+    DO: Dimension,
+    DG: Dimension,
+    DI: DimAdd<DO, Output = DG>,
+    AI: GradientType<AO, GradientType = AG>,
+{
+    type GradientType = ArrayBase<OwnedRepr<AG>, DG>;
+}
+
+// multiplication for df/dx * dx -> df as well as chain rule:
 //
-//    fn compose_mul(
-//        &self,
-//        _x: &ArrayBase<OwnedRepr<AInput>, DInput>,
-//        _f_of_g: &ArrayBase<OwnedRepr<AOutput>, DOutput>,
-//        dg: &ArrayBase<OwnedRepr<AGrad>, DGrad>,
-//    ) -> Self::Output {
-//        let oversized_res: ArrayBase<OwnedRepr<ASelf>, <DSelf as DimMax<DGrad>>::Output> =
-//            self.clone() * dg.clone();
+// x: ArrayBase<OwnedRepr<AInput>, DInput>
+// f(g): ArrayBase<OwnedRepr<AOutput>, DOutput>
+// df/dg: ArrayBase<OwnedRepr<ASelf>, DSelf> = Self
+// dg/dx: ArrayBase<OwnedRepr<AOtherGrad>, DOtherGrad>
+// df/dx: ArrayBase<OwnedRepr<AResult>, DResult>
 //
-//        // sum over all dimensions except the first N + M
-//        let res: Self::Output = sum_over_final_axes::<
-//            <DInput as DimAdd<DOutput>>::Output,
-//            ASelf,
-//            <DSelf as DimMax<DGrad>>::Output,
-//        >(oversized_res);
-//
-//        res
-//    }
-//}
+// or
+// dx: ArrayBase<OwnedRepr<AOtherGrad>, DOtherGrad>
+// df: ArrayBase<OwnedRepr<AResult>, DResult>
+
+impl<AI, DI, // input
+     AO, DO, // output
+     AS, DS, // self (grad)
+     AG, DG, // other grad
+     AR, DR, // result
+     MAXGD, // max grad dimension
+     SUMD> // number of dimensions to sum over
+     ForwardMul<
+        ArrayBase<OwnedRepr<AI>, DI>,
+        ArrayBase<OwnedRepr<AO>, DO>,
+        ArrayBase<OwnedRepr<AG>, DG>,
+        ArrayBase<OwnedRepr<AR>, DR>,
+    > for ArrayBase<OwnedRepr<AS>, DS>
+where
+    // basic bounds for static operations on dimensions
+    DI: Dimension,
+    DO: Dimension,
+    // MAXGD = max(DG, DS)
+    DS: Dimension + DimMax<DG, Output = MAXGD>,
+    DG: Dimension,
+    DR: Dimension,
+    SUMD: Dimension,
+    MAXGD: Dimension + RemoveAxis,
+    // ensure grad type matches, i.e. Gradient of a function with
+    // input Array<AI, DI> and output Array<AO, DO> is Array<AS, DS> or Self
+    ArrayBase<OwnedRepr<AI>, DI>: GradientType<ArrayBase<OwnedRepr<AO>, DO>, GradientType = ArrayBase<OwnedRepr<AS>, DS>>,
+    // the number of axes to sum over is
+    // DR - MAXGD = SUMD
+    // and using only DimAdd, we have
+    // DR = MAXGD + SUMD
+    SUMD: DimAdd<MAXGD, Output = DR>,
+    MAXGD: DimAdd<SUMD, Output = DR>,
+    DR: DimSub<MAXGD, Output = SUMD>,
+
+    // constraints on the types of the arrays
+    AI: Clone,
+    AO: Clone,
+    AS: Clone + Mul<AG, Output = AR>,
+    AG: Clone,
+    AR: Clone + Zero,
+
+    // finally ensure multiplication is defined
+    ArrayBase<OwnedRepr<AS>, DS>: Mul<ArrayBase<OwnedRepr<AG>, DG>, Output = ArrayBase<OwnedRepr<AR>, MAXGD>>,
+{
+    fn forward_mul(
+        self,
+        other: &ArrayBase<OwnedRepr<AG>, DG>,
+    ) -> ArrayBase<OwnedRepr<AR>, DR> {
+        // multiply self * other
+        let oversized_res: ArrayBase<OwnedRepr<AR>, MAXGD> = self.clone() * other.clone();
+
+        // sum over the final SUMD axes
+        let res: ArrayBase<OwnedRepr<AR>, DR> = sum_over_final_axes::<
+            DR,
+            AR,
+            MAXGD,
+        >(oversized_res);
+
+        res
+    }
+}
 
 fn sum_over_final_axes<OutDim, A, D>(
     arr: ArrayBase<OwnedRepr<A>, D>,

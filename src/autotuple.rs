@@ -3,6 +3,7 @@ use num::complex::Complex;
 use num::traits::{Num, NumOps, One, Pow, Signed, Zero};
 use paste::paste;
 use std::ops::{Add, Deref, Div, Mul, Neg, Rem, Sub};
+use crate::gradienttype::GradientType;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct AutoTuple<Tuple>(pub Tuple)
@@ -347,6 +348,42 @@ autotuple_unary_ops!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12);
 autotuple_unary_ops!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13);
 autotuple_unary_ops!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14);
 autotuple_unary_ops!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+
+
+// macro for GradientType for AutoTuple
+macro_rules! autotuple_gradient_type {
+    ($($idx:literal),+) => {
+        paste! {
+            impl<$([<T $idx>],)+ $([<U $idx>],)+ $([<G $idx>],)+> GradientType<AutoTuple<($([<U $idx>],)+)>> for AutoTuple<($([<T $idx>],)+)>
+            where
+                $([<T $idx>]: GradientType<[<U $idx>], GradientType = [<G $idx>]>,)+
+                ($([<T $idx>],)+): Clone + PartialEq,
+                ($([<U $idx>],)+): Clone + PartialEq,
+                ($([<G $idx>],)+): Clone + PartialEq,
+            {
+                type GradientType = AutoTuple<($([<G $idx>],)+)>;
+            }
+        }
+    }
+}
+
+// implement for tuples of length 1-16
+autotuple_gradient_type!(0);
+autotuple_gradient_type!(0, 1);
+autotuple_gradient_type!(0, 1, 2);
+autotuple_gradient_type!(0, 1, 2, 3);
+autotuple_gradient_type!(0, 1, 2, 3, 4);
+autotuple_gradient_type!(0, 1, 2, 3, 4, 5);
+autotuple_gradient_type!(0, 1, 2, 3, 4, 5, 6);
+autotuple_gradient_type!(0, 1, 2, 3, 4, 5, 6, 7);
+autotuple_gradient_type!(0, 1, 2, 3, 4, 5, 6, 7, 8);
+autotuple_gradient_type!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
+autotuple_gradient_type!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+autotuple_gradient_type!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11);
+autotuple_gradient_type!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12);
+autotuple_gradient_type!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13);
+autotuple_gradient_type!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14);
+autotuple_gradient_type!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
 
 #[test]
 fn test_autotuple() {
