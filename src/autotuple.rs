@@ -588,6 +588,32 @@ macro_rules! size_1_autotuple_forward_mul {
                 }
             }
 
+            // size-1 OG
+            impl<$([<S $idx>],)+ $([<I $idx>],)+ OG, $([<O $idx>],)+ $([<RG $idx>],)+> ForwardMul<
+                AutoTuple<($([<I $idx>],)+)>,
+                AutoTuple<($([<O $idx>],)+)>,
+                AutoTuple<(OG,)>,
+                AutoTuple<($([<RG $idx>],)+)>,
+                >
+                for AutoTuple<($([<S $idx>],)+)>
+            where
+                ($([<I $idx>],)+): Clone + PartialEq,
+                ($([<S $idx>],)+): Clone + PartialEq,
+                ($([<O $idx>],)+): Clone + PartialEq,
+                (OG,): Clone + PartialEq,
+                ($([<RG $idx>],)+): Clone + PartialEq,
+                $(
+                    [<I $idx>] : GradientType<[<O $idx>], GradientType = [<S $idx>]>,
+                    [<S $idx>] : ForwardMul<[<I $idx>], [<O $idx>], OG, [<RG $idx>]>,
+                )+
+            {
+                fn forward_mul(self, other: &AutoTuple<(OG,)>) -> AutoTuple<($([<RG $idx>],)+)> {
+                    AutoTuple::new(($(
+                            self.0.$idx.forward_mul(&(*other).0.0),
+                    )+))
+                }
+            }
+
             // size-1 O and RG
             impl<$([<S $idx>],)+ $([<I $idx>],)+ O, $([<OG $idx>],)+ RG> ForwardMul<
                 AutoTuple<($([<I $idx>],)+)>,
