@@ -356,8 +356,6 @@ fn test_ad_ndarray() {
     assert_eq!(w_y.value(), 216.0);
     assert_eq!(dw_dy.value(), 540.0);
 
-    /*
-
     let sum_auto_tuples: AutoDiff<(), SumAutoTuples> = AutoDiff::new(SumAutoTuples {});
     let a2 = Array2::<f64>::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
     let a1 = Array1::<f64>::from_vec(vec![5.0, 6.0]);
@@ -419,5 +417,4 @@ fn test_ad_ndarray() {
 
     assert_eq!(su_x, s_of_u);
     assert_eq!((*dsu_dx).0.value(), 12.0);
-    */
 }

@@ -1,11 +1,12 @@
 use crate::autotuple::AutoTuple;
 use crate::traits::{InstOne, InstZero, GradientIdentity};
-use ndarray::{ArrayBase, DataOwned, Dimension, RawDataClone, DimAdd, RemoveAxis, DimMax, OwnedRepr, Axis, IxDyn};
+use ndarray::{ArrayBase, DataOwned, Dimension, RawDataClone, DimAdd, RemoveAxis, DimMax, OwnedRepr, Axis, IxDyn, LinalgScalar};
 use num::traits::{One, Zero};
 use std::ops::{Add, Mul};
 use crate::forward::ForwardMul;
 use crate::gradienttype::GradientType;
-use crate::ad_ndarray::dimsub::DimSub;
+use crate::ad_ndarray::dimabssub::DimAbsSub;
+use ndarray_einsum_beta::einsum;
 
 #[cfg(test)]
 use ndarray::{Array0, Array1, Array2, arr1, arr2, Ix1};
@@ -113,6 +114,38 @@ fn test_gradient_type() {
     assert_eq!(b, AutoTuple::new((<Array1<f64> as Default>::default(), <Array2<f64> as Default>::default())));
 }
 
+// get einsum string for forward mul
+fn get_einsum_str(op1_ndim: u8, op2_ndim: u8, sum_idxs: u8) -> String {
+    /// Get einsum string from two operands
+    /// op1[...op1_ndim...] op2[...op2_ndim...]
+    /// where the first sum_idxs of op1 and the last sum_idxs of op2 are summed over
+    /// and the result is ordered by the indices of op2 first, then op1
+    /// examples:
+    /// op1_ndim = 2, op2_ndim = 3, sum_idxs = 2 => "ab,cab->c" | f[a,b] g[c,a,b] -> h[c]
+    /// op1_ndim = 3, op2_ndim = 2, sum_idxs = 1 => "abc,da->dbc" | f[a,b,c] g[d,a] -> h[d,b,c]
+    /// op1_ndim = 3, op2_ndim = 2, sum_idxs = 2 => "abc,ab->c" | f[a,b,c] g[a,b] -> h[c]
+    /// op1_ndim = 6, op2_ndim = 5, sum_idxs = 3 => "abcdef,ghabc->ghdef" | f[a,b,c,d,e,f] g[g,h,a,b,c] -> h[g,h,d,e,f]
+
+    // assertions
+    assert!(op1_ndim >= sum_idxs);
+    assert!(op2_ndim >= sum_idxs);
+    assert!(sum_idxs <= 26u8);
+    assert!(op1_ndim <= 26u8);
+    assert!(op2_ndim <= 26u8);
+
+    // the sum indices are the first sum_idxs of the alphabet
+    let sum_str = (0u8..sum_idxs).map(|i| (i + 97u8) as char).collect::<String>();
+    // the unsummed indices of op1 are the next op1_ndim - sum_idxs of the alphabet
+    // i.e. from sum_idxs to sum_idxs + op1_ndim - sum_idxs = op1_ndim
+    let op1_str = (sum_idxs..op1_ndim).map(|i| (i + 97u8) as char).collect::<String>();
+    // the unsummed indices of op2 are the next op2_ndim - sum_idxs of the alphabet
+    // i.e. from op1_ndim to op1_ndim + op2_ndim - sum_idxs
+    let op2_str = (op1_ndim..op1_ndim + op2_ndim - sum_idxs).map(|i| (i + 97u8) as char).collect::<String>();
+
+    // the result is then {sum_str}{op1_str},{op2_str}{sum_str} -> {op2_str}{op1_str}
+    format!("{}{},{}{}->{}{}", sum_str, op1_str, op2_str, sum_str, op2_str, op1_str)
+}
+
 // multiplication for df/dx * dx -> df as well as chain rule:
 //
 // x: ArrayBase<OwnedRepr<AInput>, DInput>
@@ -128,15 +161,17 @@ fn test_gradient_type() {
 impl<AI, DI, // input
      AO, DO, // output
      AS, DS, // self (grad)
-     AG, DG, // other grad
-     AR, DR, // result
+     //AG, DG, // other grad
+     DG,
+     //AR, DR, // result
+     DR,
      MAXGD, // max grad dimension
      SUMD> // number of dimensions to sum over
      ForwardMul<
         ArrayBase<OwnedRepr<AI>, DI>,
         ArrayBase<OwnedRepr<AO>, DO>,
-        ArrayBase<OwnedRepr<AG>, DG>,
-        ArrayBase<OwnedRepr<AR>, DR>,
+        ArrayBase<OwnedRepr<AS>, DG>,
+        ArrayBase<OwnedRepr<AS>, DR>,
     > for ArrayBase<OwnedRepr<AS>, DS>
 where
     // basic bounds for static operations on dimensions
@@ -157,24 +192,46 @@ where
     // DR = MAXGD + SUMD
     //SUMD: DimAdd<MAXGD, Output = DR>,
     //MAXGD: DimAdd<SUMD, Output = DR>,
-    DR: DimSub<MAXGD, Output = SUMD>,
+    DR: DimAbsSub<MAXGD, Output = SUMD>,
 
     // constraints on the types of the arrays
     AI: Clone,
     AO: Clone,
-    AS: Clone + Mul<AG, Output = AR>,
-    AG: Clone,
-    AR: Clone + Zero,
+    AS: Clone + Mul<AS, Output = AS> + LinalgScalar,
+    AS: Clone,
+    //AR: Clone + Zero,
 
     // finally ensure multiplication is defined
-    ArrayBase<OwnedRepr<AS>, DS>: Mul<ArrayBase<OwnedRepr<AG>, DG>, Output = ArrayBase<OwnedRepr<AR>, MAXGD>>,
+    ArrayBase<OwnedRepr<AS>, DS>: Mul<ArrayBase<OwnedRepr<AS>, DG>, Output = ArrayBase<OwnedRepr<AS>, MAXGD>>,
 {
     fn forward_mul(
         self,
-        other: &ArrayBase<OwnedRepr<AG>, DG>,
-    ) -> ArrayBase<OwnedRepr<AR>, DR> {
-        // multiply self * other
+        other: &ArrayBase<OwnedRepr<AS>, DG>,
+    ) -> ArrayBase<OwnedRepr<AS>, DR> {
+
+        println!("forward_mul: {:?} {:?}", self.shape(), other.shape());
+
+        // contract over the first SUMD indices of self and the last SUMD indices of other
+        // return the result indexed first by the remaining other indices and then the remaining self indices
+        // i.e. if self is [a,b,c,d,e,f] and other is [g,h,a,b,c], then
+        // self * other -> [g,h,d,e,f]
+        let res_dyn: ArrayBase<OwnedRepr<AS>, IxDyn> =
+            einsum(&get_einsum_str(self.ndim().try_into().unwrap(), other.ndim().try_into().unwrap(), SUMD::NDIM.unwrap().try_into().unwrap()), &[&self, other]).unwrap();
+
+        println!("res pre-conv: {:?}", res_dyn.shape());
+        println!("desired dim: {:?}", DR::NDIM.unwrap());
+
+        // convert to static dimension
+        let res: ArrayBase<OwnedRepr<AS>, DR> = res_dyn.into_dimensionality::<DR>().unwrap();
+
+        println!("res: {:?}", res.shape());
+
+        res
+
+        /*
         let oversized_res: ArrayBase<OwnedRepr<AR>, MAXGD> = self.clone().reversed_axes() * other.clone().reversed_axes();
+
+        println!("mul: {:?}", oversized_res.shape());
 
         // sum over the final SUMD axes
         let res: ArrayBase<OwnedRepr<AR>, DR> = sum_over_final_axes::<
@@ -184,9 +241,10 @@ where
         >(oversized_res);
 
         res.reversed_axes()
+        */
     }
 }
-
+/*
 fn sum_over_final_axes<OutDim, A, D>(
     arr: ArrayBase<OwnedRepr<A>, D>,
 ) -> ArrayBase<OwnedRepr<A>, OutDim>
@@ -215,3 +273,4 @@ fn test_sum_over_final_axes() {
     let b = sum_over_final_axes::<Ix1, _, _>(a);
     assert_eq!(b, arr1(&[6, 15]));
 }
+*/
