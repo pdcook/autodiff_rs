@@ -1,6 +1,6 @@
 use crate::autotuple::AutoTuple;
-use crate::traits::{InstOne, InstZero};
-use ndarray::{ArrayBase, DataOwned, Dimension, RawDataClone, DimAdd, RemoveAxis, DimMax, OwnedRepr, Axis};
+use crate::traits::{InstOne, InstZero, GradientIdentity};
+use ndarray::{ArrayBase, DataOwned, Dimension, RawDataClone, DimAdd, RemoveAxis, DimMax, OwnedRepr, Axis, IxDyn};
 use num::traits::{One, Zero};
 use std::ops::{Add, Mul};
 use crate::forward::ForwardMul;
@@ -8,7 +8,7 @@ use crate::gradienttype::GradientType;
 use crate::ad_ndarray::dimsub::DimSub;
 
 #[cfg(test)]
-use ndarray::{arr1, arr2, Ix1};
+use ndarray::{Array0, Array1, Array2, arr1, arr2, Ix1};
 
 impl<A, S, D> InstZero for ArrayBase<S, D>
 where
@@ -38,6 +38,47 @@ where
     }
 }
 
+impl<AI, DI, AG, DG> GradientIdentity for ArrayBase<OwnedRepr<AI>, DI>
+where
+    DI: Dimension,
+    DG: Dimension,
+    AI: Clone + GradientType<AI, GradientType = AG>,
+    AG: Clone + InstOne + One + Zero,
+    Self: Sized + GradientType<Self, GradientType = ArrayBase<OwnedRepr<AG>, DG>>,
+
+{
+    fn grad_identity(&self) -> ArrayBase<OwnedRepr<AG>, DG>
+    {
+        // for an input with shape (a, b, ...) ndim
+        // the gradient identity is a tensor with shape (a, b, ..., a, b, ...) 2ndim
+        // where g[a, b, ..., z, y, ...] = 1 if a == z && b == y && ... else 0
+
+        // first, we need to get the shape of the gradient
+        let grad_shape = self.shape().iter().chain(self.shape().iter()).map(|x| *x).collect::<Vec<_>>();
+
+        // make the gradient
+        let mut grad: ArrayBase<OwnedRepr<AG>, IxDyn> = ArrayBase::<OwnedRepr<AG>, IxDyn>::zeros(grad_shape);
+
+        // then set the values
+        for (i, x) in self.shape().iter().enumerate()
+        {
+            for j in 0..*x
+            {
+                for (k, _) in self.shape().iter().enumerate() {
+                    let mut idx = vec![k; grad.ndim()];
+                    idx[i] = j;
+                    idx[i + self.ndim()] = j;
+                    println!("{:?}", idx);
+                    grad[idx.as_slice()] = <AG as One>::one();
+                }
+            }
+        }
+
+        // convert to static dimension
+        grad.into_dimensionality::<DG>().unwrap()
+    }
+}
+
 // implement From<ArrayBase<S, D>> for AutoTuple<(ArrayBase<S, D>,)>
 impl<A, S, D> From<ArrayBase<S, D>> for AutoTuple<(ArrayBase<S, D>,)>
 where
@@ -60,6 +101,16 @@ where
     AI: GradientType<AO, GradientType = AG>,
 {
     type GradientType = ArrayBase<OwnedRepr<AG>, DG>;
+}
+
+#[test]
+fn test_gradient_type() {
+    let a: Array1<f64> = <Array1<f64> as GradientType<Array0<f64>>>::GradientType::zeros(1);
+    assert_eq!(a, arr1(&[0.0]));
+
+    let b: AutoTuple<(Array1<f64>, Array2<f64>)> = <<AutoTuple<(Array1<f64>,)> as GradientType<AutoTuple<(Array0<f64>, Array1<f64>)>>>::GradientType as Default>::default();
+
+    assert_eq!(b, AutoTuple::new((<Array1<f64> as Default>::default(), <Array2<f64> as Default>::default())));
 }
 
 // multiplication for df/dx * dx -> df as well as chain rule:
@@ -104,8 +155,8 @@ where
     // DR - MAXGD = SUMD
     // and using only DimAdd, we have
     // DR = MAXGD + SUMD
-    SUMD: DimAdd<MAXGD, Output = DR>,
-    MAXGD: DimAdd<SUMD, Output = DR>,
+    //SUMD: DimAdd<MAXGD, Output = DR>,
+    //MAXGD: DimAdd<SUMD, Output = DR>,
     DR: DimSub<MAXGD, Output = SUMD>,
 
     // constraints on the types of the arrays
@@ -123,7 +174,7 @@ where
         other: &ArrayBase<OwnedRepr<AG>, DG>,
     ) -> ArrayBase<OwnedRepr<AR>, DR> {
         // multiply self * other
-        let oversized_res: ArrayBase<OwnedRepr<AR>, MAXGD> = self.clone() * other.clone();
+        let oversized_res: ArrayBase<OwnedRepr<AR>, MAXGD> = self.clone().reversed_axes() * other.clone().reversed_axes();
 
         // sum over the final SUMD axes
         let res: ArrayBase<OwnedRepr<AR>, DR> = sum_over_final_axes::<
@@ -132,7 +183,7 @@ where
             MAXGD,
         >(oversized_res);
 
-        res
+        res.reversed_axes()
     }
 }
 

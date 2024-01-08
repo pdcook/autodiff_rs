@@ -3,6 +3,7 @@ use num::rational::Ratio;
 use num::{Integer, Num, One, Zero};
 use std::num::Wrapping;
 use std::ops::{Add, Mul};
+use crate::gradienttype::GradientType;
 
 pub trait InstZero: Sized + Add<Self, Output = Self> {
     // required methods
@@ -18,7 +19,10 @@ pub trait InstZero: Sized + Add<Self, Output = Self> {
 
 pub trait InstOne: Sized + Mul<Self, Output = Self> {
     // required methods
+    /// Returns the multiplicative identity of Self, 1.
+    /// i.e. self * self.one() == self
     fn one(&self) -> Self;
+
 
     // provided methods
     fn set_one(&mut self) {
@@ -31,6 +35,19 @@ pub trait InstOne: Sized + Mul<Self, Output = Self> {
     {
         *self == self.one()
     }
+}
+
+pub trait GradientIdentity: Sized
+where
+    Self: GradientType<Self>
+{
+    /// Returns the gradient identity for a function with input Self,
+    /// output Self, and gradient type <Self as GradientType<Self>>::GradientType
+    /// for primitive types, this is the same as one()
+    /// for Array types, this is more complicated
+    ///
+    /// This cannot be implemented for complex numbers
+    fn grad_identity(&self) -> <Self as GradientType<Self>>::GradientType;
 }
 
 // implementation for InstZero for all the types that implement Zero from num
@@ -138,5 +155,57 @@ where
 {
     fn one(&self) -> Complex<T> {
         <Complex<T> as One>::one()
+    }
+}
+
+// macro for implementing gradient identity for primitive types that implement InstOne
+macro_rules! impl_grad_identity {
+    ($($t:ty),*) => ($(
+        impl<G> GradientIdentity for $t
+        where
+            Self: GradientType<Self, GradientType = G>,
+            G: One,
+        {
+            fn grad_identity(&self) -> G
+            {
+                G::one()
+            }
+        }
+    )*)
+}
+
+impl_grad_identity!(i64, u128, f32, u16, u32, i16, f64, isize, i32, u8, u64, usize, i128, i8);
+impl_grad_identity!(num::BigInt, num::BigUint);
+
+// generic implementations done here
+impl<T, G> GradientIdentity for Wrapping<T>
+where
+    Self: GradientType<Self, GradientType = G>,
+    G: One,
+{
+    fn grad_identity(&self) -> G {
+        G::one()
+    }
+}
+
+impl<T, G> GradientIdentity for Ratio<T>
+where
+    Self: GradientType<Self, GradientType = G>,
+    T: Clone + Integer,
+    G: One,
+{
+    fn grad_identity(&self) -> G {
+        G::one()
+    }
+}
+
+impl<T, G> GradientIdentity for Complex<T>
+where
+    Self: GradientType<Self, GradientType = G>,
+    T: Clone + Num,
+    G: One,
+{
+    fn grad_identity(&self) -> G {
+        G::one()
     }
 }

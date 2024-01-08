@@ -1,4 +1,7 @@
 use num::complex::Complex;
+use num::rational::Ratio;
+use num::{Integer, Num, One, Zero};
+use std::num::Wrapping;
 
 /// Compile-time calculation for what the gradient type should be based
 /// on input and output types.
@@ -38,8 +41,29 @@ impl_simple_types!(
     u16,
     u32,
     u64,
+    u128,
+    i128,
     usize,
     isize,
+    num::BigInt,
+    num::BigUint,
     Complex<f32>,
     Complex<f64>
 );
+
+// generic impls
+impl<T, U> GradientType<U> for Ratio<T>
+where
+    T: Integer + Clone,
+    U: Num + Clone,
+{
+    type GradientType = Ratio<U>;
+}
+
+impl<T, U> GradientType<U> for Wrapping<T>
+where
+    T: Integer + Clone,
+    U: Num + Clone,
+{
+    type GradientType = Wrapping<U>;
+}

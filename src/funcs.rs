@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use crate::autodiffable::*;
-use crate::traits::{InstOne, InstZero};
+use crate::traits::{InstOne, InstZero, GradientIdentity};
 use num::traits::Pow;
 use std::marker::PhantomData;
 use std::ops::{Mul, Sub};
@@ -27,19 +27,19 @@ impl<S, I> Default for Identity<S, I> {
     }
 }
 
-impl<S, I: Clone + InstOne + GradientType<I, GradientType = I>> AutoDiffable<S> for Identity<S, I> {
+impl<S, I: Clone + InstOne + GradientType<I, GradientType = G> + GradientIdentity, G> AutoDiffable<S> for Identity<S, I> {
     type Input = I;
     type Output = I;
     fn eval(&self, x: &I, _: &S) -> I {
         x.clone()
     }
 
-    fn eval_grad(&self, x: &I, s: &S) -> (I, I) {
-        (self.eval(x, s), x.one())
+    fn eval_grad(&self, x: &I, s: &S) -> (I, G) {
+        (self.eval(x, s), x.grad_identity())
     }
 }
 
-impl<S, I: Clone + InstOne + InstZero + GradientType<I, GradientType = I>> ForwardDiffable<S> for Identity<S, I> {
+impl<S, I: Clone + InstOne + InstZero + GradientType<I> + GradientIdentity> ForwardDiffable<S> for Identity<S, I> {
     type Input = I;
     type Output = I;
     fn eval_forward_grad(&self, x: &I, dx: &I, s: &S) -> (I, I) {
@@ -55,47 +55,6 @@ fn test_identity() {
     assert_eq!(id.eval(&x, &()), x);
     assert_eq!(id.eval_grad(&x, &()), (x, 1.0));
     assert_eq!(id.eval_forward_grad(&x, &dx, &()), (x, dx));
-}
-
-#[derive(Debug, Clone)]
-pub struct Constant<S, I, O>(pub O, pub PhantomData<(S, I)>);
-
-impl<S: Clone, I: Clone, O: Copy> Copy for Constant<S, I, O> {}
-
-impl<S, I, O> Constant<S, I, O> {
-    pub fn new(x: O) -> Self {
-        Constant(x, PhantomData)
-    }
-}
-
-impl<S, I: GradientType<O, GradientType = O>, O: InstOne + InstZero + Clone> AutoDiffable<S> for Constant<S, I, O> {
-    type Input = I;
-    type Output = O;
-    fn eval(&self, _: &I, _: &S) -> O {
-        self.0.clone()
-    }
-
-    fn eval_grad(&self, x: &I, s: &S) -> (O, O) {
-        (self.eval(x, s), self.0.zero())
-    }
-}
-
-impl<S, I: Clone + GradientType<O, GradientType = O>, O: InstOne + InstZero + Clone + Mul<I, Output = O>> ForwardDiffable<S> for Constant<S, I, O> {
-    type Input = I;
-    type Output = O;
-    fn eval_forward_grad(&self, x: &I, _: &I, s: &S) -> (O, O) {
-        (self.eval(x, s), self.0.zero())
-    }
-}
-
-#[test]
-fn test_constant() {
-    let x = 2.0;
-    let dx = 3.3;
-    let c = AutoDiff::new(Constant::new(3.0));
-    assert_eq!(c.eval(&x, &()), 3.0);
-    assert_eq!(c.eval_grad(&x, &()), (3.0, 0.0));
-    assert_eq!(c.eval_forward_grad(&x, &dx, &()), (3.0, 0.0));
 }
 
 #[derive(Debug, Clone)]

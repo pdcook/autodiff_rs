@@ -4,6 +4,7 @@ use num::traits::{Num, NumOps, One, Pow, Signed, Zero};
 use paste::paste;
 use std::ops::{Add, Deref, Div, Mul, Neg, Rem, Sub};
 use crate::gradienttype::GradientType;
+use crate::forward::ForwardMul;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct AutoTuple<Tuple>(pub Tuple)
@@ -195,16 +196,31 @@ macro_rules! autotuple_const_op {
     {
         paste! {
             // AutoTuple op AutoTuple
-            impl<$([<T $idx>],)+ U> $trt<AutoTuple<(U,)>> for AutoTuple<($([<T $idx>],)+)>
+            impl<$([<T $idx>],)+ U, $([<V $idx>],)+> $trt<AutoTuple<(U,)>> for AutoTuple<($([<T $idx>],)+)>
             where
-                $([<T $idx>]: $trt<U, Output=[<T $idx>]>,)+
+                $([<T $idx>]: $trt<U, Output=[<V $idx>]>,)+
                 ($([<T $idx>],)+): Clone + PartialEq,
+                ($([<V $idx>],)+): Clone + PartialEq,
                 U: Clone + PartialEq,
             {
-                type Output = AutoTuple<($([<T $idx>],)+)>;
+                type Output = AutoTuple<($([<V $idx>],)+)>;
 
                 fn $mth(self, rhs: AutoTuple<(U,)>) -> Self::Output {
                     AutoTuple::new(($( self.0.$idx.$mth(rhs.0.0.clone()), )+))
+                }
+            }
+
+            impl<$([<U $idx>],)+ T, $([<V $idx>],)+> $trt<AutoTuple<($([<U $idx>],)+)>> for AutoTuple<(T,)>
+            where
+                $(T: $trt<[<U $idx>], Output=[<V $idx>]>,)+
+                ($([<U $idx>],)+): Clone + PartialEq,
+                ($([<V $idx>],)+): Clone + PartialEq,
+                T: Clone + PartialEq,
+            {
+                type Output = AutoTuple<($([<V $idx>],)+)>;
+
+                fn $mth(self, rhs: AutoTuple<($([<U $idx>],)+)>) -> Self::Output {
+                    AutoTuple::new(($( self.0.0.clone().$mth(rhs.0.$idx), )+))
                 }
             }
         }
@@ -354,11 +370,42 @@ autotuple_unary_ops!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
 macro_rules! autotuple_gradient_type {
     ($($idx:literal),+) => {
         paste! {
+
+            // size n input size n output, size n gradient
             impl<$([<T $idx>],)+ $([<U $idx>],)+ $([<G $idx>],)+> GradientType<AutoTuple<($([<U $idx>],)+)>> for AutoTuple<($([<T $idx>],)+)>
             where
                 $([<T $idx>]: GradientType<[<U $idx>], GradientType = [<G $idx>]>,)+
                 ($([<T $idx>],)+): Clone + PartialEq,
                 ($([<U $idx>],)+): Clone + PartialEq,
+                ($([<G $idx>],)+): Clone + PartialEq,
+            {
+                type GradientType = AutoTuple<($([<G $idx>],)+)>;
+            }
+        }
+    }
+}
+
+macro_rules! size_1_autotuple_gradient_type {
+    ($($idx:literal),+) => {
+        paste! {
+
+            // size 1 input size n output, size n gradient
+            impl<T, $([<U $idx>],)+ $([<G $idx>],)+> GradientType<AutoTuple<($([<U $idx>],)+)>> for AutoTuple<(T,)>
+            where
+                $(T: GradientType<[<U $idx>], GradientType = [<G $idx>]>,)+
+                (T,): Clone + PartialEq,
+                ($([<U $idx>],)+): Clone + PartialEq,
+                ($([<G $idx>],)+): Clone + PartialEq,
+            {
+                type GradientType = AutoTuple<($([<G $idx>],)+)>;
+            }
+
+            // size n input size 1 output, size n gradient
+            impl<$([<T $idx>],)+ U, $([<G $idx>],)+> GradientType<AutoTuple<(U,)>> for AutoTuple<($([<T $idx>],)+)>
+            where
+                $([<T $idx>]: GradientType<U, GradientType = [<G $idx>]>,)+
+                ($([<T $idx>],)+): Clone + PartialEq,
+                (U,): Clone + PartialEq,
                 ($([<G $idx>],)+): Clone + PartialEq,
             {
                 type GradientType = AutoTuple<($([<G $idx>],)+)>;
@@ -384,6 +431,220 @@ autotuple_gradient_type!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12);
 autotuple_gradient_type!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13);
 autotuple_gradient_type!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14);
 autotuple_gradient_type!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+size_1_autotuple_gradient_type!(0, 1);
+size_1_autotuple_gradient_type!(0, 1, 2);
+size_1_autotuple_gradient_type!(0, 1, 2, 3);
+size_1_autotuple_gradient_type!(0, 1, 2, 3, 4);
+size_1_autotuple_gradient_type!(0, 1, 2, 3, 4, 5);
+size_1_autotuple_gradient_type!(0, 1, 2, 3, 4, 5, 6);
+size_1_autotuple_gradient_type!(0, 1, 2, 3, 4, 5, 6, 7);
+size_1_autotuple_gradient_type!(0, 1, 2, 3, 4, 5, 6, 7, 8);
+size_1_autotuple_gradient_type!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
+size_1_autotuple_gradient_type!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+size_1_autotuple_gradient_type!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11);
+size_1_autotuple_gradient_type!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12);
+size_1_autotuple_gradient_type!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13);
+size_1_autotuple_gradient_type!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14);
+size_1_autotuple_gradient_type!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+
+// macro to implement Default for tuples of length 1-16 whose elements implement Default
+macro_rules! autotuple_default {
+    ($($idx:literal),+) => {
+        paste! {
+            impl<$([<T $idx>],)+> Default for AutoTuple<($([<T $idx>],)+)>
+            where
+                ($([<T $idx>],)+): Clone + PartialEq,
+                $([<T $idx>]: Default,)+
+            {
+                fn default() -> Self {
+                    Self::new(($([<T $idx>]::default(),)+))
+                }
+            }
+        }
+    }
+}
+
+// implement Default for tuples of length 1-16
+autotuple_default!(0);
+autotuple_default!(0, 1);
+autotuple_default!(0, 1, 2);
+autotuple_default!(0, 1, 2, 3);
+autotuple_default!(0, 1, 2, 3, 4);
+autotuple_default!(0, 1, 2, 3, 4, 5);
+autotuple_default!(0, 1, 2, 3, 4, 5, 6);
+autotuple_default!(0, 1, 2, 3, 4, 5, 6, 7);
+autotuple_default!(0, 1, 2, 3, 4, 5, 6, 7, 8);
+autotuple_default!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
+autotuple_default!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+autotuple_default!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11);
+autotuple_default!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12);
+autotuple_default!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13);
+autotuple_default!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14);
+autotuple_default!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+
+// macro to implement ForwardMul for tuples of length 1-16
+macro_rules! autotuple_forward_mul {
+    ($($idx:literal),+) => {
+        paste! {
+            impl<$([<S $idx>],)+ $([<I $idx>],)+ $([<O $idx>],)+ $([<OG $idx>],)+ $([<RG $idx>],)+> ForwardMul<
+                    AutoTuple<($([<I $idx>],)+)>,
+                    AutoTuple<($([<O $idx>],)+)>,
+                    AutoTuple<($([<OG $idx>],)+)>,
+                    AutoTuple<($([<RG $idx>],)+)>,
+                    >
+                for AutoTuple<($([<S $idx>],)+)>
+            where
+                ($([<S $idx>],)+): Clone + PartialEq,
+                ($([<I $idx>],)+): Clone + PartialEq,
+                ($([<O $idx>],)+): Clone + PartialEq,
+                ($([<OG $idx>],)+): Clone + PartialEq,
+                ($([<RG $idx>],)+): Clone + PartialEq,
+                $(
+                    [<I $idx>] : GradientType<[<O $idx>], GradientType = [<S $idx>]>,
+                    [<S $idx>] : ForwardMul<[<I $idx>], [<O $idx>], [<OG $idx>], [<RG $idx>]>,
+                )+
+            {
+                fn forward_mul(self, other: &AutoTuple<($([<OG $idx>],)+)>) -> AutoTuple<($([<RG $idx>],)+)> {
+                    AutoTuple::new(($(
+                                self.0.$idx.forward_mul(&(*other).0.$idx),
+                    )+))
+                }
+            }
+        }
+    }
+}
+
+// implement ForwardMul for tuples of length 1-16
+autotuple_forward_mul!(0);
+autotuple_forward_mul!(0, 1);
+autotuple_forward_mul!(0, 1, 2);
+autotuple_forward_mul!(0, 1, 2, 3);
+autotuple_forward_mul!(0, 1, 2, 3, 4);
+autotuple_forward_mul!(0, 1, 2, 3, 4, 5);
+autotuple_forward_mul!(0, 1, 2, 3, 4, 5, 6);
+autotuple_forward_mul!(0, 1, 2, 3, 4, 5, 6, 7);
+autotuple_forward_mul!(0, 1, 2, 3, 4, 5, 6, 7, 8);
+autotuple_forward_mul!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
+autotuple_forward_mul!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+autotuple_forward_mul!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11);
+autotuple_forward_mul!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12);
+autotuple_forward_mul!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13);
+autotuple_forward_mul!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14);
+autotuple_forward_mul!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+
+// forward mul for size 1 AutoTuples on size 1-16 AutoTuples
+macro_rules! size_1_autotuple_forward_mul {
+    ($($idx:literal),+) => {
+        paste! {
+            // size-1 O
+            impl<$([<S $idx>],)+ $([<I $idx>],)+ O, $([<OG $idx>],)+ $([<RG $idx>],)+> ForwardMul<
+                AutoTuple<($([<I $idx>],)+)>,
+                AutoTuple<(O,)>,
+                AutoTuple<($([<OG $idx>],)+)>,
+                AutoTuple<($([<RG $idx>],)+)>,
+                >
+                for AutoTuple<($([<S $idx>],)+)>
+            where
+                ($([<S $idx>],)+): Clone + PartialEq,
+                ($([<I $idx>],)+): Clone + PartialEq,
+                (O,): Clone + PartialEq,
+                ($([<OG $idx>],)+): Clone + PartialEq,
+                ($([<RG $idx>],)+): Clone + PartialEq,
+                $(
+                    [<I $idx>] : GradientType<O, GradientType = [<S $idx>]>,
+                    [<S $idx>] : ForwardMul<[<I $idx>], O, [<OG $idx>], [<RG $idx>]>,
+                )+
+            {
+                fn forward_mul(self, other: &AutoTuple<($([<OG $idx>],)+)>) -> AutoTuple<($([<RG $idx>],)+)> {
+                    AutoTuple::new(($(
+                            self.0.$idx.forward_mul(&(*other).0.$idx),
+                    )+))
+                }
+            }
+
+            // size-1 I
+            impl<$([<S $idx>],)+ $([<O $idx>],)+ I, $([<OG $idx>],)+ $([<RG $idx>],)+> ForwardMul<
+                AutoTuple<(I,)>,
+                AutoTuple<($([<O $idx>],)+)>,
+                AutoTuple<($([<OG $idx>],)+)>,
+                AutoTuple<($([<RG $idx>],)+)>,
+                >
+                for AutoTuple<($([<S $idx>],)+)>
+            where
+                (I,): Clone + PartialEq,
+                ($([<S $idx>],)+): Clone + PartialEq,
+                ($([<O $idx>],)+): Clone + PartialEq,
+                ($([<OG $idx>],)+): Clone + PartialEq,
+                ($([<RG $idx>],)+): Clone + PartialEq,
+                $(
+                    I : GradientType<[<O $idx>], GradientType = [<S $idx>]>,
+                    [<S $idx>] : ForwardMul<I, [<O $idx>], [<OG $idx>], [<RG $idx>]>,
+                )+
+            {
+                fn forward_mul(self, other: &AutoTuple<($([<OG $idx>],)+)>) -> AutoTuple<($([<RG $idx>],)+)> {
+                    AutoTuple::new(($(
+                            self.0.$idx.forward_mul(&(*other).0.$idx),
+                    )+))
+                }
+            }
+
+            // size-1 O and RG
+            impl<$([<S $idx>],)+ $([<I $idx>],)+ O, $([<OG $idx>],)+ RG> ForwardMul<
+                AutoTuple<($([<I $idx>],)+)>,
+                AutoTuple<(O,)>,
+                AutoTuple<($([<OG $idx>],)+)>,
+                AutoTuple<(RG,)>,
+                >
+                for AutoTuple<($([<S $idx>],)+)>
+            where
+                S0: Clone,
+                OG0: Clone,
+                ($([<I $idx>],)+): Clone + PartialEq,
+                ($([<S $idx>],)+): Clone + PartialEq,
+                (O,): Clone + PartialEq,
+                ($([<OG $idx>],)+): Clone + PartialEq,
+                (RG,): Clone + PartialEq,
+                $(
+                    [<I $idx>] : GradientType<O, GradientType = [<S $idx>]>,
+                    [<S $idx>] : ForwardMul<[<I $idx>], O, [<OG $idx>], RG>,
+                )+
+                RG: Add<RG, Output = RG> + InstZero,
+            {
+                fn forward_mul(self, other: &AutoTuple<($([<OG $idx>],)+)>) -> AutoTuple<(RG,)> {
+                    // forward mul between each pair then sum
+                    let sum = self.0.0.clone().forward_mul(&(*other).0.0.clone()).zero()
+                        $( +
+                            self.0.$idx.forward_mul(&(*other).0.$idx)
+                        )+;
+
+                    AutoTuple::new((sum,))
+                }
+            }
+        }
+    }
+}
+
+// implement ForwardMul for tuples of length 1-16
+//size_1_autotuple_forward_mul!(0);
+size_1_autotuple_forward_mul!(0, 1);
+/*
+size_1_autotuple_forward_mul!(0, 1, 2);
+size_1_autotuple_forward_mul!(0, 1, 2, 3);
+size_1_autotuple_forward_mul!(0, 1, 2, 3, 4);
+size_1_autotuple_forward_mul!(0, 1, 2, 3, 4, 5);
+size_1_autotuple_forward_mul!(0, 1, 2, 3, 4, 5, 6);
+size_1_autotuple_forward_mul!(0, 1, 2, 3, 4, 5, 6, 7);
+size_1_autotuple_forward_mul!(0, 1, 2, 3, 4, 5, 6, 7, 8);
+size_1_autotuple_forward_mul!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
+size_1_autotuple_forward_mul!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+size_1_autotuple_forward_mul!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11);
+size_1_autotuple_forward_mul!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12);
+size_1_autotuple_forward_mul!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13);
+size_1_autotuple_forward_mul!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14);
+size_1_autotuple_forward_mul!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+*/
+
+
 
 #[test]
 fn test_autotuple() {

@@ -33,9 +33,9 @@ use syn::{parse_macro_input, parse_quote, DeriveInput, WhereClause, Generics};
 /// ```
 ///
 /// This will only work if:
-/// - the struct is AutoDiffable
-/// - the input type is GradientType<OutputType>
-/// - the output type is ForwardMul<InputType, OutputType, InputType, OutputType>
+/// - the struct is `AutoDiffable`
+/// - the input type is `GradientType<OutputType>`
+/// - the output type is `ForwardMul<InputType, OutputType, InputType, OutputType>`
 ///
 #[proc_macro_derive(SimpleForwardDiffable)]
 pub fn simple_forward_diffable(input: TokenStream) -> TokenStream {

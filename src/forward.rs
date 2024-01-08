@@ -49,23 +49,3 @@ macro_rules! impl_forward_mul {
 }
 
 impl_forward_mul!(f32, f64, i8, i16, i32, i64, u8, u16, u32, u64, isize, usize);
-
-/*
-// impl forward mul for all simple types that implement Mul
-// simple types are those such that <Input as GradientType<Output>>::GradientType = T
-// and T * OtherGrad = Output
-impl<T, Input, Output, OtherGrad> ForwardMul<Input, Output, OtherGrad, Output> for T
-where
-    Input: GradientType<Output, GradientType = T>,
-    T: Mul<OtherGrad, Output = Output>,
-    for<'a> T: Mul<&'a OtherGrad, Output = Output>,
-    OtherGrad: Mul<T, Output = Output>,
-    for<'a> OtherGrad: Mul<&'a T, Output = Output>,
-{
-    fn forward_mul(
-        self,
-        other: &OtherGrad,
-    ) ->  Output {
-        self * other
-    }
-}*/
