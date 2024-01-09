@@ -17,11 +17,10 @@ use crate::gradienttype::GradientType;
 /// `df/dg(g(x)): Self`,
 /// `dg/dx(x): OtherGrad`
 /// `df/dx(x): Result`
-pub trait ForwardMul<Input, Output, OtherGrad, ResultGrad>
-where
-    Input: GradientType<Output, GradientType = Self>,
+pub trait ForwardMul<SelfInput, OtherGrad>
 {
-    fn forward_mul(self, other: &OtherGrad) -> ResultGrad;
+    type ResultGrad;
+    fn forward_mul(&self, other: &OtherGrad) -> Self::ResultGrad;
 }
 
 // impl forward for simple types (commutative multiplication)
@@ -29,18 +28,15 @@ where
 macro_rules! impl_forward_mul {
     ($($t:ty),*) => {
         $(
-            impl<Input, Output, OtherGrad> ForwardMul<Input, Output, OtherGrad, Output> for $t
+            impl<SelfInput, OtherGrad, ResultGrad> ForwardMul<SelfInput, OtherGrad> for $t
             where
-                Input: GradientType<Output, GradientType = $t>,
-                $t: Mul<OtherGrad, Output = Output>,
-                for<'a> $t: Mul<&'a OtherGrad, Output = Output>,
-                OtherGrad: Mul<$t, Output = Output>,
-                for<'a> OtherGrad: Mul<&'a $t, Output = Output>,
+                for<'a,'b> &'a $t: Mul<&'b OtherGrad, Output = ResultGrad>,
             {
+                type ResultGrad = ResultGrad;
                 fn forward_mul(
-                    self,
+                    &self,
                     other: &OtherGrad,
-                ) ->  Output {
+                ) ->  Self::ResultGrad {
                     self * other
                 }
             }

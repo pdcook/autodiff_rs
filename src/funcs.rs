@@ -7,10 +7,13 @@ use std::marker::PhantomData;
 use std::ops::{Mul, Sub};
 use crate::gradienttype::GradientType;
 
+use crate as autodiff;
+use forwarddiffable_derive::*;
+
 #[cfg(test)]
 use crate::autodiff::AutoDiff;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Diffable)]
 pub struct Identity<S, I>(pub PhantomData<(S, I)>);
 
 impl<S: Clone, I: Clone> Copy for Identity<S, I> {}
@@ -57,7 +60,7 @@ fn test_identity() {
     assert_eq!(id.eval_forward_grad(&x, &dx, &()), (x, dx));
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Diffable)]
 pub struct Polynomial<S, I, O>(pub Vec<O>, pub PhantomData<(S, I)>);
 
 impl<S, I, O> Polynomial<S, I, O> {
@@ -149,7 +152,7 @@ fn test_polynomial() {
     assert_eq!(p.eval_forward_grad(&x, &dx2, &()), (11.0, 12.0));
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Diffable)]
 pub struct Monomial<S, I, P>(pub P, pub PhantomData<(S, I)>);
 
 impl<S: Clone, I: Clone, P: Copy> Copy for Monomial<S, I, P> {}

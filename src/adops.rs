@@ -7,7 +7,10 @@ use std::marker::PhantomData;
 use crate::forward::ForwardMul;
 use crate::gradienttype::GradientType;
 
-#[derive(Debug, Clone, Copy)]
+use crate as autodiff;
+use forwarddiffable_derive::*;
+
+#[derive(Debug, Clone, Copy, Diffable)]
 pub struct ADCoerce<A, NewInput, NewOutput>(pub A, pub PhantomData<(NewInput, NewOutput)>);
 
 // coerce A's input and output to match NewInput and NewOutput
@@ -51,7 +54,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Diffable)]
 pub struct ADAppendStaticArgs<A, NewStaticArgs>(pub A, pub PhantomData<NewStaticArgs>);
 
 impl<StaticArgs, NewStaticArgs, Input, Output, Gradient, A> AutoDiffable<(StaticArgs, NewStaticArgs)>
@@ -84,7 +87,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Diffable)]
 pub struct ADPrependStaticArgs<A, NewStaticArgs>(pub A, pub PhantomData<NewStaticArgs>);
 
 impl<StaticArgs, NewStaticArgs, Input, Output, Gradient, A> AutoDiffable<(NewStaticArgs, StaticArgs)>
@@ -118,7 +121,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Diffable)]
 pub struct ADAdd<A, B>(pub A, pub B);
 
 impl<StaticArgs, Input, AOutput, BOutput, AGrad, BGrad, Output, Grad, A, B> AutoDiffable<StaticArgs> for ADAdd<A, B>
@@ -168,7 +171,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Diffable)]
 pub struct ADSub<A, B>(pub A, pub B);
 
 impl<StaticArgs, Input, AOutput, BOutput, AGrad, BGrad, Output, Grad, A, B> AutoDiffable<StaticArgs> for ADSub<A, B>
@@ -217,7 +220,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Diffable)]
 pub struct ADMul<A, B>(pub A, pub B);
 
 impl<StaticArgs, Input, Output, Grad, AOutput, BOutput, AGrad, BGrad, DAB, ADB, A, B> AutoDiffable<StaticArgs> for ADMul<A, B>
@@ -294,7 +297,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Diffable)]
 pub struct ADDiv<A, B>(pub A, pub B);
 
 impl<StaticArgs, Input, Output, Grad, AOutput, BOutput, AGrad, BGrad, BB, ADB, DAOVB, ADBOVBB, A, B> AutoDiffable<StaticArgs>
@@ -384,7 +387,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Diffable)]
 pub struct ADNeg<A>(pub A);
 
 impl<StaticArgs, Input, Output, Grad, AOutput, AGrad, A> AutoDiffable<StaticArgs> for ADNeg<A>
@@ -430,7 +433,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Diffable)]
 pub struct ADCompose<Outer, Inner>(pub Outer, pub Inner);
 
 impl<StaticArgs, InnerInput, InnerOutput, InnerGrad, OuterInput, OuterOutput, OuterGrad, Grad, Outer, Inner>
@@ -440,7 +443,7 @@ where
     Inner: AutoDiffable<StaticArgs, Input = InnerInput, Output = InnerOutput>,
     OuterInput: From<InnerOutput> + GradientType<OuterOutput, GradientType = OuterGrad>,
     InnerInput: GradientType<InnerOutput, GradientType = InnerGrad> + GradientType<OuterOutput, GradientType = Grad>,
-    OuterGrad: ForwardMul<OuterInput, OuterOutput, InnerGrad, Grad>
+    OuterGrad: ForwardMul<OuterInput, InnerGrad, ResultGrad = Grad>
 {
     type Input = InnerInput;
     type Output = OuterOutput;
@@ -477,7 +480,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Diffable)]
 pub struct ADConstantAdd<A, B>(pub A, pub B);
 
 impl<StaticArgs, Input, Output, Grad, AOutput, AGrad, A, B> AutoDiffable<StaticArgs> for ADConstantAdd<A, B>
@@ -525,7 +528,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Diffable)]
 pub struct ADConstantSub<A, B>(pub A, pub B);
 
 impl<StaticArgs, Input, Output, Grad, AOutput, AGrad, A, B> AutoDiffable<StaticArgs> for ADConstantSub<A, B>
@@ -573,7 +576,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Diffable)]
 pub struct ADConstantMul<A, B>(pub A, pub B);
 
 impl<StaticArgs, Input, Output, Grad, AOutput, AGrad, A, B> AutoDiffable<StaticArgs> for ADConstantMul<A, B>
@@ -621,7 +624,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Diffable)]
 pub struct ADConstantDiv<A, B>(pub A, pub B);
 
 impl<StaticArgs, Input, Output, Grad, AOutput, AGrad, A, B> AutoDiffable<StaticArgs> for ADConstantDiv<A, B>
@@ -669,7 +672,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Diffable)]
 pub struct ADConstantPow<A, B>(pub A, pub B);
 
 impl<StaticArgs, Input, Output, Grad, AOutput, AGrad, ADB, A, B> AutoDiffable<StaticArgs> for ADConstantPow<A, B>
@@ -737,7 +740,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Diffable)]
 pub struct ADAbs<A>(pub A);
 
 impl<StaticArgs, Input, Output, Grad, A> AutoDiffable<StaticArgs> for ADAbs<A>
@@ -778,7 +781,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Diffable)]
 pub struct ADSignum<A>(pub A);
 
 impl<StaticArgs, Input, Output, Grad, A> AutoDiffable<StaticArgs> for ADSignum<A>

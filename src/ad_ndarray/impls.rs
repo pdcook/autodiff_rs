@@ -158,119 +158,42 @@ fn get_einsum_str(op1_ndim: u8, op2_ndim: u8, sum_idxs: u8) -> String {
 // dx: ArrayBase<OwnedRepr<AOtherGrad>, DOtherGrad>
 // df: ArrayBase<OwnedRepr<AResult>, DResult>
 
-impl<AI, DI, // input
-     AO, DO, // output
+impl<AI, DI, // g input
      AS, DS, // self (grad)
-     //AG, DG, // other grad
-     DG,
-     //AR, DR, // result
-     DR,
-     MAXGD, // max grad dimension
-     SUMD> // number of dimensions to sum over
+     DG, // g grad dim
+     DR, // result dim
+     MAXGD // max(DS, DG)
+     >
      ForwardMul<
         ArrayBase<OwnedRepr<AI>, DI>,
-        ArrayBase<OwnedRepr<AO>, DO>,
         ArrayBase<OwnedRepr<AS>, DG>,
-        ArrayBase<OwnedRepr<AS>, DR>,
     > for ArrayBase<OwnedRepr<AS>, DS>
 where
     // basic bounds for static operations on dimensions
     DI: Dimension,
-    DO: Dimension,
-    // MAXGD = max(DG, DS)
     DS: Dimension + DimMax<DG, Output = MAXGD>,
-    DG: Dimension,
+    MAXGD: Dimension + DimAbsSub<DI, Output = DR>,
+    DG: Dimension + DimMax<DS, Output = MAXGD>,
     DR: Dimension,
-    SUMD: Dimension,
-    MAXGD: Dimension + RemoveAxis,
-    // ensure grad type matches, i.e. Gradient of a function with
-    // input Array<AI, DI> and output Array<AO, DO> is Array<AS, DS> or Self
-    ArrayBase<OwnedRepr<AI>, DI>: GradientType<ArrayBase<OwnedRepr<AO>, DO>, GradientType = ArrayBase<OwnedRepr<AS>, DS>>,
-    // the number of axes to sum over is
-    // DR - MAXGD = SUMD
-    // and using only DimAdd, we have
-    // DR = MAXGD + SUMD
-    //SUMD: DimAdd<MAXGD, Output = DR>,
-    //MAXGD: DimAdd<SUMD, Output = DR>,
-    DR: DimAbsSub<MAXGD, Output = SUMD>,
 
     // constraints on the types of the arrays
     AI: Clone,
-    AO: Clone,
+    //AO: Clone,
     AS: Clone + Mul<AS, Output = AS> + LinalgScalar,
-    AS: Clone,
-    //AR: Clone + Zero,
-
-    // finally ensure multiplication is defined
-    ArrayBase<OwnedRepr<AS>, DS>: Mul<ArrayBase<OwnedRepr<AS>, DG>, Output = ArrayBase<OwnedRepr<AS>, MAXGD>>,
 {
+    type ResultGrad = ArrayBase<OwnedRepr<AS>, DR>;
     fn forward_mul(
-        self,
+        &self,
         other: &ArrayBase<OwnedRepr<AS>, DG>,
-    ) -> ArrayBase<OwnedRepr<AS>, DR> {
+    ) -> Self::ResultGrad {
 
-        println!("forward_mul: {:?} {:?}", self.shape(), other.shape());
-
-        // contract over the first SUMD indices of self and the last SUMD indices of other
-        // return the result indexed first by the remaining other indices and then the remaining self indices
-        // i.e. if self is [a,b,c,d,e,f] and other is [g,h,a,b,c], then
-        // self * other -> [g,h,d,e,f]
         let res_dyn: ArrayBase<OwnedRepr<AS>, IxDyn> =
-            einsum(&get_einsum_str(self.ndim().try_into().unwrap(), other.ndim().try_into().unwrap(), SUMD::NDIM.unwrap().try_into().unwrap()), &[&self, other]).unwrap();
-
-        println!("res pre-conv: {:?}", res_dyn.shape());
-        println!("desired dim: {:?}", DR::NDIM.unwrap());
+            einsum(&get_einsum_str(self.ndim().try_into().unwrap(), other.ndim().try_into().unwrap(), DI::NDIM.unwrap().try_into().unwrap()), &[self, other]).unwrap();
 
         // convert to static dimension
         let res: ArrayBase<OwnedRepr<AS>, DR> = res_dyn.into_dimensionality::<DR>().unwrap();
 
-        println!("res: {:?}", res.shape());
-
         res
 
-        /*
-        let oversized_res: ArrayBase<OwnedRepr<AR>, MAXGD> = self.clone().reversed_axes() * other.clone().reversed_axes();
-
-        println!("mul: {:?}", oversized_res.shape());
-
-        // sum over the final SUMD axes
-        let res: ArrayBase<OwnedRepr<AR>, DR> = sum_over_final_axes::<
-            DR,
-            AR,
-            MAXGD,
-        >(oversized_res);
-
-        res.reversed_axes()
-        */
     }
 }
-/*
-fn sum_over_final_axes<OutDim, A, D>(
-    arr: ArrayBase<OwnedRepr<A>, D>,
-) -> ArrayBase<OwnedRepr<A>, OutDim>
-where
-    A: Clone + Zero,
-    D: Dimension + RemoveAxis,
-    OutDim: Dimension,
-    ArrayBase<OwnedRepr<A>, D>: Clone,
-{
-    let mut a = arr.clone();
-    let n = OutDim::NDIM.unwrap().min(a.ndim());
-
-    for i in n..(a.ndim() - 1) {
-        a.merge_axes(Axis(i), Axis(i + 1));
-    }
-    let a_dyn = a
-        .sum_axis(Axis(a.ndim() - 1))
-        .into_shape(&(a.shape()[..n]))
-        .unwrap();
-    a_dyn.into_dimensionality::<OutDim>().unwrap()
-}
-
-#[test]
-fn test_sum_over_final_axes() {
-    let a = arr2(&[[1, 2, 3], [4, 5, 6]]);
-    let b = sum_over_final_axes::<Ix1, _, _>(a);
-    assert_eq!(b, arr1(&[6, 15]));
-}
-*/

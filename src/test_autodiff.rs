@@ -4,6 +4,7 @@ use crate::func_traits::*;
 use crate::funcs::*;
 use num::traits::Pow;
 use std::ops::Deref;
+use crate::forward::ForwardMul;
 
 #[test]
 fn test_all_ops() {
@@ -17,32 +18,42 @@ fn test_all_ops() {
     let q = AutoDiff::new(Monomial::<(), f64, f64>::new(5.0));
 
     let (p_x, dp_x): (f64, f64) = p.eval_forward_grad(&x, &dx, &());
+    let dp_dx: f64 = p.grad(&x, &());
     let (q_x, dq_x): (f64, f64) = q.eval_forward_grad(&x, &dx, &());
+    let dq_dx: f64 = q.grad(&x, &());
 
     // unary ops
     // neg
     assert_eq!((-p_x, -dp_x), (-p.clone()).eval_forward_grad(&x, &dx, &()));
+    assert_eq!(-dp_dx, (-p.clone()).grad(&x, &()));
     // abs
     assert_eq!(
         (p_x.abs(), dp_x * p_x.signum()),
         p.clone().abs().eval_forward_grad(&x, &dx, &())
     );
+    assert_eq!(dp_dx * p_x.signum(), p.clone().abs().grad(&x, &()));
     // signum
     assert_eq!(
         (p_x.signum(), 0.0),
         p.clone().signum().eval_forward_grad(&x, &dx, &())
     );
+    assert_eq!(0.0, p.clone().signum().grad(&x, &()));
 
     // binary ops with constants
-    let c = 2.0_f64;
+    let c = 3.0_f64;
     assert_eq!((p_x + c, dp_x), (p.clone() + c).eval_forward_grad(&x, &dx, &()));
+    assert_eq!(dp_dx, (p.clone() + c).grad(&x, &()));
     assert_eq!((p_x - c, dp_x), (p.clone() - c).eval_forward_grad(&x, &dx, &()));
+    assert_eq!(dp_dx, (p.clone() - c).grad(&x, &()));
     assert_eq!((p_x * c, dp_x * c), (p.clone() * c).eval_forward_grad(&x, &dx, &()));
+    assert_eq!(dp_dx * c, (p.clone() * c).grad(&x, &()));
     assert_eq!((p_x / c, dp_x / c), (p.clone() / c).eval_forward_grad(&x, &dx, &()));
+    assert_eq!(dp_dx / c, (p.clone() / c).grad(&x, &()));
     assert_eq!(
-        (p_x.pow(c), c * p_x * dp_x),
+        (p_x.pow(c), c * p_x.pow(c-1.0) * dp_x),
         (p.clone().pow(c)).eval_forward_grad(&x, &dx, &())
     );
+    assert_eq!(c * p_x.pow(c-1.0) * dp_dx, (p.clone().pow(c)).grad(&x, &()));
 
     // binary ops with other functions
     assert_eq!(
@@ -50,29 +61,57 @@ fn test_all_ops() {
         (p.clone() + q.clone()).eval_forward_grad(&x, &dx, &())
     );
     assert_eq!(
+        dp_dx + dq_dx,
+        (p.clone() + q.clone()).grad(&x, &())
+    );
+    assert_eq!(
         (p_x - q_x, dp_x - dq_x),
         (p.clone() - q.clone()).eval_forward_grad(&x, &dx, &())
+    );
+    assert_eq!(
+        dp_dx - dq_dx,
+        (p.clone() - q.clone()).grad(&x, &())
     );
     assert_eq!(
         (p_x * q_x, p_x * dq_x + q_x * dp_x),
         (p.clone() * q.clone()).eval_forward_grad(&x, &dx, &())
     );
     assert_eq!(
+        p_x * dq_dx + q_x * dp_dx,
+        (p.clone() * q.clone()).grad(&x, &())
+    );
+    assert_eq!(
         (p_x / q_x, (dp_x * q_x - p_x * dq_x) / q_x.pow(2.0)),
         (p.clone() / q.clone()).eval_forward_grad(&x, &dx, &())
+    );
+    assert_eq!(
+        (dp_x * q_x - p_x * dq_x) / q_x.pow(2.0),
+        (p.clone() / q.clone()).grad(&x, &())
     );
 
     // result for composition
     let (q_of_p_x, dq_of_p_x) = q.eval_forward_grad(&p_x, &dp_x, &());
+    let dq_of_p_dx = q.grad(&p_x, &());
+    let dp_dx = p.grad(&x, &());
     let (p_of_q_x, dp_of_q_x) = p.eval_forward_grad(&q_x, &dq_x, &());
+    let dp_of_q_dx = p.grad(&q_x, &());
+    let dq_dx = q.grad(&x, &());
 
     assert_eq!(
         (q_of_p_x, dq_of_p_x),
         q.clone().compose(p.clone()).eval_forward_grad(&x, &dx, &())
     );
     assert_eq!(
+        dq_of_p_dx * dp_dx,
+        q.clone().compose(p.clone()).grad(&x, &())
+    );
+    assert_eq!(
         (p_of_q_x, dp_of_q_x),
         p.clone().compose(q.clone()).eval_forward_grad(&x, &dx, &())
+    );
+    assert_eq!(
+        dp_of_q_dx * dq_dx,
+        p.clone().compose(q.clone()).grad(&x, &())
     );
 
     // test custom wrapper type with Deref

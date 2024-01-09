@@ -10,7 +10,7 @@ use ndarray::prelude::*;
 use crate as autodiff;
 use forwarddiffable_derive::*;
 
-#[derive(Clone, Copy, SimpleForwardDiffable)]
+#[derive(Diffable, Clone, Copy, SimpleForwardDiffable)]
 pub struct Sum1 {}
 
 impl AutoDiffable<()> for Sum1 {
@@ -42,7 +42,7 @@ impl AutoDiffable<()> for Sum1 {
     }
 }*/
 
-#[derive(Clone, Copy, SimpleForwardDiffable)]
+#[derive(Diffable, Clone, Copy, SimpleForwardDiffable)]
 pub struct Sum2 {}
 
 impl AutoDiffable<()> for Sum2 {
@@ -74,7 +74,7 @@ impl AutoDiffable<()> for Sum2 {
     }
 }*/
 
-#[derive(Clone, Copy, SimpleForwardDiffable)]
+#[derive(Diffable, Clone, Copy, SimpleForwardDiffable)]
 pub struct Prod2 {}
 // product of all elements in a 2D array
 // prod([[a, b], [c, d]]) = abcd
@@ -119,7 +119,7 @@ impl ForwardDiffable<()> for Prod2 {
     }
 }*/
 
-#[derive(Clone, Copy, SimpleForwardDiffable)]
+#[derive(Diffable, Clone, Copy, SimpleForwardDiffable)]
 pub struct UpcastN {
     n: usize,
 }
@@ -148,7 +148,7 @@ impl AutoDiffable<()> for UpcastN {
     }
 }
 
-#[derive(Clone, Copy, SimpleForwardDiffable)]
+#[derive(Diffable, Clone, Copy, SimpleForwardDiffable)]
 pub struct VertCastN {
     n: usize,
 }
@@ -192,7 +192,7 @@ impl ForwardDiffable<()> for UpcastN {
 
 // test with AutoTuple
 
-#[derive(Clone, Copy, SimpleForwardDiffable)]
+#[derive(Diffable, Clone, Copy)]
 pub struct SumAutoTuples {}
 
 type SInput = AutoTuple<(Array2<f64>, Array1<f64>)>;
@@ -211,8 +211,27 @@ impl AutoDiffable<()> for SumAutoTuples {
     }
 }
 
+impl ForwardDiffable<()> for SumAutoTuples {
+    type Input = SInput;
+    type Output = SOutput;
+    fn eval_forward_grad(
+        &self,
+        x: &SInput,
+        dx: &SInput,
+        _: &(),
+    ) -> (SOutput, SOutput) {
+        let mut gradval = 0.0_f64;
+        gradval += (**dx).0.sum();
+        gradval += (**dx).1.sum();
+        (
+            self.eval(x, &()),
+            AutoTuple::new((Scalar::new(gradval),)),
+        )
+    }
+}
 
-#[derive(Clone, Copy, SimpleForwardDiffable)]
+
+#[derive(Diffable, Clone, Copy)]
 pub struct UpcastAutoTuple {}
 
 type UInput = AutoTuple<(Array1<f64>,)>;
@@ -254,6 +273,43 @@ impl AutoDiffable<()> for UpcastAutoTuple {
             AutoTuple::new((
                 d1_dx,
                 d2_dx,
+            )),
+        )
+    }
+}
+
+impl ForwardDiffable<()> for UpcastAutoTuple {
+    type Input = UInput;
+    type Output = UOutput;
+    fn eval_forward_grad(
+        &self,
+        x: &UInput,
+        dx: &UInput,
+        _: &(),
+    ) -> (UOutput, UOutput) {
+        let xc = (**x).0.clone();
+        let n = xc.len();
+        let mut d1 = Array2::zeros((n, n));
+        let mut d2 = Array1::zeros((n,));
+        // d1[j, k] = sum_i dupcast[j,k]/dx[i] * dx[i]
+        // and since upcast[j,k] = x[j] for all k
+        // dupcast[j,k]/dx[i] = 1 if j == i else 0
+        // so d1[j, k] = sum_i dx[i] if j == i else 0
+        // -> d1[j, k] = dx[j]
+        // d2[i] = sum_j d(x[i])/dx[j] * dx[j] = dx[j] if i == j else 0
+        // -> d2[i] = dx[i]
+        for i in 0..n {
+            for j in 0..n {
+                d1[[i, j]] = (**dx).0[i];
+            }
+            d2[[i]] = (**dx).0[i];
+        }
+
+        (
+            self.eval(x, &()),
+            AutoTuple::new((
+                d1,
+                d2,
             )),
         )
     }

@@ -1,5 +1,7 @@
 use crate::gradienttype::GradientType;
 
+pub trait Diffable {}
+
 pub trait AutoDiffable<StaticArgs> {
     type Input: GradientType<Self::Output>;
     type Output;
