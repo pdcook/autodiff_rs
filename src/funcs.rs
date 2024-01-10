@@ -13,7 +13,7 @@ use forwarddiffable_derive::*;
 #[cfg(test)]
 use crate::autodiff::AutoDiff;
 
-#[derive(Debug, Clone, Diffable)]
+#[derive(Debug, Clone, FuncCompose)]
 pub struct Identity<S, I>(pub PhantomData<(S, I)>);
 
 impl<S: Clone, I: Clone> Copy for Identity<S, I> {}
@@ -30,9 +30,14 @@ impl<S, I> Default for Identity<S, I> {
     }
 }
 
-impl<S, I: Clone + InstOne + GradientType<I, GradientType = G> + GradientIdentity, G> AutoDiffable<S> for Identity<S, I> {
+impl<S, I> Diffable<S> for Identity<S, I> {
     type Input = I;
     type Output = I;
+}
+
+impl<S, I: Clone + InstOne + GradientType<I, GradientType = G> + GradientIdentity, G> AutoDiffable<S> for Identity<S, I> {
+    //type Input = I;
+    //type Output = I;
     fn eval(&self, x: &I, _: &S) -> I {
         x.clone()
     }
@@ -43,8 +48,8 @@ impl<S, I: Clone + InstOne + GradientType<I, GradientType = G> + GradientIdentit
 }
 
 impl<S, I: Clone + InstOne + InstZero + GradientType<I> + GradientIdentity> ForwardDiffable<S> for Identity<S, I> {
-    type Input = I;
-    type Output = I;
+    //type Input = I;
+    //type Output = I;
     fn eval_forward_grad(&self, x: &I, dx: &I, s: &S) -> (I, I) {
         (self.eval(x, s), dx.clone())
     }
@@ -60,7 +65,7 @@ fn test_identity() {
     assert_eq!(id.eval_forward_grad(&x, &dx, &()), (x, dx));
 }
 
-#[derive(Debug, Clone, Diffable)]
+#[derive(Debug, Clone, FuncCompose)]
 pub struct Polynomial<S, I, O>(pub Vec<O>, pub PhantomData<(S, I)>);
 
 impl<S, I, O> Polynomial<S, I, O> {
@@ -69,14 +74,19 @@ impl<S, I, O> Polynomial<S, I, O> {
     }
 }
 
+impl<S, I, O> Diffable<S> for Polynomial<S, I, O> {
+    type Input = I;
+    type Output = O;
+}
+
 impl<S, I: GradientType<O, GradientType = O>, O: InstZero + InstOne> AutoDiffable<S> for Polynomial<S, I, O>
 where
     for<'b> O: Mul<&'b O, Output = O>,
     for<'b> &'b I: Mul<&'b O, Output = O>,
     for<'b> &'b O: Mul<&'b I, Output = O> + Mul<&'b O, Output = O>,
 {
-    type Input = I;
-    type Output = O;
+    //type Input = I;
+    //type Output = O;
 
     fn eval(&self, x: &I, _: &S) -> O {
         let mut res = self.0[0].zero();
@@ -114,8 +124,8 @@ where
     for<'b> &'b I: Mul<&'b O, Output = O>,
     for<'b> &'b O: Mul<&'b I, Output = O> + Mul<&'b O, Output = O>,
 {
-    type Input = I;
-    type Output = O;
+    //type Input = I;
+    //type Output = O;
     fn eval_forward_grad(&self, x: &I, dx: &I, _: &S) -> (O, O)
     {
         let mut res = self.0[0].zero();
@@ -152,7 +162,7 @@ fn test_polynomial() {
     assert_eq!(p.eval_forward_grad(&x, &dx2, &()), (11.0, 12.0));
 }
 
-#[derive(Debug, Clone, Diffable)]
+#[derive(Debug, Clone, FuncCompose)]
 pub struct Monomial<S, I, P>(pub P, pub PhantomData<(S, I)>);
 
 impl<S: Clone, I: Clone, P: Copy> Copy for Monomial<S, I, P> {}
@@ -163,6 +173,11 @@ impl<S, I, P> Monomial<S, I, P> {
     }
 }
 
+impl<S, I, P> Diffable<S> for Monomial<S, I, P> {
+    type Input = I;
+    type Output = I;
+}
+
 impl<S, I: Clone + InstOne + Pow<P, Output = I> + Mul<I, Output = I> + GradientType<I, GradientType = I>, P: InstOne> AutoDiffable<S>
     for Monomial<S, I, P>
 where
@@ -170,8 +185,8 @@ where
     for<'b> &'b I: Mul<&'b I, Output = I>,
     for<'b> &'b P: Sub<&'b P, Output = P> + Sub<P, Output = P>,
 {
-    type Input = I;
-    type Output = I;
+    //type Input = I;
+    //type Output = I;
     fn eval(&self, x: &I, _: &S) -> I {
         x.clone().pow(&self.0)
     }
@@ -190,8 +205,8 @@ where
     for<'b> &'b I: Mul<&'b I, Output = I>,
     for<'b> &'b P: Sub<&'b P, Output = P> + Sub<P, Output = P>,
 {
-    type Input = I;
-    type Output = I;
+    //type Input = I;
+    //type Output = I;
     fn eval_forward_grad(&self, x: &I, dx: &I, _: &S) -> (I, I) {
         let x_pow = x.clone().pow(&self.0 - self.0.one());
         (&x_pow * x, x_pow * &self.0 * dx)

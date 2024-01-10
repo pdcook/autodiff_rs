@@ -1,21 +1,28 @@
 use crate::ad_ndarray::scalar::*;
 use crate::autodiff::AutoDiff;
 use crate::autodiffable::*;
+use crate::diffable::Diffable;
 use crate::autotuple::*;
-use crate::func_traits::Compose;
+use crate::compose::*;
 use crate::funcs::Identity;
 use crate::traits::InstOne;
 use ndarray::prelude::*;
+use num::complex::Complex;
 
 use crate as autodiff;
 use forwarddiffable_derive::*;
 
-#[derive(Diffable, Clone, Copy, SimpleForwardDiffable)]
-pub struct Sum1 {}
+#[derive(Clone, Copy, SimpleForwardDiffable, FuncCompose)]
+struct Sum1 {}
 
-impl AutoDiffable<()> for Sum1 {
+impl Diffable<()> for Sum1 {
     type Input = Array1<f64>;
     type Output = Scalar<f64>;
+}
+
+impl AutoDiffable<()> for Sum1 {
+    //type Input = Array1<f64>;
+    //type Output = Scalar<f64>;
     fn eval(&self, x: &Array1<f64>, _: &()) -> Scalar<f64> {
         Scalar::new(x.sum())
     }
@@ -42,12 +49,17 @@ impl AutoDiffable<()> for Sum1 {
     }
 }*/
 
-#[derive(Diffable, Clone, Copy, SimpleForwardDiffable)]
-pub struct Sum2 {}
+#[derive(Clone, Copy, SimpleForwardDiffable, FuncCompose)]
+struct Sum2 {}
 
-impl AutoDiffable<()> for Sum2 {
+impl Diffable<()> for Sum2 {
     type Input = Array2<f64>;
     type Output = Scalar<f64>;
+}
+
+impl AutoDiffable<()> for Sum2 {
+    //type Input = Array2<f64>;
+    //type Output = Scalar<f64>;
     fn eval(&self, x: &Array2<f64>, _: &()) -> Scalar<f64> {
         Scalar::new(x.sum())
     }
@@ -74,16 +86,21 @@ impl AutoDiffable<()> for Sum2 {
     }
 }*/
 
-#[derive(Diffable, Clone, Copy, SimpleForwardDiffable)]
-pub struct Prod2 {}
+#[derive(Clone, Copy, SimpleForwardDiffable, FuncCompose)]
+struct Prod2 {}
 // product of all elements in a 2D array
 // prod([[a, b], [c, d]]) = abcd
 // dprod/dx = [[bcd, acd], [abd, abc]]
 // dprod = SUM(dx * prod) = da * bcd + db * acd + dc * abd + dd * abc
 
-impl AutoDiffable<()> for Prod2 {
+impl Diffable<()> for Prod2 {
     type Input = Array2<f64>;
     type Output = Scalar<f64>;
+}
+
+impl AutoDiffable<()> for Prod2 {
+    //type Input = Array2<f64>;
+    //type Output = Scalar<f64>;
     fn eval(&self, x: &Array2<f64>, _: &()) -> Scalar<f64> {
         Scalar::new(x.iter().product())
     }
@@ -119,14 +136,19 @@ impl ForwardDiffable<()> for Prod2 {
     }
 }*/
 
-#[derive(Diffable, Clone, Copy, SimpleForwardDiffable)]
-pub struct UpcastN {
+#[derive(Clone, Copy, SimpleForwardDiffable, FuncCompose)]
+struct UpcastN {
     n: usize,
 }
 
-impl AutoDiffable<()> for UpcastN {
+impl Diffable<()> for UpcastN {
     type Input = Array1<f64>;
     type Output = Array2<f64>;
+}
+
+impl AutoDiffable<()> for UpcastN {
+    //type Input = Array1<f64>;
+    //type Output = Array2<f64>;
     fn eval(&self, x: &Array1<f64>, _: &()) -> Array2<f64> {
         // make a 2D array with n rows all of which are x
         Array2::from_shape_fn((self.n, x.len()), |(_, i)| x[i])
@@ -148,14 +170,19 @@ impl AutoDiffable<()> for UpcastN {
     }
 }
 
-#[derive(Diffable, Clone, Copy, SimpleForwardDiffable)]
-pub struct VertCastN {
+#[derive(Clone, Copy, SimpleForwardDiffable, FuncCompose)]
+struct VertCastN {
     n: usize,
 }
 
-impl AutoDiffable<()> for VertCastN {
+impl Diffable<()> for VertCastN {
     type Input = Array1<f64>;
     type Output = Array2<f64>;
+}
+
+impl AutoDiffable<()> for VertCastN {
+    //type Input = Array1<f64>;
+    //type Output = Array2<f64>;
     fn eval(&self, x: &Array1<f64>, _: &()) -> Array2<f64> {
         // make a 2D array with n cols all of which are x
         Array2::from_shape_fn((x.len(), self.n), |(i, _)| x[i])
@@ -176,6 +203,7 @@ impl AutoDiffable<()> for VertCastN {
         (self.eval(x, &()), grad)
     }
 }
+
 /*
 impl ForwardDiffable<()> for UpcastN {
     type Input = Array1<f64>;
@@ -192,15 +220,20 @@ impl ForwardDiffable<()> for UpcastN {
 
 // test with AutoTuple
 
-#[derive(Diffable, Clone, Copy)]
-pub struct SumAutoTuples {}
+#[derive(Clone, Copy)]
+struct SumAutoTuples {}
 
 type SInput = AutoTuple<(Array2<f64>, Array1<f64>)>;
 type SOutput = AutoTuple<(Scalar<f64>,)>;
 
-impl AutoDiffable<()> for SumAutoTuples {
+impl Diffable<()> for SumAutoTuples {
     type Input = SInput;
     type Output = SOutput;
+}
+
+impl AutoDiffable<()> for SumAutoTuples {
+    //type Input = SInput;
+    //type Output = SOutput;
     fn eval(&self, x: &SInput, _: &()) -> SOutput {
         AutoTuple::new((Scalar::new((**x).0.sum() + (**x).1.sum()),))
     }
@@ -212,8 +245,8 @@ impl AutoDiffable<()> for SumAutoTuples {
 }
 
 impl ForwardDiffable<()> for SumAutoTuples {
-    type Input = SInput;
-    type Output = SOutput;
+    //type Input = SInput;
+    //type Output = SOutput;
     fn eval_forward_grad(
         &self,
         x: &SInput,
@@ -230,17 +263,50 @@ impl ForwardDiffable<()> for SumAutoTuples {
     }
 }
 
+#[derive(Clone, Copy, FuncCompose, SimpleForwardDiffable)]
+struct ComposeSumUpcastAutoTuple(SumAutoTuples, UpcastAutoTuple);
 
-#[derive(Diffable, Clone, Copy)]
-pub struct UpcastAutoTuple {}
+impl Diffable<()> for ComposeSumUpcastAutoTuple {
+    type Input = AutoTuple<(Array1<f64>,)>;
+    type Output = AutoTuple<(Scalar<f64>,)>;
+}
+
+impl AutoDiffable<()> for ComposeSumUpcastAutoTuple {
+    // gradient of Sum(Upcast((a,b,c))) is:
+    //
+    // Sum(UpcastAutoTuple((a,b,c))) = Sum(AutoTuple(n*(a,b,c), (a,b,c)))
+    // where n = len(a,b,c)
+    // so
+    // d/da Sum(...) = n+1
+    fn eval_grad(&self, x: &Self::Input, _: &()) -> (Self::Output, AutoTuple<(Array1<f64>,)>) {
+        let (y, dy) = self.0.eval_grad(&self.1.eval(x, &()), &());
+        (y, (Array1::ones((**x).0.len()) * ((**x).0.len() as f64 + 1.0)).into())
+    }
+}
+
+impl FuncCompose<(), UpcastAutoTuple> for SumAutoTuples {
+    type Output = AutoDiff<(), ComposeSumUpcastAutoTuple>;
+    fn func_compose(self, rhs: UpcastAutoTuple) -> Self::Output {
+        AutoDiff::new(ComposeSumUpcastAutoTuple(self, rhs))
+    }
+}
+
+
+#[derive(Clone, Copy, FuncCompose)]
+struct UpcastAutoTuple {}
 
 type UInput = AutoTuple<(Array1<f64>,)>;
 type UOutput = AutoTuple<(Array2<f64>, Array1<f64>)>;
 type UGrad = AutoTuple<(Array3<f64>, Array2<f64>)>;
 
-impl AutoDiffable<()> for UpcastAutoTuple {
+impl Diffable<()> for UpcastAutoTuple {
     type Input = UInput;
     type Output = UOutput;
+}
+
+impl AutoDiffable<()> for UpcastAutoTuple {
+    //type Input = UInput;
+    //type Output = UOutput;
     fn eval(&self, x: &UInput, _: &()) -> UOutput {
         // make square matrix where the rows are x
         let x = (**x).0.clone();
@@ -279,8 +345,8 @@ impl AutoDiffable<()> for UpcastAutoTuple {
 }
 
 impl ForwardDiffable<()> for UpcastAutoTuple {
-    type Input = UInput;
-    type Output = UOutput;
+    //type Input = UInput;
+    //type Output = UOutput;
     fn eval_forward_grad(
         &self,
         x: &UInput,
@@ -312,6 +378,32 @@ impl ForwardDiffable<()> for UpcastAutoTuple {
                 d2,
             )),
         )
+    }
+}
+
+// function that must use custom composition (complex numbers)
+// and so only works in forward mode
+#[derive(Clone, Copy)]
+struct OnlyForward {}
+
+impl Diffable<()> for OnlyForward {
+    type Input = Complex<f64>;
+    type Output = Complex<f64>;
+}
+
+impl ForwardDiffable<()> for OnlyForward {
+    //type Input = Complex<f64>;
+    //type Output = Complex<f64>;
+    fn eval_forward(&self, x: &Complex<f64>, _: &()) -> Complex<f64> {
+        x * x.conj()
+    }
+    fn eval_forward_grad(
+        &self,
+        x: &Complex<f64>,
+        dx: &Complex<f64>,
+        _: &(),
+    ) -> (Complex<f64>, Complex<f64>) {
+        (x * x.conj(), 2.0 * x.conj() * dx)
     }
 }
 

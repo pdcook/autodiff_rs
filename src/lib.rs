@@ -1,5 +1,7 @@
 pub mod adops;
 pub mod autodiff;
+pub mod diffable;
+pub mod compose;
 pub mod autodiffable;
 pub mod autotuple;
 pub mod func_traits;

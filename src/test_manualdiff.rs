@@ -1,13 +1,14 @@
 use crate::autodiff::AutoDiff;
+use crate::diffable::Diffable;
 use crate::autodiffable::*;
-use crate::func_traits::Compose;
+use crate::compose::*;
 use crate::funcs::*;
 use std::ops::Add;
 use crate::gradienttype::GradientType;
 use crate::forward::ForwardMul;
 
 use crate as autodiff;
-use forwarddiffable_derive::SimpleForwardDiffable;
+use forwarddiffable_derive::*;
 
 #[test]
 fn test_manual() {
@@ -49,6 +50,11 @@ fn test_manual() {
     #[derive(Debug, Clone, Copy, SimpleForwardDiffable)]
     struct Swap;
 
+    impl Diffable<()> for Swap {
+        type Input = F;
+        type Output = F;
+    }
+
     impl Swap {
         fn new() -> Self {
             Swap
@@ -56,8 +62,8 @@ fn test_manual() {
     }
 
     impl AutoDiffable<()> for Swap {
-        type Input = F;
-        type Output = F;
+        //type Input = F;
+        //type Output = F;
         fn eval(&self, x: &F, _: &()) -> F {
             F(x.1, x.0)
         }
@@ -70,9 +76,14 @@ fn test_manual() {
     #[derive(Debug, Clone, Copy, SimpleForwardDiffable)]
     struct AddSwap(Swap, Swap);
 
-    impl AutoDiffable<()> for AddSwap {
+    impl Diffable<()> for AddSwap {
         type Input = F;
         type Output = F;
+    }
+
+    impl AutoDiffable<()> for AddSwap {
+        //type Input = F;
+        //type Output = F;
         fn eval(&self, x: &F, _: &()) -> F {
             let f0 = self.0.eval(x, &());
             let f1 = self.1.eval(x, &());
@@ -100,8 +111,8 @@ fn test_manual() {
     // first we have to manually implement
     // AutoDiffable<()> for Monomial
     impl AutoDiffable<()> for Monomial<(), F, f64> {
-        type Input = F;
-        type Output = F;
+        //type Input = F;
+        //type Output = F;
         fn eval(&self, x: &F, _: &()) -> F {
             F(x.0.powf(self.0), x.1.powf(self.0))
         }
@@ -115,12 +126,24 @@ fn test_manual() {
         }
     }
 
+    impl FuncCompose<(), Swap> for Monomial<(), F, f64> {
+        type Output = AutoDiff<(), ComposeMonomialSwap>;
+        fn func_compose(self, rhs: Swap) -> Self::Output {
+            AutoDiff::new(ComposeMonomialSwap(self, rhs))
+        }
+    }
+
     #[derive(Debug, Clone, Copy, SimpleForwardDiffable)]
     struct ComposeMonomialSwap(Monomial<(), F, f64>, Swap);
 
-    impl AutoDiffable<()> for ComposeMonomialSwap {
+    impl Diffable<()> for ComposeMonomialSwap {
         type Input = F;
         type Output = F;
+    }
+
+    impl AutoDiffable<()> for ComposeMonomialSwap {
+        //type Input = F;
+        //type Output = F;
         fn eval(&self, x: &F, _: &()) -> F {
             self.0.eval(&self.1.eval(x, &()), &())
         }
@@ -140,12 +163,9 @@ fn test_manual() {
         }
     }
 
-    impl Compose<Swap> for Monomial<(), F, f64> {
-        type Output = AutoDiff<(), ComposeMonomialSwap>;
-        fn compose(self, rhs: Swap) -> Self::Output {
-            AutoDiff::new(ComposeMonomialSwap(self, rhs))
-        }
-    }
+    let c = F(1.0_f64, 2.0_f64);
+    let g = G(c, c);
+    let b = g.forward_mul(&c);
 
     // manual operations have to be done via Deref (i.e. a+b doesn't work, but a.add(*b) does as
     // well as *a + *b)
@@ -160,18 +180,18 @@ fn test_manual() {
     // this does
     // f2(x,y) = (y,x) + (y,x) = (2y, 2x)
     let f2 = *f + *f;
-
-    let m = AutoDiff::<(), Monomial<(), F, f64>>::new(Monomial::new(2.0));
-
-    // f3(x,y) = x^2 o (y,x) = (y^2, x^2)
-    let f3 = AutoDiff::new((*m).compose(*f));
-
     let x = F(1.0, 2.0);
-
     assert_eq!(f.eval(&x, &()), F(2.0, 1.0));
     assert_eq!(f.grad(&x, &()), G(F(0.0, 1.0), F(1.0, 0.0)));
     assert_eq!(f2.eval(&x, &()), F(4.0, 2.0));
     assert_eq!(f2.grad(&x, &()), G(F(0.0, 2.0), F(2.0, 0.0)));
+
+    let m = AutoDiff::<(), Monomial<(), F, f64>>::new(Monomial::new(2.0));
+
+    // f3(x,y) = x^2 o (y,x) = (y^2, x^2)
+    let f3 = AutoDiff::new((m).compose(f));
+
+
     assert_eq!(f3.eval(&x, &()), F(4.0, 1.0));
     assert_eq!(f3.grad(&x, &()), G(F(0.0, 4.0), F(2.0, 0.0)));
 

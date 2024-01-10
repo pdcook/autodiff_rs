@@ -1,4 +1,4 @@
-/*pub trait Compose<A>
+pub trait AutoCompose<A>
 where
     Self: Sized,
 {
@@ -21,14 +21,14 @@ where
     fn on(self, other: A) -> Self::Output {
         self.compose(other)
     }
-}*/
-
-pub trait Abs {
-    type Output;
-    fn abs(self) -> Self::Output;
 }
 
-pub trait Signum {
+use crate::diffable::Diffable;
+use crate::adops::*;
+
+pub trait FuncCompose<StaticArgs, Other>: Sized {
     type Output;
-    fn signum(self) -> Self::Output;
+
+    // default implementation via proc macro uses `ADCompose`
+    fn func_compose(self, other: Other) -> Self::Output;
 }

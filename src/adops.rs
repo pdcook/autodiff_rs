@@ -6,12 +6,18 @@ use std::ops::{Add, Div, Mul, Neg, Sub};
 use std::marker::PhantomData;
 use crate::forward::ForwardMul;
 use crate::gradienttype::GradientType;
+use crate::diffable::Diffable;
 
 use crate as autodiff;
 use forwarddiffable_derive::*;
 
-#[derive(Debug, Clone, Copy, Diffable)]
+#[derive(Debug, Clone, Copy)]
 pub struct ADCoerce<A, NewInput, NewOutput>(pub A, pub PhantomData<(NewInput, NewOutput)>);
+
+impl<A: Diffable<StaticArgs>, NewInput, NewOutput, StaticArgs> Diffable<StaticArgs> for ADCoerce<A, NewInput, NewOutput> {
+    type Input = NewInput;
+    type Output = NewOutput;
+}
 
 // coerce A's input and output to match NewInput and NewOutput
 impl<StaticArgs, Input, Output, Grad, NewInput, NewOutput, NewGradient, A> AutoDiffable<StaticArgs>
@@ -24,14 +30,14 @@ where
     NewOutput: From<Output>,
     NewGradient: From<Grad>,
 {
-    type Input = NewInput;
-    type Output = NewOutput;
+    ////type Input = NewInput;
+    ////type Output = NewOutput;
 
-    fn eval(&self, x: &Self::Input, static_args: &StaticArgs) -> Self::Output {
+    fn eval(&self, x: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> <Self as Diffable<StaticArgs>>::Output {
         self.0.eval(&x.clone().into(), static_args).into()
     }
 
-    fn eval_grad(&self, x: &Self::Input, static_args: &StaticArgs) -> (Self::Output, NewGradient) {
+    fn eval_grad(&self, x: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> (<Self as Diffable<StaticArgs>>::Output, NewGradient) {
         let (f, df) = self.0.eval_grad(&x.clone().into(), static_args);
         (f.into(), df.into())
     }
@@ -45,17 +51,22 @@ where
     Input: From<NewInput>,
     NewOutput: From<Output>,
 {
-    type Input = NewInput;
-    type Output = NewOutput;
+    //type Input = NewInput;
+    //type Output = NewOutput;
 
-    fn eval_forward_grad(&self, x: &Self::Input, dx: &Self::Input, static_args: &StaticArgs) -> (Self::Output, Self::Output) {
+    fn eval_forward_grad(&self, x: &<Self as Diffable<StaticArgs>>::Input, dx: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> (<Self as Diffable<StaticArgs>>::Output, <Self as Diffable<StaticArgs>>::Output) {
         let (f, df) = self.0.eval_forward_grad(&x.clone().into(), &dx.clone().into(), static_args);
         (f.into(), df.into())
     }
 }
 
-#[derive(Debug, Clone, Copy, Diffable)]
+#[derive(Debug, Clone, Copy)]
 pub struct ADAppendStaticArgs<A, NewStaticArgs>(pub A, pub PhantomData<NewStaticArgs>);
+
+impl<A: Diffable<StaticArgs>, StaticArgs, NewStaticArgs> Diffable<(StaticArgs, NewStaticArgs)> for ADAppendStaticArgs<A, NewStaticArgs> {
+    type Input = A::Input;
+    type Output = A::Output;
+}
 
 impl<StaticArgs, NewStaticArgs, Input, Output, Gradient, A> AutoDiffable<(StaticArgs, NewStaticArgs)>
 for ADAppendStaticArgs<A, NewStaticArgs>
@@ -63,8 +74,8 @@ where
     A: AutoDiffable<StaticArgs, Input = Input, Output = Output>,
     Input: GradientType<Output, GradientType = Gradient>,
 {
-    type Input = Input;
-    type Output = Output;
+    //type Input = Input;
+    //type Output = Output;
 
     fn eval(&self, x: &Self::Input, static_args: &(StaticArgs, NewStaticArgs)) -> Self::Output {
         self.0.eval(x, &static_args.0)
@@ -80,15 +91,20 @@ for ADAppendStaticArgs<A, NewStaticArgs>
 where
     A: ForwardDiffable<StaticArgs, Input = Input, Output = Output>,
 {
-    type Input = Input;
-    type Output = Output;
+    //type Input = Input;
+    //type Output = Output;
     fn eval_forward_grad(&self, x: &Self::Input, dx: &Self::Input, static_args: &(StaticArgs, NewStaticArgs)) -> (Self::Output, Self::Output) {
         self.0.eval_forward_grad(x, dx, &static_args.0)
     }
 }
 
-#[derive(Debug, Clone, Copy, Diffable)]
+#[derive(Debug, Clone, Copy)]
 pub struct ADPrependStaticArgs<A, NewStaticArgs>(pub A, pub PhantomData<NewStaticArgs>);
+
+impl<A: Diffable<StaticArgs>, StaticArgs, NewStaticArgs> Diffable<(NewStaticArgs, StaticArgs)> for ADPrependStaticArgs<A, NewStaticArgs> {
+    type Input = A::Input;
+    type Output = A::Output;
+}
 
 impl<StaticArgs, NewStaticArgs, Input, Output, Gradient, A> AutoDiffable<(NewStaticArgs, StaticArgs)>
 for ADPrependStaticArgs<A, NewStaticArgs>
@@ -96,8 +112,8 @@ where
     A: AutoDiffable<StaticArgs, Input = Input, Output = Output>,
     Input: GradientType<Output, GradientType = Gradient>,
 {
-    type Input = Input;
-    type Output = Output;
+    //type Input = Input;
+    //type Output = Output;
 
     fn eval(&self, x: &Self::Input, static_args: &(NewStaticArgs, StaticArgs)) -> Self::Output {
         self.0.eval(x, &static_args.1)
@@ -113,16 +129,24 @@ for ADPrependStaticArgs<A, NewStaticArgs>
 where
     A: ForwardDiffable<StaticArgs, Input = Input, Output = Output>,
 {
-    type Input = Input;
-    type Output = Output;
+    //type Input = Input;
+    //type Output = Output;
 
     fn eval_forward_grad(&self, x: &Self::Input, dx: &Self::Input, static_args: &(NewStaticArgs, StaticArgs)) -> (Self::Output, Self::Output) {
         self.0.eval_forward_grad(x, dx, &static_args.1)
     }
 }
 
-#[derive(Debug, Clone, Copy, Diffable)]
+#[derive(Debug, Clone, Copy)]
 pub struct ADAdd<A, B>(pub A, pub B);
+
+impl<A: Diffable<StaticArgs>, B: Diffable<StaticArgs>, StaticArgs> Diffable<StaticArgs> for ADAdd<A, B>
+where
+    A::Output: Add<B::Output>,
+{
+    type Input = A::Input;
+    type Output = <A::Output as Add<B::Output>>::Output;
+}
 
 impl<StaticArgs, Input, AOutput, BOutput, AGrad, BGrad, Output, Grad, A, B> AutoDiffable<StaticArgs> for ADAdd<A, B>
 where
@@ -134,19 +158,19 @@ where
     AGrad: Add<BGrad, Output = Grad>,
     Input: GradientType<Output, GradientType = Grad>,
 {
-    type Input = Input;
-    type Output = Output;
+    //type Input = Input;
+    //type Output = Output;
 
-    fn eval(&self, x: &Self::Input, static_args: &StaticArgs) -> Self::Output {
+    fn eval(&self, x: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> <Self as Diffable<StaticArgs>>::Output {
         // use .add instead of + to allow for newtypes which implement Deref
         self.0.eval(x, static_args).add(self.1.eval(x, static_args))
     }
 
     fn eval_grad(
         &self,
-        x: &Self::Input,
+        x: &<Self as Diffable<StaticArgs>>::Input,
         static_args: &StaticArgs,
-    ) -> (Self::Output, Grad) {
+    ) -> (<Self as Diffable<StaticArgs>>::Output, Grad) {
         let (f, df) = self.0.eval_grad(x, static_args);
         let (g, dg) = self.1.eval_grad(x, static_args);
 
@@ -160,10 +184,10 @@ where
     B: ForwardDiffable<StaticArgs, Input = Input, Output = BOutput>,
     AOutput: Add<BOutput, Output = Output>,
 {
-    type Input = Input;
-    type Output = Output;
+    //type Input = Input;
+    //type Output = Output;
 
-    fn eval_forward_grad(&self, x: &Self::Input, dx: &Self::Input, static_args: &StaticArgs) -> (Self::Output, Self::Output) {
+    fn eval_forward_grad(&self, x: &<Self as Diffable<StaticArgs>>::Input, dx: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> (<Self as Diffable<StaticArgs>>::Output, <Self as Diffable<StaticArgs>>::Output) {
         let (f, df) = self.0.eval_forward_grad(x, dx, static_args);
         let (g, dg) = self.1.eval_forward_grad(x, dx, static_args);
 
@@ -171,8 +195,16 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy, Diffable)]
+#[derive(Debug, Clone, Copy)]
 pub struct ADSub<A, B>(pub A, pub B);
+
+impl<A: Diffable<StaticArgs>, B: Diffable<StaticArgs>, StaticArgs> Diffable<StaticArgs> for ADSub<A, B>
+where
+    A::Output: Sub<B::Output>,
+{
+    type Input = A::Input;
+    type Output = <A::Output as Sub<B::Output>>::Output;
+}
 
 impl<StaticArgs, Input, AOutput, BOutput, AGrad, BGrad, Output, Grad, A, B> AutoDiffable<StaticArgs> for ADSub<A, B>
 where
@@ -184,19 +216,19 @@ where
     AGrad: Sub<BGrad, Output = Grad>,
     Input: GradientType<Output, GradientType = Grad>,
 {
-    type Input = Input;
-    type Output = Output;
+    //type Input = Input;
+    //type Output = Output;
 
-    fn eval(&self, x: &Self::Input, static_args: &StaticArgs) -> Self::Output {
+    fn eval(&self, x: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> <Self as Diffable<StaticArgs>>::Output {
         // use .sub instead of - to allow for newtypes which implement Deref
         self.0.eval(x, static_args).sub(self.1.eval(x, static_args))
     }
 
     fn eval_grad(
         &self,
-        x: &Self::Input,
+        x: &<Self as Diffable<StaticArgs>>::Input,
         static_args: &StaticArgs,
-    ) -> (Self::Output, Grad) {
+    ) -> (<Self as Diffable<StaticArgs>>::Output, Grad) {
         let (f, df) = self.0.eval_grad(x, static_args);
         let (g, dg) = self.1.eval_grad(x, static_args);
 
@@ -210,9 +242,9 @@ where
     B: ForwardDiffable<StaticArgs, Input = Input, Output = BOutput>,
     AOutput: Sub<BOutput, Output = Output>,
 {
-    type Input = Input;
-    type Output = Output;
-    fn eval_forward_grad(&self, x: &Self::Input, dx: &Self::Input, static_args: &StaticArgs) -> (Self::Output, Self::Output) {
+    //type Input = Input;
+    //type Output = Output;
+    fn eval_forward_grad(&self, x: &<Self as Diffable<StaticArgs>>::Input, dx: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> (<Self as Diffable<StaticArgs>>::Output, <Self as Diffable<StaticArgs>>::Output) {
         let (f, df) = self.0.eval_forward_grad(x, dx, static_args);
         let (g, dg) = self.1.eval_forward_grad(x, dx, static_args);
 
@@ -220,8 +252,16 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy, Diffable)]
+#[derive(Debug, Clone, Copy)]
 pub struct ADMul<A, B>(pub A, pub B);
+
+impl<A: Diffable<StaticArgs>, B: Diffable<StaticArgs>, StaticArgs> Diffable<StaticArgs> for ADMul<A, B>
+where
+    A::Output: Mul<B::Output>,
+{
+    type Input = A::Input;
+    type Output = <A::Output as Mul<B::Output>>::Output;
+}
 
 impl<StaticArgs, Input, Output, Grad, AOutput, BOutput, AGrad, BGrad, DAB, ADB, A, B> AutoDiffable<StaticArgs> for ADMul<A, B>
 where
@@ -243,19 +283,19 @@ where
     // assign gradient type
     Input: GradientType<Output, GradientType = Grad>,
 {
-    type Input = Input;
-    type Output = Output;
+    //type Input = Input;
+    //type Output = Output;
 
-    fn eval(&self, x: &Self::Input, static_args: &StaticArgs) -> Self::Output {
+    fn eval(&self, x: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> <Self as Diffable<StaticArgs>>::Output {
         // use .mul instead of * to allow for newtypes which implement Deref
         self.0.eval(x, static_args).mul(self.1.eval(x, static_args))
     }
 
     fn eval_grad(
         &self,
-        x: &Self::Input,
+        x: &<Self as Diffable<StaticArgs>>::Input,
         static_args: &StaticArgs,
-    ) -> (Self::Output, Grad) {
+    ) -> (<Self as Diffable<StaticArgs>>::Output, Grad) {
         let (f, df) = self.0.eval_grad(x, static_args);
         let (g, dg) = self.1.eval_grad(x, static_args);
 
@@ -281,9 +321,9 @@ where
     // make sure A * B + B * A is defined and Output = Output
     Output: Add<Output, Output = Output>,
 {
-    type Input = Input;
-    type Output = Output;
-    fn eval_forward_grad(&self, x: &Self::Input, dx: &Self::Input, static_args: &StaticArgs) -> (Self::Output, Self::Output) {
+    //type Input = Input;
+    //type Output = Output;
+    fn eval_forward_grad(&self, x: &<Self as Diffable<StaticArgs>>::Input, dx: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> (<Self as Diffable<StaticArgs>>::Output, <Self as Diffable<StaticArgs>>::Output) {
         let (f, df) = self.0.eval_forward_grad(x, dx, static_args);
         let (g, dg) = self.1.eval_forward_grad(x, dx, static_args);
 
@@ -297,8 +337,16 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy, Diffable)]
+#[derive(Debug, Clone, Copy)]
 pub struct ADDiv<A, B>(pub A, pub B);
+
+impl<A: Diffable<StaticArgs>, B: Diffable<StaticArgs>, StaticArgs> Diffable<StaticArgs> for ADDiv<A, B>
+where
+    A::Output: Div<B::Output>,
+{
+    type Input = A::Input;
+    type Output = <A::Output as Div<B::Output>>::Output;
+}
 
 impl<StaticArgs, Input, Output, Grad, AOutput, BOutput, AGrad, BGrad, BB, ADB, DAOVB, ADBOVBB, A, B> AutoDiffable<StaticArgs>
     for ADDiv<A, B>
@@ -325,19 +373,19 @@ where
     // assign gradient type
     Input: GradientType<Output, GradientType = Grad>,
 {
-    type Input = Input;
-    type Output = Output;
+    //type Input = Input;
+    //type Output = Output;
 
-    fn eval(&self, x: &Self::Input, static_args: &StaticArgs) -> Self::Output {
+    fn eval(&self, x: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> <Self as Diffable<StaticArgs>>::Output {
         // use .div instead of / to allow for newtypes which implement Deref
         self.0.eval(x, static_args).div(self.1.eval(x, static_args))
     }
 
     fn eval_grad(
         &self,
-        x: &Self::Input,
+        x: &<Self as Diffable<StaticArgs>>::Input,
         static_args: &StaticArgs,
-    ) -> (Self::Output, Grad) {
+    ) -> (<Self as Diffable<StaticArgs>>::Output, Grad) {
         let (f, df) = self.0.eval_grad(x, static_args);
         let (g, dg) = self.1.eval_grad(x, static_args);
 
@@ -371,9 +419,9 @@ where
     // ensure dA/B - AdB/B^2 is defined (df/g - f * dg/g^2)
     Output: Sub<ABOVBB, Output = Output>,
 {
-    type Input = Input;
-    type Output = Output;
-    fn eval_forward_grad(&self, x: &Self::Input, dx: &Self::Input, static_args: &StaticArgs) -> (Self::Output, Self::Output) {
+    //type Input = Input;
+    //type Output = Output;
+    fn eval_forward_grad(&self, x: &<Self as Diffable<StaticArgs>>::Input, dx: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> (<Self as Diffable<StaticArgs>>::Output, <Self as Diffable<StaticArgs>>::Output) {
         let (f, df) = self.0.eval_forward_grad(x, dx, static_args);
         let (g, dg) = self.1.eval_forward_grad(x, dx, static_args);
 
@@ -387,8 +435,16 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy, Diffable)]
+#[derive(Debug, Clone, Copy)]
 pub struct ADNeg<A>(pub A);
+
+impl<A: Diffable<StaticArgs>, StaticArgs> Diffable<StaticArgs> for ADNeg<A>
+where
+    A::Output: Neg,
+{
+    type Input = A::Input;
+    type Output = <A::Output as Neg>::Output;
+}
 
 impl<StaticArgs, Input, Output, Grad, AOutput, AGrad, A> AutoDiffable<StaticArgs> for ADNeg<A>
 where
@@ -400,18 +456,18 @@ where
     // assign gradient type
     Input: GradientType<Output, GradientType = Grad>,
 {
-    type Input = Input;
-    type Output = Output;
-    fn eval(&self, x: &Self::Input, static_args: &StaticArgs) -> Self::Output {
+    //type Input = Input;
+    //type Output = Output;
+    fn eval(&self, x: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> <Self as Diffable<StaticArgs>>::Output {
         // use .neg instead of - to allow for newtypes which implement Deref
         self.0.eval(x, static_args).neg()
     }
 
     fn eval_grad(
         &self,
-        x: &Self::Input,
+        x: &<Self as Diffable<StaticArgs>>::Input,
         static_args: &StaticArgs,
-    ) -> (Self::Output, Grad) {
+    ) -> (<Self as Diffable<StaticArgs>>::Output, Grad) {
         let (f, df) = self.0.eval_grad(x, static_args);
 
         (f.neg(), df.neg())
@@ -424,17 +480,26 @@ where
     // ensure A has Neg
     AOutput: Neg<Output = Output>,
 {
-    type Input = Input;
-    type Output = Output;
-    fn eval_forward_grad(&self, x: &Self::Input, dx: &Self::Input, static_args: &StaticArgs) -> (Self::Output, Self::Output) {
+    //type Input = Input;
+    //type Output = Output;
+    fn eval_forward_grad(&self, x: &<Self as Diffable<StaticArgs>>::Input, dx: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> (<Self as Diffable<StaticArgs>>::Output, <Self as Diffable<StaticArgs>>::Output) {
         let (f, df) = self.0.eval_forward_grad(x, dx, static_args);
 
         (f.neg(), df.neg())
     }
 }
 
-#[derive(Debug, Clone, Copy, Diffable)]
+#[derive(Debug, Clone, Copy)]
 pub struct ADCompose<Outer, Inner>(pub Outer, pub Inner);
+
+impl<Outer, Inner, StaticArgs> Diffable<StaticArgs> for ADCompose<Outer, Inner>
+where
+    Outer: Diffable<StaticArgs>,
+    Inner: Diffable<StaticArgs>,
+{
+    type Input = Inner::Input;
+    type Output = Outer::Output;
+}
 
 impl<StaticArgs, InnerInput, InnerOutput, InnerGrad, OuterInput, OuterOutput, OuterGrad, Grad, Outer, Inner>
     AutoDiffable<StaticArgs> for ADCompose<Outer, Inner>
@@ -445,19 +510,19 @@ where
     InnerInput: GradientType<InnerOutput, GradientType = InnerGrad> + GradientType<OuterOutput, GradientType = Grad>,
     OuterGrad: ForwardMul<OuterInput, InnerGrad, ResultGrad = Grad>
 {
-    type Input = InnerInput;
-    type Output = OuterOutput;
+    //type Input = InnerInput;
+    //type Output = OuterOutput;
 
-    fn eval(&self, x: &Self::Input, static_args: &StaticArgs) -> Self::Output {
+    fn eval(&self, x: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> <Self as Diffable<StaticArgs>>::Output {
         self.0
             .eval(&self.1.eval(x, static_args).into(), static_args)
     }
 
     fn eval_grad(
         &self,
-        x: &Self::Input,
+        x: &<Self as Diffable<StaticArgs>>::Input,
         static_args: &StaticArgs,
-    ) -> (Self::Output, Grad) {
+    ) -> (<Self as Diffable<StaticArgs>>::Output, Grad) {
         let (g, dg) = self.1.eval_grad(x, static_args);
         let (f, df) = self.0.eval_grad(&g.into(), static_args);
         (f, df.forward_mul(&dg))
@@ -471,17 +536,26 @@ where
     Inner: ForwardDiffable<StaticArgs, Input = InnerInput, Output = InnerOutput>,
     OuterInput: From<InnerOutput>,
 {
-    type Input = InnerInput;
-    type Output = OuterOutput;
-    fn eval_forward_grad(&self, x: &Self::Input, dx: &Self::Input, static_args: &StaticArgs) -> (Self::Output, Self::Output) {
+    //type Input = InnerInput;
+    //type Output = OuterOutput;
+    fn eval_forward_grad(&self, x: &<Self as Diffable<StaticArgs>>::Input, dx: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> (<Self as Diffable<StaticArgs>>::Output, <Self as Diffable<StaticArgs>>::Output) {
         let (g, dg) = self.1.eval_forward_grad(x, dx, static_args);
         let (f, df) = self.0.eval_forward_grad(&g.into(), &dg.into(), static_args);
         (f, df)
     }
 }
 
-#[derive(Debug, Clone, Copy, Diffable)]
+#[derive(Debug, Clone, Copy)]
 pub struct ADConstantAdd<A, B>(pub A, pub B);
+
+impl<A: Diffable<StaticArgs>, B, StaticArgs> Diffable<StaticArgs> for ADConstantAdd<A, B>
+where
+    A::Output: Add<B>,
+    B: Clone
+{
+    type Input = A::Input;
+    type Output = <A::Output as Add<B>>::Output;
+}
 
 impl<StaticArgs, Input, Output, Grad, AOutput, AGrad, A, B> AutoDiffable<StaticArgs> for ADConstantAdd<A, B>
 where
@@ -495,17 +569,17 @@ where
     // assign gradient type
     Input: GradientType<Output, GradientType = Grad>,
 {
-    type Input = Input;
-    type Output = Output;
-    fn eval(&self, x: &Self::Input, static_args: &StaticArgs) -> Self::Output {
+    //type Input = Input;
+    //type Output = Output;
+    fn eval(&self, x: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> <Self as Diffable<StaticArgs>>::Output {
         self.0.eval(x, static_args).add(self.1.clone())
     }
 
     fn eval_grad(
         &self,
-        x: &Self::Input,
+        x: &<Self as Diffable<StaticArgs>>::Input,
         static_args: &StaticArgs,
-    ) -> (Self::Output, Grad) {
+    ) -> (<Self as Diffable<StaticArgs>>::Output, Grad) {
         let (f, df) = self.0.eval_grad(x, static_args);
 
         (f.add(self.1.clone()), df.add(self.1.zero()))
@@ -519,17 +593,26 @@ where
     AOutput: Add<B, Output = Output>,
     B: Clone + InstZero,
 {
-    type Input = Input;
-    type Output = Output;
-    fn eval_forward_grad(&self, x: &Self::Input, dx: &Self::Input, static_args: &StaticArgs) -> (Self::Output, Self::Output) {
+    //type Input = Input;
+    //type Output = Output;
+    fn eval_forward_grad(&self, x: &<Self as Diffable<StaticArgs>>::Input, dx: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> (<Self as Diffable<StaticArgs>>::Output, <Self as Diffable<StaticArgs>>::Output) {
         let (f, df) = self.0.eval_forward_grad(x, dx, static_args);
 
         (f.add(self.1.clone()), df.add(self.1.zero()))
     }
 }
 
-#[derive(Debug, Clone, Copy, Diffable)]
+#[derive(Debug, Clone, Copy)]
 pub struct ADConstantSub<A, B>(pub A, pub B);
+
+impl<A: Diffable<StaticArgs>, B, StaticArgs> Diffable<StaticArgs> for ADConstantSub<A, B>
+where
+    A::Output: Sub<B>,
+    B: Clone,
+{
+    type Input = A::Input;
+    type Output = <A::Output as Sub<B>>::Output;
+}
 
 impl<StaticArgs, Input, Output, Grad, AOutput, AGrad, A, B> AutoDiffable<StaticArgs> for ADConstantSub<A, B>
 where
@@ -543,17 +626,17 @@ where
     // assign gradient type
     Input: GradientType<Output, GradientType = Grad>,
 {
-    type Input = Input;
-    type Output = Output;
-    fn eval(&self, x: &Self::Input, static_args: &StaticArgs) -> Self::Output {
+    //type Input = Input;
+    //type Output = Output;
+    fn eval(&self, x: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> <Self as Diffable<StaticArgs>>::Output {
         self.0.eval(x, static_args).sub(self.1.clone())
     }
 
     fn eval_grad(
         &self,
-        x: &Self::Input,
+        x: &<Self as Diffable<StaticArgs>>::Input,
         static_args: &StaticArgs,
-    ) -> (Self::Output, Grad) {
+    ) -> (<Self as Diffable<StaticArgs>>::Output, Grad) {
         let (f, df) = self.0.eval_grad(x, static_args);
 
         (f.sub(self.1.clone()), df.sub(self.1.zero()))
@@ -567,17 +650,26 @@ where
     AOutput: Sub<B, Output = Output>,
     B: Clone + InstZero,
 {
-    type Input = Input;
-    type Output = Output;
-    fn eval_forward_grad(&self, x: &Self::Input, dx: &Self::Input, static_args: &StaticArgs) -> (Self::Output, Self::Output) {
+    //type Input = Input;
+    //type Output = Output;
+    fn eval_forward_grad(&self, x: &<Self as Diffable<StaticArgs>>::Input, dx: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> (<Self as Diffable<StaticArgs>>::Output, <Self as Diffable<StaticArgs>>::Output) {
         let (f, df) = self.0.eval_forward_grad(x, dx, static_args);
 
         (f.sub(self.1.clone()), df.sub(self.1.zero()))
     }
 }
 
-#[derive(Debug, Clone, Copy, Diffable)]
+#[derive(Debug, Clone, Copy)]
 pub struct ADConstantMul<A, B>(pub A, pub B);
+
+impl<A: Diffable<StaticArgs>, B, StaticArgs> Diffable<StaticArgs> for ADConstantMul<A, B>
+where
+    A::Output: Mul<B>,
+    B: Clone,
+{
+    type Input = A::Input;
+    type Output = <A::Output as Mul<B>>::Output;
+}
 
 impl<StaticArgs, Input, Output, Grad, AOutput, AGrad, A, B> AutoDiffable<StaticArgs> for ADConstantMul<A, B>
 where
@@ -591,17 +683,17 @@ where
     // assign gradient type
     Input: GradientType<Output, GradientType = Grad>,
 {
-    type Input = Input;
-    type Output = Output;
-    fn eval(&self, x: &Self::Input, static_args: &StaticArgs) -> Self::Output {
+    //type Input = Input;
+    //type Output = Output;
+    fn eval(&self, x: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> <Self as Diffable<StaticArgs>>::Output {
         self.0.eval(x, static_args).mul(self.1.clone())
     }
 
     fn eval_grad(
         &self,
-        x: &Self::Input,
+        x: &<Self as Diffable<StaticArgs>>::Input,
         static_args: &StaticArgs,
-    ) -> (Self::Output, Grad) {
+    ) -> (<Self as Diffable<StaticArgs>>::Output, Grad) {
         let (f, df) = self.0.eval_grad(x, static_args);
 
         (f.mul(self.1.clone()), df.mul(self.1.clone()))
@@ -615,17 +707,26 @@ where
     AOutput: Mul<B, Output = Output>,
     B: Clone,
 {
-    type Input = Input;
-    type Output = Output;
-    fn eval_forward_grad(&self, x: &Self::Input, dx: &Self::Input, static_args: &StaticArgs) -> (Self::Output, Self::Output) {
+    //type Input = Input;
+    //type Output = Output;
+    fn eval_forward_grad(&self, x: &<Self as Diffable<StaticArgs>>::Input, dx: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> (<Self as Diffable<StaticArgs>>::Output, <Self as Diffable<StaticArgs>>::Output) {
         let (f, df) = self.0.eval_forward_grad(x, dx, static_args);
 
         (f.mul(self.1.clone()), df.mul(self.1.clone()))
     }
 }
 
-#[derive(Debug, Clone, Copy, Diffable)]
+#[derive(Debug, Clone, Copy)]
 pub struct ADConstantDiv<A, B>(pub A, pub B);
+
+impl<A: Diffable<StaticArgs>, B, StaticArgs> Diffable<StaticArgs> for ADConstantDiv<A, B>
+where
+    A::Output: Div<B>,
+    B: Clone,
+{
+    type Input = A::Input;
+    type Output = <A::Output as Div<B>>::Output;
+}
 
 impl<StaticArgs, Input, Output, Grad, AOutput, AGrad, A, B> AutoDiffable<StaticArgs> for ADConstantDiv<A, B>
 where
@@ -639,17 +740,17 @@ where
     // assign gradient type
     Input: GradientType<Output, GradientType = Grad>,
 {
-    type Input = Input;
-    type Output = Output;
-    fn eval(&self, x: &Self::Input, static_args: &StaticArgs) -> Self::Output {
+    //type Input = Input;
+    //type Output = Output;
+    fn eval(&self, x: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> <Self as Diffable<StaticArgs>>::Output {
         self.0.eval(x, static_args).div(self.1.clone())
     }
 
     fn eval_grad(
         &self,
-        x: &Self::Input,
+        x: &<Self as Diffable<StaticArgs>>::Input,
         static_args: &StaticArgs,
-    ) -> (Self::Output, Grad) {
+    ) -> (<Self as Diffable<StaticArgs>>::Output, Grad) {
         let (f, df) = self.0.eval_grad(x, static_args);
 
         (f.div(self.1.clone()), df.div(self.1.clone()))
@@ -663,17 +764,26 @@ where
     AOutput: Div<B, Output = Output>,
     B: Clone,
 {
-    type Input = Input;
-    type Output = Output;
-    fn eval_forward_grad(&self, x: &Self::Input, dx: &Self::Input, static_args: &StaticArgs) -> (Self::Output, Self::Output) {
+    //type Input = Input;
+    //type Output = Output;
+    fn eval_forward_grad(&self, x: &<Self as Diffable<StaticArgs>>::Input, dx: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> (<Self as Diffable<StaticArgs>>::Output, <Self as Diffable<StaticArgs>>::Output) {
         let (f, df) = self.0.eval_forward_grad(x, dx, static_args);
 
         (f.div(self.1.clone()), df.div(self.1.clone()))
     }
 }
 
-#[derive(Debug, Clone, Copy, Diffable)]
+#[derive(Debug, Clone, Copy)]
 pub struct ADConstantPow<A, B>(pub A, pub B);
+
+impl<A: Diffable<StaticArgs>, B, StaticArgs> Diffable<StaticArgs> for ADConstantPow<A, B>
+where
+    A::Output: Pow<B>,
+    B: Clone,
+{
+    type Input = A::Input;
+    type Output = <A::Output as Pow<B>>::Output;
+}
 
 impl<StaticArgs, Input, Output, Grad, AOutput, AGrad, ADB, A, B> AutoDiffable<StaticArgs> for ADConstantPow<A, B>
 where
@@ -690,17 +800,17 @@ where
     // assign gradient type
     Input: GradientType<Output, GradientType = Grad>,
 {
-    type Input = Input;
-    type Output = Output;
-    fn eval(&self, x: &Self::Input, static_args: &StaticArgs) -> Self::Output {
+    //type Input = Input;
+    //type Output = Output;
+    fn eval(&self, x: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> <Self as Diffable<StaticArgs>>::Output {
         self.0.eval(x, static_args).pow(self.1.clone())
     }
 
     fn eval_grad(
         &self,
-        x: &Self::Input,
+        x: &<Self as Diffable<StaticArgs>>::Input,
         static_args: &StaticArgs,
-    ) -> (Self::Output, Grad) {
+    ) -> (<Self as Diffable<StaticArgs>>::Output, Grad) {
         let (f, df) = self.0.eval_grad(x, static_args);
 
         // d(f^p) = p * f^(p-1) * df
@@ -725,9 +835,9 @@ where
     // ensure A * A^(B-1) * B is defined and is Output
     AOutput: Mul<APBB, Output = Output>,
 {
-    type Input = Input;
-    type Output = Output;
-    fn eval_forward_grad(&self, x: &Self::Input, dx: &Self::Input, static_args: &StaticArgs) -> (Self::Output, Self::Output) {
+    //type Input = Input;
+    //type Output = Output;
+    fn eval_forward_grad(&self, x: &<Self as Diffable<StaticArgs>>::Input, dx: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> (<Self as Diffable<StaticArgs>>::Output, <Self as Diffable<StaticArgs>>::Output) {
         let (f, df) = self.0.eval_forward_grad(x, dx, static_args);
 
         // d(f^p) = p * f^(p-1) * df
@@ -740,8 +850,13 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy, Diffable)]
+#[derive(Debug, Clone, Copy)]
 pub struct ADAbs<A>(pub A);
+
+impl<A: Diffable<StaticArgs>, StaticArgs> Diffable<StaticArgs> for ADAbs<A> {
+    type Input = A::Input;
+    type Output = A::Output;
+}
 
 impl<StaticArgs, Input, Output, Grad, A> AutoDiffable<StaticArgs> for ADAbs<A>
 where
@@ -750,17 +865,17 @@ where
     Output: Signed,
     Grad: Mul<Output, Output = Grad>,
 {
-    type Input = Input;
-    type Output = Output;
-    fn eval(&self, x: &Self::Input, static_args: &StaticArgs) -> Self::Output {
+    //type Input = Input;
+    //type Output = Output;
+    fn eval(&self, x: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> <Self as Diffable<StaticArgs>>::Output {
         self.0.eval(x, static_args).abs()
     }
 
     fn eval_grad(
         &self,
-        x: &Self::Input,
+        x: &<Self as Diffable<StaticArgs>>::Input,
         static_args: &StaticArgs,
-    ) -> (Self::Output, Grad) {
+    ) -> (<Self as Diffable<StaticArgs>>::Output, Grad) {
         let (f, df) = self.0.eval_grad(x, static_args);
 
         (f.abs(), df.mul(f.signum()))
@@ -772,17 +887,22 @@ where
     A: ForwardDiffable<StaticArgs, Input = Input, Output = Output>,
     Output: Signed + Mul<Output, Output = Output>,
 {
-    type Input = Input;
-    type Output = Output;
-    fn eval_forward_grad(&self, x: &Self::Input, dx: &Self::Input, static_args: &StaticArgs) -> (Self::Output, Self::Output) {
+    //type Input = Input;
+    //type Output = Output;
+    fn eval_forward_grad(&self, x: &<Self as Diffable<StaticArgs>>::Input, dx: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> (<Self as Diffable<StaticArgs>>::Output, <Self as Diffable<StaticArgs>>::Output) {
         let (f, df) = self.0.eval_forward_grad(x, dx, static_args);
 
         (f.abs(), df.mul(f.signum()))
     }
 }
 
-#[derive(Debug, Clone, Copy, Diffable)]
+#[derive(Debug, Clone, Copy)]
 pub struct ADSignum<A>(pub A);
+
+impl<A: Diffable<StaticArgs>, StaticArgs> Diffable<StaticArgs> for ADSignum<A> {
+    type Input = A::Input;
+    type Output = A::Output;
+}
 
 impl<StaticArgs, Input, Output, Grad, A> AutoDiffable<StaticArgs> for ADSignum<A>
 where
@@ -791,18 +911,18 @@ where
     Output: Signed + InstZero,
     Grad: InstZero + UpperBounded,
 {
-    type Input = Input;
-    type Output = Output;
+    //type Input = Input;
+    //type Output = Output;
 
-    fn eval(&self, x: &Self::Input, static_args: &StaticArgs) -> Self::Output {
+    fn eval(&self, x: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> <Self as Diffable<StaticArgs>>::Output {
         self.0.eval(x, static_args).signum()
     }
 
     fn eval_grad(
         &self,
-        x: &Self::Input,
+        x: &<Self as Diffable<StaticArgs>>::Input,
         static_args: &StaticArgs,
-    ) -> (Self::Output, Grad) {
+    ) -> (<Self as Diffable<StaticArgs>>::Output, Grad) {
         // chain rule on signum, (sign(f(x)))' = 2 delta(f(x))
         // we approximate delta(x) as
         // delta(x) = Grad::MAX if x == 0, 0 otherwise
@@ -822,10 +942,10 @@ where
     A: ForwardDiffable<StaticArgs, Input = Input, Output = Output>,
     Output: Signed + InstZero + UpperBounded,
 {
-    type Input = Input;
-    type Output = Output;
+    //type Input = Input;
+    //type Output = Output;
 
-    fn eval_forward_grad(&self, x: &Self::Input, dx: &Self::Input, static_args: &StaticArgs) -> (Self::Output, Self::Output) {
+    fn eval_forward_grad(&self, x: &<Self as Diffable<StaticArgs>>::Input, dx: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> (<Self as Diffable<StaticArgs>>::Output, <Self as Diffable<StaticArgs>>::Output) {
         // chain rule on signum, (sign(f(x)))' = 2 delta(f(x))
         // we approximate delta(x) as
         // delta(x) = Grad::MAX if x == 0, 0 otherwise

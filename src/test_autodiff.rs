@@ -1,6 +1,7 @@
 use crate::autodiff::AutoDiff;
 use crate::autodiffable::*;
 use crate::func_traits::*;
+use crate::compose::*;
 use crate::funcs::*;
 use num::traits::Pow;
 use std::ops::Deref;

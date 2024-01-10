@@ -1,37 +1,36 @@
 use crate::gradienttype::GradientType;
 
-pub trait Diffable {}
+// re-export Diffable<StaticArgs>
+pub use crate::diffable::Diffable as Diffable;
 
-pub trait AutoDiffable<StaticArgs> {
-    type Input: GradientType<Self::Output>;
-    type Output;
+pub trait AutoDiffable<StaticArgs>: Diffable<StaticArgs>
+where
+    <Self as Diffable<StaticArgs>>::Input: GradientType<<Self as Diffable<StaticArgs>>::Output>,
+{
     /// Evaluate the function and its gradient for a given input and static arguments.
-    /// Returns `(f(x, static_args): Self::Output, df/dx(x, static_args): <Self::Input as GradientType<Self::Output>>::GradientType)`
+    /// Returns `(f(x, static_args): <Self as Diffable<StaticArgs>>::Output, df/dx(x, static_args): <<Self as Diffable<StaticArgs>>::Input as GradientType<<Self as Diffable<StaticArgs>>::Output>>::GradientType)`
     fn eval_grad(
         &self,
-        x: &Self::Input,
+        x: &<Self as Diffable<StaticArgs>>::Input,
         static_args: &StaticArgs,
-    ) -> (Self::Output, <Self::Input as GradientType<Self::Output>>::GradientType);
+    ) -> (<Self as Diffable<StaticArgs>>::Output, <<Self as Diffable<StaticArgs>>::Input as GradientType<<Self as Diffable<StaticArgs>>::Output>>::GradientType);
 
     /// Evaluate the function for a given input and static arguments.
-    /// Returns `f(x, static_args): Self::Output`
-    fn eval(&self, x: &Self::Input, static_args: &StaticArgs) -> Self::Output
+    /// Returns `f(x, static_args): <Self as Diffable<StaticArgs>>::Output`
+    fn eval(&self, x: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> <Self as Diffable<StaticArgs>>::Output
     {
         self.eval_grad(x, static_args).0
     }
 
     /// Evaluate the gradient for a given input and static arguments.
-    fn grad(&self, x: &Self::Input, static_args: &StaticArgs) -> <Self::Input as GradientType<Self::Output>>::GradientType {
+    fn grad(&self, x: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> <<Self as Diffable<StaticArgs>>::Input as GradientType<<Self as Diffable<StaticArgs>>::Output>>::GradientType {
         self.eval_grad(x, static_args).1
     }
 }
 
-pub trait ForwardDiffable<StaticArgs> {
-    type Input;
-    type Output;
-
+pub trait ForwardDiffable<StaticArgs>: Diffable<StaticArgs> {
     /// Evaluate the function and its gradient in forward mode for a given input `x`, derivative `dx`, and static arguments
-    /// Returns `(f(x, static_args): Self::Output, df(x, dx, static_args): Self::Output)`
+    /// Returns `(f(x, static_args): <Self as Diffable<StaticArgs>>::Output, df(x, dx, static_args): <Self as Diffable<StaticArgs>>::Output)`
     /// By default, `df = df/dx * dx`. However, this can be overridden in cases where this equality
     /// does not hold (e.g. complex valued functions), or where a more efficient implementation is possible (e.g. functions whose arguments and return types are arrays)
     /// NOTE: The multiplication here is not the same as normal multiplication. Instead in reality
@@ -40,23 +39,23 @@ pub trait ForwardDiffable<StaticArgs> {
     /// eval_forward_grad implementation.
     fn eval_forward_grad(
         &self,
-        x: &Self::Input,
-        dx: &Self::Input,
+        x: &<Self as Diffable<StaticArgs>>::Input,
+        dx: &<Self as Diffable<StaticArgs>>::Input,
         static_args: &StaticArgs,
-    ) -> (Self::Output, Self::Output);
+    ) -> (<Self as Diffable<StaticArgs>>::Output, <Self as Diffable<StaticArgs>>::Output);
 
     /// Evaluate the function for a given input `x` and static arguments
-    fn eval_forward(&self, x: &Self::Input, static_args: &StaticArgs) -> Self::Output {
+    fn eval_forward(&self, x: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> <Self as Diffable<StaticArgs>>::Output {
         self.eval_forward_grad(x, x, static_args).0
     }
 
     /// Evaluate the gradient in forward mode for a given input `x`, derivative `dx`, and static arguments
     fn forward_grad(
         &self,
-        x: &Self::Input,
-        dx: &Self::Input,
+        x: &<Self as Diffable<StaticArgs>>::Input,
+        dx: &<Self as Diffable<StaticArgs>>::Input,
         static_args: &StaticArgs,
-    ) -> Self::Output {
+    ) -> <Self as Diffable<StaticArgs>>::Output {
         self.eval_forward_grad(x, dx, static_args).1
     }
 }
