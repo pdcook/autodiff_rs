@@ -49,7 +49,7 @@ impl<StaticArgs, T> AutoDiff<StaticArgs, T> {
     }
 }
 
-/// Impl of Diffable<StaticArgs> for AutoDiff
+/// Impl of `Diffable<StaticArgs>` for `AutoDiff`
 impl<StaticArgs, T> Diffable<StaticArgs> for AutoDiff<StaticArgs, T>
 where
     T: Diffable<StaticArgs>,
@@ -58,7 +58,7 @@ where
     type Output = T::Output;
 }
 
-/// Impl of AutoDiffable for AutoDiff
+/// Impl of `AutoDiffable` for `AutoDiff`
 impl<StaticArgs, Input, Output, Grad, T> AutoDiffable<StaticArgs> for AutoDiff<StaticArgs, T>
 where
     T: AutoDiffable<StaticArgs, Input = Input, Output = Output>,

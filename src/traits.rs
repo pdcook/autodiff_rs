@@ -42,7 +42,7 @@ where
     Self: GradientType<Self>
 {
     /// Returns the gradient identity for a function with input Self,
-    /// output Self, and gradient type <Self as GradientType<Self>>::GradientType
+    /// output Self, and gradient type `<Self as GradientType<Self>>::GradientType`
     /// for primitive types, this is the same as one()
     /// for Array types, this is more complicated
     ///
