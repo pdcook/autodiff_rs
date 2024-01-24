@@ -1,14 +1,11 @@
 use crate::adops::*;
-use crate::diffable::*;
 use crate::autodiffable::{Diffable, AutoDiffable, ForwardDiffable};
 use crate::func_traits;
 use crate::traits::{InstOne, InstZero};
-use num::traits::bounds::UpperBounded;
-use num::traits::{Pow, Signed};
+use num::traits::Pow;
 use std::marker::PhantomData;
 use std::ops::{Add, Deref, Div, Mul, Neg, Sub};
 use crate::gradienttype::GradientType;
-use crate::forward::ForwardMul;
 use crate::compose::*;
 
 /// A wrapper type for an AutoDiffable type.

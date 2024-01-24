@@ -23,9 +23,6 @@ where
     }
 }
 
-use crate::diffable::Diffable;
-use crate::adops::*;
-
 pub trait FuncCompose<StaticArgs, Other>: Sized {
     type Output;
 

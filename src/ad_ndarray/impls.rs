@@ -1,6 +1,6 @@
 use crate::autotuple::AutoTuple;
 use crate::traits::{InstOne, InstZero, GradientIdentity};
-use ndarray::{ArrayBase, DataOwned, Dimension, RawDataClone, DimAdd, RemoveAxis, DimMax, OwnedRepr, Axis, IxDyn, LinalgScalar};
+use ndarray::{ArrayBase, DataOwned, Dimension, RawDataClone, DimAdd, DimMax, OwnedRepr, IxDyn, LinalgScalar};
 use num::traits::{One, Zero};
 use std::ops::{Add, Mul};
 use crate::forward::ForwardMul;
@@ -9,7 +9,7 @@ use crate::ad_ndarray::dimabssub::DimAbsSub;
 use ndarray_einsum_beta::einsum;
 
 #[cfg(test)]
-use ndarray::{Array0, Array1, Array2, arr1, arr2, Ix1};
+use ndarray::{Array0, Array1, Array2, arr1};
 
 impl<A, S, D> InstZero for ArrayBase<S, D>
 where
@@ -116,15 +116,15 @@ fn test_gradient_type() {
 
 // get einsum string for forward mul
 fn get_einsum_str(op1_ndim: u8, op2_ndim: u8, sum_idxs: u8) -> String {
-    /// Get einsum string from two operands
-    /// op1[...op1_ndim...] op2[...op2_ndim...]
-    /// where the first sum_idxs of op1 and the last sum_idxs of op2 are summed over
-    /// and the result is ordered by the indices of op2 first, then op1
-    /// examples:
-    /// op1_ndim = 2, op2_ndim = 3, sum_idxs = 2 => "ab,cab->c" | f[a,b] g[c,a,b] -> h[c]
-    /// op1_ndim = 3, op2_ndim = 2, sum_idxs = 1 => "abc,da->dbc" | f[a,b,c] g[d,a] -> h[d,b,c]
-    /// op1_ndim = 3, op2_ndim = 2, sum_idxs = 2 => "abc,ab->c" | f[a,b,c] g[a,b] -> h[c]
-    /// op1_ndim = 6, op2_ndim = 5, sum_idxs = 3 => "abcdef,ghabc->ghdef" | f[a,b,c,d,e,f] g[g,h,a,b,c] -> h[g,h,d,e,f]
+    // Get einsum string from two operands
+    // op1[...op1_ndim...] op2[...op2_ndim...]
+    // where the first sum_idxs of op1 and the last sum_idxs of op2 are summed over
+    // and the result is ordered by the indices of op2 first, then op1
+    // examples:
+    // op1_ndim = 2, op2_ndim = 3, sum_idxs = 2 => "ab,cab->c" | f[a,b] g[c,a,b] -> h[c]
+    // op1_ndim = 3, op2_ndim = 2, sum_idxs = 1 => "abc,da->dbc" | f[a,b,c] g[d,a] -> h[d,b,c]
+    // op1_ndim = 3, op2_ndim = 2, sum_idxs = 2 => "abc,ab->c" | f[a,b,c] g[a,b] -> h[c]
+    // op1_ndim = 6, op2_ndim = 5, sum_idxs = 3 => "abcdef,ghabc->ghdef" | f[a,b,c,d,e,f] g[g,h,a,b,c] -> h[g,h,d,e,f]
 
     // assertions
     assert!(op1_ndim >= sum_idxs);

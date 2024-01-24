@@ -5,7 +5,6 @@ use crate::compose::*;
 use crate::funcs::*;
 use num::traits::Pow;
 use std::ops::Deref;
-use crate::forward::ForwardMul;
 
 #[test]
 fn test_all_ops() {

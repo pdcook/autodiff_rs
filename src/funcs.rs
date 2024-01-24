@@ -8,7 +8,7 @@ use std::ops::{Mul, Sub};
 use crate::gradienttype::GradientType;
 
 use crate as autodiff;
-use forwarddiffable_derive::*;
+use autodiff_derive::*;
 
 #[cfg(test)]
 use crate::autodiff::AutoDiff;

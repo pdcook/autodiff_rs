@@ -8,9 +8,6 @@ use crate::forward::ForwardMul;
 use crate::gradienttype::GradientType;
 use crate::diffable::Diffable;
 
-use crate as autodiff;
-use forwarddiffable_derive::*;
-
 #[derive(Debug, Clone, Copy)]
 pub struct ADCoerce<A, NewInput, NewOutput>(pub A, pub PhantomData<(NewInput, NewOutput)>);
 

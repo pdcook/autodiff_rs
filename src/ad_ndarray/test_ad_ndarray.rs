@@ -4,13 +4,13 @@ use crate::autodiffable::*;
 use crate::diffable::Diffable;
 use crate::autotuple::*;
 use crate::compose::*;
-use crate::funcs::Identity;
 use crate::traits::InstOne;
 use ndarray::prelude::*;
 use num::complex::Complex;
+use crate::funcs::Identity;
 
 use crate as autodiff;
-use forwarddiffable_derive::*;
+use autodiff_derive::*;
 
 #[derive(Clone, Copy, SimpleForwardDiffable, FuncCompose)]
 struct Sum1 {}

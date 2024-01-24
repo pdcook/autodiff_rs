@@ -1,4 +1,4 @@
-use ndarray::{Dimension, DimMax, Ix0, Ix1, Ix2, Ix3, Ix4, Ix5, Ix6, IxDyn};
+use ndarray::{Dimension, Ix0, Ix1, Ix2, Ix3, Ix4, Ix5, Ix6, IxDyn};
 
 pub trait DimAbsSub<Rhs>
 where

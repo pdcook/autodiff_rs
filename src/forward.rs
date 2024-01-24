@@ -1,5 +1,4 @@
 use std::ops::Mul;
-use crate::gradienttype::GradientType;
 
 /// Multiplication used for df/dx * dx -> df
 /// s:

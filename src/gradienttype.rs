@@ -1,6 +1,6 @@
 use num::complex::Complex;
 use num::rational::Ratio;
-use num::{Integer, Num, One, Zero};
+use num::{Integer, Num};
 use std::num::Wrapping;
 
 /// Compile-time calculation for what the gradient type should be based

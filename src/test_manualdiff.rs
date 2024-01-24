@@ -8,7 +8,7 @@ use crate::gradienttype::GradientType;
 use crate::forward::ForwardMul;
 
 use crate as autodiff;
-use forwarddiffable_derive::*;
+use autodiff_derive::*;
 
 #[test]
 fn test_manual() {
@@ -165,7 +165,7 @@ fn test_manual() {
 
     let c = F(1.0_f64, 2.0_f64);
     let g = G(c, c);
-    let b = g.forward_mul(&c);
+    let _b = g.forward_mul(&c);
 
     // manual operations have to be done via Deref (i.e. a+b doesn't work, but a.add(*b) does as
     // well as *a + *b)
