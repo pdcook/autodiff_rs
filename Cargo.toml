@@ -2,6 +2,9 @@
 name = "autodiff"
 version = "0.1.0"
 edition = "2021"
+description = "Automatic differentiation for Rust, with ndarray support"
+license-file = "LICENSE"
+keywords = ["autodiff", "automatic differentiation", "ndarray", "gradient"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
