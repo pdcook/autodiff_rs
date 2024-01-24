@@ -1,5 +1,5 @@
 [package]
-name = "autodiff"
+name = "autodiff_rs"
 version = "0.1.0"
 edition = "2021"
 description = "Automatic differentiation for Rust, with ndarray support"
