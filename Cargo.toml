@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 description = "Automatic differentiation for Rust, with ndarray support"
 license-file = "LICENSE"
+license = "GPL-3.0"
 keywords = ["autodiff", "derivatives", "ndarray", "gradient"]
 repository = "https://github.com/pdcook/autodiff_rs"
 
