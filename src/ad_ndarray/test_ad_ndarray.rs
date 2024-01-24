@@ -279,7 +279,7 @@ impl AutoDiffable<()> for ComposeSumUpcastAutoTuple {
     // so
     // d/da Sum(...) = n+1
     fn eval_grad(&self, x: &Self::Input, _: &()) -> (Self::Output, AutoTuple<(Array1<f64>,)>) {
-        let (y, dy) = self.0.eval_grad(&self.1.eval(x, &()), &());
+        let (y, _dy) = self.0.eval_grad(&self.1.eval(x, &()), &());
         (y, (Array1::ones((**x).0.len()) * ((**x).0.len() as f64 + 1.0)).into())
     }
 }
@@ -486,7 +486,7 @@ fn test_ad_ndarray() {
     // ds_dx = [3, 3]
     // du_dx = [[[1, 0], [1, 0], [1, 0]], [[0, 1], [0, 1], [0, 1]]]
     // dv_dx = (ds_dx.rev dot du_dx.rev).rev -> (2,) dot (2, 3, 2) -> (3, 2)
-    let (v_y, dv_dy) = v.eval_grad(&y, &());
+    let (_v_y, _dv_dy) = v.eval_grad(&y, &());
 
     let (v_y, dv_dy) = v.eval_forward_grad(&y, &dy, &());
     // v(a,b) -> sum(u(a,b)) = sum([[a, b], [a, b], [a, b]]) = 3a + 3b
