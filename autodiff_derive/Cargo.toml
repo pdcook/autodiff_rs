@@ -1,9 +1,9 @@
 [package]
 name = "autodiff_derive"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "Derive macros for autodiff"
-license-file = "LICENSE"
+#license-file = "LICENSE"
 license = "GPL-3.0"
 repository = "https://github.com/pdcook/autodiff_rs"
 
