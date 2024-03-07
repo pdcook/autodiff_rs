@@ -15,12 +15,12 @@ where
         static_args: &StaticArgs,
     ) -> (<Self as Diffable<StaticArgs>>::Output, <<Self as Diffable<StaticArgs>>::Input as GradientType<<Self as Diffable<StaticArgs>>::Output>>::GradientType);
 
-    ///// Evaluate the function and its gradient wrt the conjugate of the input for a given input and static arguments.
-    //fn eval_conj_grad(
-    //    &self,
-    //    x: &<Self as Diffable<StaticArgs>>::Input,
-    //    static_args: &StaticArgs,
-    //) -> (<Self as Diffable<StaticArgs>>::Output, <<Self as Diffable<StaticArgs>>::Input as GradientType<<Self as Diffable<StaticArgs>>::Output>>::GradientType);
+    /// Evaluate the function and its gradient wrt the conjugate of the input for a given input and static arguments.
+    fn eval_conj_grad(
+        &self,
+        x: &<Self as Diffable<StaticArgs>>::Input,
+        static_args: &StaticArgs,
+    ) -> (<Self as Diffable<StaticArgs>>::Output, <<Self as Diffable<StaticArgs>>::Input as GradientType<<Self as Diffable<StaticArgs>>::Output>>::GradientType);
 
     /// Evaluate the function for a given input and static arguments.
     /// Returns `f(x, static_args): <Self as Diffable<StaticArgs>>::Output`
@@ -34,10 +34,10 @@ where
         self.eval_grad(x, static_args).1
     }
 
-    ///// Evaluate the gradient wrt the conjugate of the input for a given input and static arguments.
-    //fn conj_grad(&self, x: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> <<Self as Diffable<StaticArgs>>::Input as GradientType<<Self as Diffable<StaticArgs>>::Output>>::GradientType {
-    //    self.eval_conj_grad(x, static_args).1
-    //}
+    /// Evaluate the gradient wrt the conjugate of the input for a given input and static arguments.
+    fn conj_grad(&self, x: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> <<Self as Diffable<StaticArgs>>::Input as GradientType<<Self as Diffable<StaticArgs>>::Output>>::GradientType {
+        self.eval_conj_grad(x, static_args).1
+    }
 }
 
 pub trait ForwardDiffable<StaticArgs>: Diffable<StaticArgs> {
@@ -54,13 +54,13 @@ pub trait ForwardDiffable<StaticArgs>: Diffable<StaticArgs> {
         static_args: &StaticArgs,
     ) -> (<Self as Diffable<StaticArgs>>::Output, <Self as Diffable<StaticArgs>>::Output);
 
-    ///// Evaluate the function and its gradient wrt the conjugate of the input in forward mode for a given input `x`, derivative `dx`, and static arguments
-    //fn eval_conj_forward_grad(
-    //    &self,
-    //    x: &<Self as Diffable<StaticArgs>>::Input,
-    //    dx: &<Self as Diffable<StaticArgs>>::Input,
-    //    static_args: &StaticArgs,
-    //) -> (<Self as Diffable<StaticArgs>>::Output, <Self as Diffable<StaticArgs>>::Output);
+    /// Evaluate the function and its gradient wrt the conjugate of the input in forward mode for a given input `x`, derivative `dx`, and static arguments
+    fn eval_forward_conj_grad(
+        &self,
+        x: &<Self as Diffable<StaticArgs>>::Input,
+        dx: &<Self as Diffable<StaticArgs>>::Input,
+        static_args: &StaticArgs,
+    ) -> (<Self as Diffable<StaticArgs>>::Output, <Self as Diffable<StaticArgs>>::Output);
 
     /// Evaluate the function for a given input `x` and static arguments
     fn eval_forward(&self, x: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> <Self as Diffable<StaticArgs>>::Output {
@@ -77,13 +77,13 @@ pub trait ForwardDiffable<StaticArgs>: Diffable<StaticArgs> {
         self.eval_forward_grad(x, dx, static_args).1
     }
 
-    ///// Evaluate the gradient wrt the conjugate of the input in forward mode for a given input `x`, derivative `dx`, and static arguments
-    //fn conj_forward_grad(
-    //    &self,
-    //    x: &<Self as Diffable<StaticArgs>>::Input,
-    //    dx: &<Self as Diffable<StaticArgs>>::Input,
-    //    static_args: &StaticArgs,
-    //) -> <Self as Diffable<StaticArgs>>::Output {
-    //    self.eval_conj_forward_grad(x, dx, static_args).1
-    //}
+    /// Evaluate the gradient wrt the conjugate of the input in forward mode for a given input `x`, derivative `dx`, and static arguments
+    fn forward_conj_grad(
+        &self,
+        x: &<Self as Diffable<StaticArgs>>::Input,
+        dx: &<Self as Diffable<StaticArgs>>::Input,
+        static_args: &StaticArgs,
+    ) -> <Self as Diffable<StaticArgs>>::Output {
+        self.eval_conj_forward_grad(x, dx, static_args).1
+    }
 }

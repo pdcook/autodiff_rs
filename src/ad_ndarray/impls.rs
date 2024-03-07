@@ -1,6 +1,6 @@
 use crate::autotuple::AutoTuple;
 use crate::traits::{InstOne, InstZero, GradientIdentity, Conjugate};
-use ndarray::{Array, ArrayBase, DataOwned, Dimension, RawDataClone, DimAdd, DimMax, OwnedRepr, IxDyn, LinalgScalar};
+use ndarray::{ArrayBase, DataOwned, Dimension, RawDataClone, DimAdd, DimMax, OwnedRepr, IxDyn, LinalgScalar};
 use num::traits::{One, Zero};
 use std::ops::{Add, Mul};
 use crate::forward::ForwardMul;
@@ -79,12 +79,14 @@ where
     }
 }
 
-// implement Conjugate for Array
-impl<A, D> Conjugate for Array<A, D>
+// implement Conjugate for ArrayBase
+impl<A, S, D> Conjugate for ArrayBase<S, D>
 where
     D: Dimension,
+    S: DataOwned<Elem = A>,
     A: Clone + Conjugate,
 {
+    type Output = Array<A, D>;
     fn conj(&self) -> Self {
         self.mapv(|x| x.conj())
     }

@@ -51,7 +51,8 @@ where
 }
 
 pub trait Conjugate {
-    fn conj(&self) -> Self;
+    type Output;
+    fn conj(&self) -> Self::Output;
 }
 
 // implementation for InstZero for all the types that implement Zero from num
@@ -219,7 +220,8 @@ macro_rules! impl_conjugate_real_copy {
     ($($t:ty),*) => ($(
         impl Conjugate for $t
         {
-            fn conj(&self) -> Self
+            type Output = Self;
+            fn conj(&self) -> Self::Output
             {
                 *self
             }
@@ -230,7 +232,8 @@ macro_rules! impl_conjugate_real_clone {
     ($($t:ty),*) => ($(
         impl Conjugate for $t
         {
-            fn conj(&self) -> Self
+            type Output = Self;
+            fn conj(&self) -> Self::Output
             {
                 self.clone()
             }
@@ -244,9 +247,10 @@ impl_conjugate_real_clone!(num::BigInt, num::BigUint);
 // generic implementations done here
 impl<T> Conjugate for Wrapping<T>
 where
-    T: Conjugate,
+    T: Conjugate<Output = T>,
 {
-    fn conj(&self) -> Wrapping<T>
+    type Output = Self;
+    fn conj(&self) -> Self::Output
     {
         Wrapping(self.0.conj())
     }
@@ -254,9 +258,10 @@ where
 
 impl<T> Conjugate for Ratio<T>
 where
-    T: Clone + Integer + Conjugate,
+    T: Clone + Integer + Conjugate<Output = T>,
 {
-    fn conj(&self) -> Ratio<T>
+    type Output = Self;
+    fn conj(&self) -> Self::Output
     {
         Ratio::new(self.numer().conj(), self.denom().conj())
     }
@@ -266,7 +271,8 @@ impl<T> Conjugate for Complex<T>
 where
     T: Clone + Num + Neg<Output = T>,
 {
-    fn conj(&self) -> Complex<T>
+    type Output = Self;
+    fn conj(&self) -> Self::Output
     {
         Complex::<T>::conj(self)
     }

@@ -1,5 +1,5 @@
 use crate::autodiffable::{AutoDiffable, ForwardDiffable};
-use crate::traits::{InstOne, InstZero};
+use crate::traits::{InstOne, InstZero, Conjugate};
 use num::traits::bounds::UpperBounded;
 use num::traits::{Pow, Signed};
 use std::ops::{Add, Div, Mul, Neg, Sub};
@@ -27,9 +27,6 @@ where
     NewOutput: From<Output>,
     NewGradient: From<Grad>,
 {
-    ////type Input = NewInput;
-    ////type Output = NewOutput;
-
     fn eval(&self, x: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> <Self as Diffable<StaticArgs>>::Output {
         self.0.eval(&x.clone().into(), static_args).into()
     }
@@ -37,6 +34,21 @@ where
     fn eval_grad(&self, x: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> (<Self as Diffable<StaticArgs>>::Output, NewGradient) {
         let (f, df) = self.0.eval_grad(&x.clone().into(), static_args);
         (f.into(), df.into())
+    }
+
+    fn grad(&self, x: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> NewGradient {
+        self.0.grad(&x.clone().into(), static_args).into()
+    }
+
+    // Wirtinger derivative df/dconj(x)
+    fn eval_conj_grad(&self, x: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> (<Self as Diffable<StaticArgs>>::Output, NewGradient) {
+        let (f, df) = self.0.eval_conj_grad(&x.clone().into(), static_args);
+        (f.into(), df.into())
+    }
+
+    // Wirtinger derivative df/dconj(x)
+    fn conj_grad(&self, x: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> NewGradient {
+        self.0.conj_grad(&x.clone().into(), static_args).into()
     }
 }
 
@@ -48,12 +60,22 @@ where
     Input: From<NewInput>,
     NewOutput: From<Output>,
 {
-    //type Input = NewInput;
-    //type Output = NewOutput;
-
     fn eval_forward_grad(&self, x: &<Self as Diffable<StaticArgs>>::Input, dx: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> (<Self as Diffable<StaticArgs>>::Output, <Self as Diffable<StaticArgs>>::Output) {
         let (f, df) = self.0.eval_forward_grad(&x.clone().into(), &dx.clone().into(), static_args);
         (f.into(), df.into())
+    }
+
+    fn eval_forward_conj_grad(&self, x: &<Self as Diffable<StaticArgs>>::Input, dx: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> (<Self as Diffable<StaticArgs>>::Output, <Self as Diffable<StaticArgs>>::Output) {
+        let (f, df) = self.0.eval_forward_conj_grad(&x.clone().into(), &dx.clone().into(), static_args);
+        (f.into(), df.into())
+    }
+
+    fn forward_grad(&self, x: &<Self as Diffable<StaticArgs>>::Input, dx: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> <Self as Diffable<StaticArgs>>::Output {
+        self.0.forward_grad(&x.clone().into(), &dx.clone().into(), static_args).into()
+    }
+
+    fn forward_conj_grad(&self, x: &<Self as Diffable<StaticArgs>>::Input, dx: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> <Self as Diffable<StaticArgs>>::Output {
+        self.0.forward_conj_grad(&x.clone().into(), &dx.clone().into(), static_args).into()
     }
 }
 
@@ -71,15 +93,24 @@ where
     A: AutoDiffable<StaticArgs, Input = Input, Output = Output>,
     Input: GradientType<Output, GradientType = Gradient>,
 {
-    //type Input = Input;
-    //type Output = Output;
-
     fn eval(&self, x: &Self::Input, static_args: &(StaticArgs, NewStaticArgs)) -> Self::Output {
         self.0.eval(x, &static_args.0)
     }
 
     fn eval_grad(&self, x: &Self::Input, static_args: &(StaticArgs, NewStaticArgs)) -> (Self::Output, Gradient) {
         self.0.eval_grad(x, &static_args.0)
+    }
+
+    fn grad(&self, x: &Self::Input, static_args: &(StaticArgs, NewStaticArgs)) -> Gradient {
+        self.0.grad(x, &static_args.0)
+    }
+
+    fn eval_conj_grad(&self, x: &Self::Input, static_args: &(StaticArgs, NewStaticArgs)) -> (Self::Output, Gradient) {
+        self.0.eval_conj_grad(x, &static_args.0)
+    }
+
+    fn conj_grad(&self, x: &Self::Input, static_args: &(StaticArgs, NewStaticArgs)) -> Gradient {
+        self.0.conj_grad(x, &static_args.0)
     }
 }
 
@@ -88,10 +119,17 @@ for ADAppendStaticArgs<A, NewStaticArgs>
 where
     A: ForwardDiffable<StaticArgs, Input = Input, Output = Output>,
 {
-    //type Input = Input;
-    //type Output = Output;
     fn eval_forward_grad(&self, x: &Self::Input, dx: &Self::Input, static_args: &(StaticArgs, NewStaticArgs)) -> (Self::Output, Self::Output) {
         self.0.eval_forward_grad(x, dx, &static_args.0)
+    }
+    fn eval_forward_conj_grad(&self, x: &Self::Input, dx: &Self::Input, static_args: &(StaticArgs, NewStaticArgs)) -> (Self::Output, Self::Output) {
+        self.0.eval_forward_conj_grad(x, dx, &static_args.0)
+    }
+    fn forward_grad(&self, x: &Self::Input, dx: &Self::Input, static_args: &(StaticArgs, NewStaticArgs)) -> Self::Output {
+        self.0.forward_grad(x, dx, &static_args.0)
+    }
+    fn forward_conj_grad(&self, x: &Self::Input, dx: &Self::Input, static_args: &(StaticArgs, NewStaticArgs)) -> Self::Output {
+        self.0.forward_conj_grad(x, dx, &static_args.0)
     }
 }
 
@@ -939,8 +977,6 @@ where
     A: ForwardDiffable<StaticArgs, Input = Input, Output = Output>,
     Output: Signed + InstZero + UpperBounded,
 {
-    //type Input = Input;
-    //type Output = Output;
 
     fn eval_forward_grad(&self, x: &<Self as Diffable<StaticArgs>>::Input, dx: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> (<Self as Diffable<StaticArgs>>::Output, <Self as Diffable<StaticArgs>>::Output) {
         // chain rule on signum, (sign(f(x)))' = 2 delta(f(x))
@@ -954,5 +990,59 @@ where
         } else {
             (f.signum(), df.zero())
         }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ADConjugate<A>(pub A);
+
+impl<A: Diffable<StaticArgs>, StaticArgs> Diffable<StaticArgs> for ADConjugate<A>
+where
+    A::Output: Conjugate,
+{
+    type Input = A::Input;
+    type Output = <A::Output as Conjugate>::Output;
+}
+
+impl<StaticArgs, Input, Output, Grad, AOutput, AGrad, A> AutoDiffable<StaticArgs> for ADConjugate<A>
+where
+    A: AutoDiffable<StaticArgs, Input = Input, Output = AOutput>,
+    Input: GradientType<AOutput, GradientType = AGrad>,
+    Input: GradientType<Output, GradientType = Grad>,
+    // make sure A.conj() is defined and Output = Output
+    AOutput: Conjugate<Output = Output>,
+    // make sure dA.conj() is defined and Output = Grad
+    AGrad: Conjugate<Output = Grad>,
+{
+
+    fn eval(&self, x: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> <Self as Diffable<StaticArgs>>::Output {
+        self.0.eval(x, static_args).conj()
+    }
+
+    fn eval_grad(
+        &self,
+        x: &<Self as Diffable<StaticArgs>>::Input,
+        static_args: &StaticArgs,
+    ) -> (<Self as Diffable<StaticArgs>>::Output, Grad) {
+        // Wirtinger derivative conj(df/dz) = dconj(f)/dconj(z)
+
+        let (f, dfdzconj) = self.0.eval_conj_grad(x, static_args);
+
+        (f.conj(), dfdzconj.conj())
+    }
+}
+
+impl<StaticArgs, Input, Output, AOutput, A> ForwardDiffable<StaticArgs> for ADConjugate<A>
+where
+    A: ForwardDiffable<StaticArgs, Input = Input, Output = AOutput>,
+    AOutput: Conjugate<Output = Output>,
+{
+
+    fn eval_forward_grad(&self, x: &<Self as Diffable<StaticArgs>>::Input, dx: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> (<Self as Diffable<StaticArgs>>::Output, <Self as Diffable<StaticArgs>>::Output) {
+        // Wirtinger derivative conj(df/dz * dz) = dconj(f)/dconj(z) * dconj(z)
+
+        let (f, dfconj) = self.0.eval_forward_conj_grad(x, dx, static_args);
+
+        (f.conj(), dfconj.conj())
     }
 }
