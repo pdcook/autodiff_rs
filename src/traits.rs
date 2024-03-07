@@ -2,7 +2,7 @@ use num::complex::Complex;
 use num::rational::Ratio;
 use num::{Integer, Num, One, Zero};
 use std::num::Wrapping;
-use std::ops::{Add, Mul};
+use std::ops::{Add, Mul, Neg};
 use crate::gradienttype::GradientType;
 
 pub trait InstZero: Sized + Add<Self, Output = Self> {
@@ -48,6 +48,10 @@ where
     ///
     /// This cannot be implemented for complex numbers
     fn grad_identity(&self) -> <Self as GradientType<Self>>::GradientType;
+}
+
+pub trait Conjugate {
+    fn conj(&self) -> Self;
 }
 
 // implementation for InstZero for all the types that implement Zero from num
@@ -207,5 +211,63 @@ where
 {
     fn grad_identity(&self) -> G {
         G::one()
+    }
+}
+
+// implementation of Conjugate for all real number types
+macro_rules! impl_conjugate_real_copy {
+    ($($t:ty),*) => ($(
+        impl Conjugate for $t
+        {
+            fn conj(&self) -> Self
+            {
+                *self
+            }
+        }
+    )*)
+}
+macro_rules! impl_conjugate_real_clone {
+    ($($t:ty),*) => ($(
+        impl Conjugate for $t
+        {
+            fn conj(&self) -> Self
+            {
+                self.clone()
+            }
+        }
+    )*)
+}
+
+impl_conjugate_real_copy!(i64, u128, f32, u16, u32, i16, f64, isize, i32, u8, u64, usize, i128, i8);
+impl_conjugate_real_clone!(num::BigInt, num::BigUint);
+
+// generic implementations done here
+impl<T> Conjugate for Wrapping<T>
+where
+    T: Conjugate,
+{
+    fn conj(&self) -> Wrapping<T>
+    {
+        Wrapping(self.0.conj())
+    }
+}
+
+impl<T> Conjugate for Ratio<T>
+where
+    T: Clone + Integer + Conjugate,
+{
+    fn conj(&self) -> Ratio<T>
+    {
+        Ratio::new(self.numer().conj(), self.denom().conj())
+    }
+}
+
+impl<T> Conjugate for Complex<T>
+where
+    T: Clone + Num + Neg<Output = T>,
+{
+    fn conj(&self) -> Complex<T>
+    {
+        Complex::<T>::conj(self)
     }
 }

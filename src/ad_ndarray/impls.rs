@@ -1,6 +1,6 @@
 use crate::autotuple::AutoTuple;
-use crate::traits::{InstOne, InstZero, GradientIdentity};
-use ndarray::{ArrayBase, DataOwned, Dimension, RawDataClone, DimAdd, DimMax, OwnedRepr, IxDyn, LinalgScalar};
+use crate::traits::{InstOne, InstZero, GradientIdentity, Conjugate};
+use ndarray::{Array, ArrayBase, DataOwned, Dimension, RawDataClone, DimAdd, DimMax, OwnedRepr, IxDyn, LinalgScalar};
 use num::traits::{One, Zero};
 use std::ops::{Add, Mul};
 use crate::forward::ForwardMul;
@@ -69,7 +69,6 @@ where
                     let mut idx = vec![k; grad.ndim()];
                     idx[i] = j;
                     idx[i + self.ndim()] = j;
-                    println!("{:?}", idx);
                     grad[idx.as_slice()] = <AG as One>::one();
                 }
             }
@@ -77,6 +76,17 @@ where
 
         // convert to static dimension
         grad.into_dimensionality::<DG>().unwrap()
+    }
+}
+
+// implement Conjugate for Array
+impl<A, D> Conjugate for Array<A, D>
+where
+    D: Dimension,
+    A: Clone + Conjugate,
+{
+    fn conj(&self) -> Self {
+        self.mapv(|x| x.conj())
     }
 }
 
