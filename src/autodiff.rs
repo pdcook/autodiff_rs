@@ -61,14 +61,24 @@ where
     T: AutoDiffable<StaticArgs, Input = Input, Output = Output>,
     Input: GradientType<Output, GradientType = Grad>,
 {
-    //type Input = Input;
-    //type Output = Output;
     fn eval(&self, x: &Self::Input, static_args: &StaticArgs) -> Self::Output {
         self.0.eval(x, static_args)
     }
 
     fn eval_grad(&self, x: &Self::Input, static_args: &StaticArgs) -> (Self::Output, Grad) {
         self.0.eval_grad(x, static_args)
+    }
+
+    fn grad(&self, x: &Self::Input, static_args: &StaticArgs) -> Grad {
+        self.0.grad(x, static_args)
+    }
+
+    fn eval_conj_grad(&self, x: &Self::Input, static_args: &StaticArgs) -> (Self::Output, Grad) {
+        self.0.eval_conj_grad(x, static_args)
+    }
+
+    fn conj_grad(&self, x: &Self::Input, static_args: &StaticArgs) -> Grad {
+        self.0.conj_grad(x, static_args)
     }
 }
 
@@ -77,9 +87,6 @@ impl<StaticArgs, Input, Output, T> ForwardDiffable<StaticArgs> for AutoDiff<Stat
 where
     T: ForwardDiffable<StaticArgs, Input = Input, Output = Output>,
 {
-    //type Input = Input;
-    //type Output = Output;
-
     fn eval_forward(&self, x: &Self::Input, static_args: &StaticArgs) -> Self::Output {
         self.0.eval_forward(x, static_args)
     }
@@ -91,6 +98,19 @@ where
         static_args: &StaticArgs,
     ) -> (Self::Output, Self::Output) {
         self.0.eval_forward_grad(x, dx, static_args)
+    }
+
+    fn eval_forward_conj_grad(
+        &self,
+        x: &Self::Input,
+        dx: &Self::Input,
+        static_args: &StaticArgs,
+    ) -> (Self::Output, Self::Output) {
+        self.0.eval_forward_conj_grad(x, dx, static_args)
+    }
+
+    fn forward_grad(&self, x: &Self::Input, dx: &Self::Input, static_args: &StaticArgs) -> Self::Output {
+        self.0.forward_grad(x, dx, static_args)
     }
 }
 

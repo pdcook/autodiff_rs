@@ -3,8 +3,7 @@ use crate::diffable::Diffable;
 use crate::forward::ForwardMul;
 use crate::gradienttype::GradientType;
 use crate::traits::{InstOne, InstZero, Wirtinger};
-use num::traits::bounds::UpperBounded;
-use num::traits::{Pow, Signed};
+use num::traits::Pow;
 use std::marker::PhantomData;
 use std::ops::{Add, Div, Mul, Neg, Sub};
 
@@ -83,6 +82,14 @@ where
     Input: From<NewInput>,
     NewOutput: From<Output>,
 {
+    fn eval_forward(
+        &self,
+        x: &<Self as Diffable<StaticArgs>>::Input,
+        static_args: &StaticArgs,
+    ) -> <Self as Diffable<StaticArgs>>::Output {
+        self.0.eval_forward(&x.clone().into(), static_args).into()
+    }
+
     fn eval_forward_grad(
         &self,
         x: &<Self as Diffable<StaticArgs>>::Input,
@@ -186,6 +193,14 @@ impl<StaticArgs, NewStaticArgs, Input, Output, A> ForwardDiffable<(StaticArgs, N
 where
     A: ForwardDiffable<StaticArgs, Input = Input, Output = Output>,
 {
+    fn eval_forward(
+        &self,
+        x: &Self::Input,
+        static_args: &(StaticArgs, NewStaticArgs),
+    ) -> Self::Output {
+        self.0.eval_forward(x, &static_args.0)
+    }
+
     fn eval_forward_grad(
         &self,
         x: &Self::Input,
@@ -270,6 +285,14 @@ impl<StaticArgs, NewStaticArgs, Input, Output, A> ForwardDiffable<(NewStaticArgs
 where
     A: ForwardDiffable<StaticArgs, Input = Input, Output = Output>,
 {
+    fn eval_forward(
+        &self,
+        x: &Self::Input,
+        static_args: &(NewStaticArgs, StaticArgs),
+    ) -> Self::Output {
+        self.0.eval_forward(x, &static_args.1)
+    }
+
     fn eval_forward_grad(
         &self,
         x: &Self::Input,
@@ -379,6 +402,17 @@ where
     B: ForwardDiffable<StaticArgs, Input = Input, Output = BOutput>,
     AOutput: Add<BOutput, Output = Output>,
 {
+    fn eval_forward(
+        &self,
+        x: &<Self as Diffable<StaticArgs>>::Input,
+        static_args: &StaticArgs,
+    ) -> <Self as Diffable<StaticArgs>>::Output {
+        let f = self.0.eval_forward(x, static_args);
+        let g = self.1.eval_forward(x, static_args);
+
+        f.add(g)
+    }
+
     fn eval_forward_grad(
         &self,
         x: &<Self as Diffable<StaticArgs>>::Input,
@@ -507,6 +541,16 @@ where
     B: ForwardDiffable<StaticArgs, Input = Input, Output = BOutput>,
     AOutput: Sub<BOutput, Output = Output>,
 {
+    fn eval_forward(
+        &self,
+        x: &<Self as Diffable<StaticArgs>>::Input,
+        static_args: &StaticArgs,
+    ) -> <Self as Diffable<StaticArgs>>::Output {
+        let f = self.0.eval_forward(x, static_args);
+        let g = self.1.eval_forward(x, static_args);
+
+        f.sub(g)
+    }
     fn eval_forward_grad(
         &self,
         x: &<Self as Diffable<StaticArgs>>::Input,
@@ -665,6 +709,16 @@ where
     // make sure A * B + B * A is defined and Output = Output
     Output: Add<Output, Output = Output>,
 {
+    fn eval_forward(
+        &self,
+        x: &<Self as Diffable<StaticArgs>>::Input,
+        static_args: &StaticArgs,
+    ) -> <Self as Diffable<StaticArgs>>::Output {
+        let f = self.0.eval_forward(x, static_args);
+        let g = self.1.eval_forward(x, static_args);
+
+        f.mul(g)
+    }
     fn eval_forward_grad(
         &self,
         x: &<Self as Diffable<StaticArgs>>::Input,
@@ -865,6 +919,16 @@ where
     // ensure dA/B - AdB/B^2 is defined (df/g - f * dg/g^2)
     Output: Sub<ABOVBB, Output = Output>,
 {
+    fn eval_forward(
+        &self,
+        x: &<Self as Diffable<StaticArgs>>::Input,
+        static_args: &StaticArgs,
+    ) -> <Self as Diffable<StaticArgs>>::Output {
+        let f = self.0.eval_forward(x, static_args);
+        let g = self.1.eval_forward(x, static_args);
+
+        f.div(g)
+    }
     fn eval_forward_grad(
         &self,
         x: &<Self as Diffable<StaticArgs>>::Input,
@@ -1001,6 +1065,15 @@ where
     // ensure A has Neg
     AOutput: Neg<Output = Output>,
 {
+    fn eval_forward(
+        &self,
+        x: &<Self as Diffable<StaticArgs>>::Input,
+        static_args: &StaticArgs,
+    ) -> <Self as Diffable<StaticArgs>>::Output {
+        let f = self.0.eval_forward(x, static_args);
+
+        f.neg()
+    }
     fn eval_forward_grad(
         &self,
         x: &<Self as Diffable<StaticArgs>>::Input,
@@ -1099,7 +1172,7 @@ where
         x: &<Self as Diffable<StaticArgs>>::Input,
         static_args: &StaticArgs,
     ) -> (<Self as Diffable<StaticArgs>>::Output, Grad) {
-        if InnerInput::is_always_real() {
+        if InnerInput::is_always_real() && OuterInput::is_always_real() {
             let (g, dg) = self.1.eval_grad(x, static_args);
             let (f, df) = self.0.eval_grad(&g.into(), static_args);
             (f, df.forward_mul(&dg))
@@ -1119,7 +1192,7 @@ where
     }
 
     fn grad(&self, x: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> Grad {
-        if InnerInput::is_always_real() {
+        if InnerInput::is_always_real() && OuterInput::is_always_real() {
             let (g, dg) = self.1.eval_grad(x, static_args);
             let df = self.0.grad(&g.into(), static_args);
             df.forward_mul(&dg)
@@ -1143,7 +1216,7 @@ where
         x: &<Self as Diffable<StaticArgs>>::Input,
         static_args: &StaticArgs,
     ) -> (<Self as Diffable<StaticArgs>>::Output, Grad) {
-        if InnerInput::is_always_real() {
+        if InnerInput::is_always_real() && OuterInput::is_always_real() {
             self.eval_grad(x, static_args)
         } else {
             // in the Wirtinger calculus we have
@@ -1169,7 +1242,7 @@ where
         x: &<Self as Diffable<StaticArgs>>::Input,
         static_args: &StaticArgs,
     ) -> Grad {
-        if InnerInput::is_always_real() {
+        if InnerInput::is_always_real() && OuterInput::is_always_real() {
             self.grad(x, static_args)
         } else {
             // in the Wirtinger calculus we have
@@ -1198,6 +1271,14 @@ where
     OuterInput: Wirtinger,
     OuterOutput: Add<OuterOutput, Output = OuterOutput>,
 {
+    fn eval_forward(
+        &self,
+        x: &<Self as Diffable<StaticArgs>>::Input,
+        static_args: &StaticArgs,
+    ) -> <Self as Diffable<StaticArgs>>::Output {
+        self.0
+            .eval_forward(&self.1.eval_foward(x, static_args).into(), static_args)
+    }
     fn eval_forward_grad(
         &self,
         x: &<Self as Diffable<StaticArgs>>::Input,
@@ -1207,7 +1288,7 @@ where
         <Self as Diffable<StaticArgs>>::Output,
         <Self as Diffable<StaticArgs>>::Output,
     ) {
-        if InnerInput::is_always_real() {
+        if InnerInput::is_always_real() && OuterInput::is_always_real() {
             let (g, dg) = self.1.eval_forward_grad(x, dx, static_args);
             let (f, df) = self.0.eval_forward_grad(&g.into(), &dg.into(), static_args);
             (f, df)
@@ -1238,7 +1319,7 @@ where
         dx: &<Self as Diffable<StaticArgs>>::Input,
         static_args: &StaticArgs,
     ) -> <Self as Diffable<StaticArgs>>::Output {
-        if InnerInput::is_always_real() {
+        if InnerInput::is_always_real() && OuterInput::is_always_real() {
             let (g, dg) = self.1.eval_forward_grad(x, dx, static_args);
             let df = self.0.forward_grad(&g.into(), &dg.into(), static_args);
             df
@@ -1272,7 +1353,7 @@ where
         <Self as Diffable<StaticArgs>>::Output,
         <Self as Diffable<StaticArgs>>::Output,
     ) {
-        if InnerInput::is_always_real() {
+        if InnerInput::is_always_real() && OuterInput::is_always_real() {
             self.eval_forward_grad(x, dx, static_args)
         } else {
             // in the Wirtinger calculus we have
@@ -1303,7 +1384,7 @@ where
         dx: &<Self as Diffable<StaticArgs>>::Input,
         static_args: &StaticArgs,
     ) -> <Self as Diffable<StaticArgs>>::Output {
-        if InnerInput::is_always_real() {
+        if InnerInput::is_always_real() && OuterInput::is_always_real() {
             self.forward_grad(x, dx, static_args)
         } else {
             // in the Wirtinger calculus we have
@@ -1400,6 +1481,14 @@ where
     AOutput: Add<B, Output = Output>,
     B: Clone + InstZero,
 {
+    fn eval_forward(
+        &self,
+        x: &<Self as Diffable<StaticArgs>>::Input,
+        static_args: &StaticArgs,
+    ) -> <Self as Diffable<StaticArgs>>::Output {
+        self.0.eval_forward(x, static_args).add(self.1.clone())
+    }
+
     fn eval_forward_grad(
         &self,
         x: &<Self as Diffable<StaticArgs>>::Input,
@@ -1521,6 +1610,13 @@ where
     AOutput: Sub<B, Output = Output>,
     B: Clone + InstZero,
 {
+    fn eval_forward(
+        &self,
+        x: &<Self as Diffable<StaticArgs>>::Input,
+        static_args: &StaticArgs,
+    ) -> <Self as Diffable<StaticArgs>>::Output {
+        self.0.eval_forward(x, static_args).sub(self.1.clone())
+    }
     fn eval_forward_grad(
         &self,
         x: &<Self as Diffable<StaticArgs>>::Input,
@@ -1642,6 +1738,13 @@ where
     AOutput: Mul<B, Output = Output>,
     B: Clone,
 {
+    fn eval_forward(
+        &self,
+        x: &<Self as Diffable<StaticArgs>>::Input,
+        static_args: &StaticArgs,
+    ) -> <Self as Diffable<StaticArgs>>::Output {
+        self.0.eval_forward(x, static_args).mul(self.1.clone())
+    }
     fn eval_forward_grad(
         &self,
         x: &<Self as Diffable<StaticArgs>>::Input,
@@ -1764,6 +1867,13 @@ where
     AOutput: Div<B, Output = Output>,
     B: Clone,
 {
+    fn eval_forward(
+        &self,
+        x: &<Self as Diffable<StaticArgs>>::Input,
+        static_args: &StaticArgs,
+    ) -> <Self as Diffable<StaticArgs>>::Output {
+        self.0.eval_forward(x, static_args).div(self.1.clone())
+    }
     fn eval_forward_grad(
         &self,
         x: &<Self as Diffable<StaticArgs>>::Input,
@@ -1923,6 +2033,13 @@ where
     // ensure A * A^(B-1) * B is defined and is Output
     AOutput: Mul<APBB, Output = Output>,
 {
+    fn eval_forward(
+        &self,
+        x: &<Self as Diffable<StaticArgs>>::Input,
+        static_args: &StaticArgs,
+    ) -> <Self as Diffable<StaticArgs>>::Output {
+        self.0.eval_forward(x, static_args).pow(self.1.clone())
+    }
     fn eval_forward_grad(
         &self,
         x: &<Self as Diffable<StaticArgs>>::Input,
@@ -1996,9 +2113,9 @@ impl<A: Diffable<StaticArgs>, StaticArgs> Diffable<StaticArgs> for ADAbs<A> {
 impl<StaticArgs, Input, Output, Grad, A> AutoDiffable<StaticArgs> for ADAbs<A>
 where
     A: AutoDiffable<StaticArgs, Input = Input, Output = Output>,
-    Input: GradientType<Output, GradientType = Grad>,
-    Output: Signed,
-    Grad: Mul<Output, Output = Grad>,
+    Input: Wirtinger + GradientType<Output, GradientType = Grad>,
+    Output: Wirtinger,
+    Grad: Wirtinger + Mul<Output, Output = Grad> + Add<Grad, Output = Grad>,
 {
     fn eval(
         &self,
@@ -2013,17 +2130,177 @@ where
         x: &<Self as Diffable<StaticArgs>>::Input,
         static_args: &StaticArgs,
     ) -> (<Self as Diffable<StaticArgs>>::Output, Grad) {
-        let (f, df) = self.0.eval_grad(x, static_args);
+        if Input::is_always_real() && Output::is_always_real() {
+            let (f, df) = self.0.eval_grad(x, static_args);
 
-        (f.abs(), df.mul(f.signum()))
+            (f.abs(), df.mul(f.signum()))
+        } else {
+            // in the Wirtinger calculus we have
+            // |z| = sqrt(z * conj(z))
+            // d|z|/dz = 1/2 * conj(z) * (z * conj(z))^(-1/2)
+            //         = 1/2 * conj(z) * |z|^(-1)
+            // cannot simplify further, since we would be assuming the "sign" of z
+            // d|z|/dconjz = 1/2 * z * (z * conj(z))^(-1/2)
+            //            = 1/2 * z * |z|^(-1)
+            // cannot simplify further, since we would be assuming the "sign" of z
+            //
+            // now for |f|, we have
+            //
+            // d|f|/dz = d|f|/df * df/dz + d|f|/dconjf * conj(df/dconjz)
+            //        = f/|f| * df/dz + conj(f)/|f| * conj(df/dconjz)
+            //
+            // and
+            //
+            // d|f|/dconjz = d|f|/df * df/dconjz + d|f|/dconjf * conj(df/dz)
+            //          = f/|f| * df/dconjz + conj(f)/|f| * conj(df/dz)
+
+            // note that for purely real z, this reduces to the real case
+
+            let (f, df) = self.0.eval_grad(x, static_args);
+            let fconj = f.conj();
+            let dconjfdz = self.0.conj_grad(x, static_args).conj();
+
+            (
+                f.abs(),
+                df.mul(f.signum()).add(dconjfdz.mul(fconj.signum())),
+            )
+        }
+    }
+
+    fn grad(&self, x: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> Grad {
+        if Input::is_always_real() && Output::is_always_real() {
+            let df = self.0.grad(x, static_args);
+
+            df.mul(self.0.eval(x, static_args).signum())
+        } else {
+            // in the Wirtinger calculus we have
+            // |z| = sqrt(z * conj(z))
+            // d|z|/dz = 1/2 * conj(z) * (z * conj(z))^(-1/2)
+            //         = 1/2 * conj(z) * |z|^(-1)
+            // cannot simplify further, since we would be assuming the "sign" of z
+            // d|z|/dconjz = 1/2 * z * (z * conj(z))^(-1/2)
+            //            = 1/2 * z * |z|^(-1)
+            // cannot simplify further, since we would be assuming the "sign" of z
+            //
+            // now for |f|, we have
+            //
+            // d|f|/dz = d|f|/df * df/dz + d|f|/dconjf * conj(df/dconjz)
+            //        = f/|f| * df/dz + conj(f)/|f| * conj(df/dconjz)
+            //
+            // and
+            //
+            // d|f|/dconjz = d|f|/df * df/dconjz + d|f|/dconjf * conj(df/dz)
+            //          = f/|f| * df/dconjz + conj(f)/|f| * conj(df/dz)
+
+            // note that for purely real z, this reduces to the real case
+
+            let (f, df) = self.0.eval_grad(x, static_args);
+            let fconj = f.conj();
+            let dconjfdz = self.0.conj_grad(x, static_args).conj();
+
+            df.mul(f.signum()).add(dconjfdz.mul(fconj.signum()))
+        }
+    }
+
+    fn eval_conj_grad(
+        &self,
+        x: &<Self as Diffable<StaticArgs>>::Input,
+        static_args: &StaticArgs,
+    ) -> (<Self as Diffable<StaticArgs>>::Output, Grad) {
+        if Input::is_always_real() && Output::is_always_real() {
+            let (f, df) = self.0.eval_conj_grad(x, static_args);
+
+            (f.abs(), df.mul(f.signum()))
+        } else {
+            // in the Wirtinger calculus we have
+            // |z| = sqrt(z * conj(z))
+            // d|z|/dz = 1/2 * conj(z) * (z * conj(z))^(-1/2)
+            //         = 1/2 * conj(z) * |z|^(-1)
+            // cannot simplify further, since we would be assuming the "sign" of z
+            // d|z|/dconjz = 1/2 * z * (z * conj(z))^(-1/2)
+            //            = 1/2 * z * |z|^(-1)
+            // cannot simplify further, since we would be assuming the "sign" of z
+            //
+            // now for |f|, we have
+            //
+            // d|f|/dz = d|f|/df * df/dz + d|f|/dconjf * conj(df/dconjz)
+            //        = f/|f| * df/dz + conj(f)/|f| * conj(df/dconjz)
+            //
+            // and
+            //
+            // d|f|/dconjz = d|f|/df * df/dconjz + d|f|/dconjf * conj(df/dz)
+            //          = f/|f| * df/dconjz + conj(f)/|f| * conj(df/dz)
+
+            // note that for purely real z, this reduces to the real case
+
+            let (f, dfdconjz) = self.0.eval_conj_grad(x, static_args);
+            let fconj = f.conj();
+            let dconjfdconjz = self.0.grad(x, static_args).conj();
+
+            (
+                f.abs(),
+                dfdconjz
+                    .mul(f.signum())
+                    .add(dconjfdconjz.mul(fconj.signum())),
+            )
+        }
+    }
+
+    fn conj_grad(
+        &self,
+        x: &<Self as Diffable<StaticArgs>>::Input,
+        static_args: &StaticArgs,
+    ) -> Grad {
+        if Input::is_always_real() && Output::is_always_real() {
+            let df = self.0.conj_grad(x, static_args);
+
+            df.mul(self.0.eval(x, static_args).signum())
+        } else {
+            // in the Wirtinger calculus we have
+            // |z| = sqrt(z * conj(z))
+            // d|z|/dz = 1/2 * conj(z) * (z * conj(z))^(-1/2)
+            //         = 1/2 * conj(z) * |z|^(-1)
+            // cannot simplify further, since we would be assuming the "sign" of z
+            // d|z|/dconjz = 1/2 * z * (z * conj(z))^(-1/2)
+            //            = 1/2 * z * |z|^(-1)
+            // cannot simplify further, since we would be assuming the "sign" of z
+            //
+            // now for |f|, we have
+            //
+            // d|f|/dz = d|f|/df * df/dz + d|f|/dconjf * conj(df/dconjz)
+            //        = f/|f| * df/dz + conj(f)/|f| * conj(df/dconjz)
+            //
+            // and
+            //
+            // d|f|/dconjz = d|f|/df * df/dconjz + d|f|/dconjf * conj(df/dz)
+            //          = f/|f| * df/dconjz + conj(f)/|f| * conj(df/dz)
+
+            // note that for purely real z, this reduces to the real case
+
+            let (f, dfdconjz) = self.0.eval_conj_grad(x, static_args);
+            let fconj = f.conj();
+            let dconjfdconjz = self.0.grad(x, static_args).conj();
+
+            dfdconjz
+                .mul(f.signum())
+                .add(dconjfdconjz.mul(fconj.signum()))
+        }
     }
 }
 
 impl<StaticArgs, Input, Output, A> ForwardDiffable<StaticArgs> for ADAbs<A>
 where
     A: ForwardDiffable<StaticArgs, Input = Input, Output = Output>,
-    Output: Signed + Mul<Output, Output = Output>,
+    Input: Wirtinger,
+    Output: Wirtinger + Mul<Output, Output = Output> + Add<Output, Output = Output>,
 {
+    fn eval_forward(
+        &self,
+        x: &<Self as Diffable<StaticArgs>>::Input,
+        static_args: &StaticArgs,
+    ) -> <Self as Diffable<StaticArgs>>::Output {
+        self.0.eval_forward(x, static_args).abs()
+    }
     fn eval_forward_grad(
         &self,
         x: &<Self as Diffable<StaticArgs>>::Input,
@@ -2033,9 +2310,421 @@ where
         <Self as Diffable<StaticArgs>>::Output,
         <Self as Diffable<StaticArgs>>::Output,
     ) {
-        let (f, df) = self.0.eval_forward_grad(x, dx, static_args);
+        if Input::is_always_real() && Output::is_always_real() {
+            let (f, df) = self.0.eval_forward_grad(x, dx, static_args);
 
-        (f.abs(), df.mul(f.signum()))
+            (f.abs(), df.mul(f.signum()))
+        } else {
+            // in the Wirtinger calculus we have
+            // |z| = sqrt(z * conj(z))
+            // d|z|/dz = 1/2 * conj(z) * (z * conj(z))^(-1/2)
+            //         = 1/2 * conj(z) * |z|^(-1)
+            // cannot simplify further, since we would be assuming the "sign" of z
+            // d|z|/dconjz = 1/2 * z * (z * conj(z))^(-1/2)
+            //            = 1/2 * z * |z|^(-1)
+            // cannot simplify further, since we would be assuming the "sign" of z
+            //
+            // now for |f|, we have
+            //
+            // d|f|/dz = d|f|/df * df/dz + d|f|/dconjf * conj(df/dconjz)
+            //        = f/|f| * df/dz + conj(f)/|f| * conj(df/dconjz)
+            //
+            // and
+            //
+            // d|f|/dconjz = d|f|/df * df/dconjz + d|f|/dconjf * conj(df/dz)
+            //          = f/|f| * df/dconjz + conj(f)/|f| * conj(df/dz)
+
+            // note that for purely real z, this reduces to the real case
+
+            let (f, df) = self.0.eval_forward_grad(x, dx, static_args);
+            let fconj = f.conj();
+            let dconjfdz = self.0.forward_conj_grad(x, dx, static_args);
+
+            (
+                f.abs(),
+                df.mul(f.signum()).add(dconjfdz.mul(fconj.signum())),
+            )
+        }
+    }
+
+    fn forward_grad(
+        &self,
+        x: &<Self as Diffable<StaticArgs>>::Input,
+        dx: &<Self as Diffable<StaticArgs>>::Input,
+        static_args: &StaticArgs,
+    ) -> <Self as Diffable<StaticArgs>>::Output {
+        if Input::is_always_real() && Output::is_always_real() {
+            let (f, df) = self.0.eval_forward_grad(x, dx, static_args);
+
+            df.mul(f.signum())
+        } else {
+            // in the Wirtinger calculus we have
+            // |z| = sqrt(z * conj(z))
+            // d|z|/dz = 1/2 * conj(z) * (z * conj(z))^(-1/2)
+            //         = 1/2 * conj(z) * |z|^(-1)
+            // cannot simplify further, since we would be assuming the "sign" of z
+            // d|z|/dconjz = 1/2 * z * (z * conj(z))^(-1/2)
+            //            = 1/2 * z * |z|^(-1)
+            // cannot simplify further, since we would be assuming the "sign" of z
+            //
+            // now for |f|, we have
+            //
+            // d|f|/dz = d|f|/df * df/dz + d|f|/dconjf * conj(df/dconjz)
+            //        = f/|f| * df/dz + conj(f)/|f| * conj(df/dconjz)
+            //
+            // and
+            //
+            // d|f|/dconjz = d|f|/df * df/dconjz + d|f|/dconjf * conj(df/dz)
+            //          = f/|f| * df/dconjz + conj(f)/|f| * conj(df/dz)
+
+            // note that for purely real z, this reduces to the real case
+
+            let (f, df) = self.0.eval_forward_grad(x, dx, static_args);
+            let fconj = f.conj();
+            let dconjfdz = self.0.forward_conj_grad(x, dx, static_args);
+
+            df.mul(f.signum()).add(dconjfdz.mul(fconj.signum()))
+        }
+    }
+
+    fn eval_forward_conj_grad(
+        &self,
+        x: &<Self as Diffable<StaticArgs>>::Input,
+        dx: &<Self as Diffable<StaticArgs>>::Input,
+        static_args: &StaticArgs,
+    ) -> (
+        <Self as Diffable<StaticArgs>>::Output,
+        <Self as Diffable<StaticArgs>>::Output,
+    ) {
+        if Input::is_always_real() && Output::is_always_real() {
+            let (f, df) = self.0.eval_forward_conj_grad(x, dx, static_args);
+
+            (f.abs(), df.mul(f.signum()))
+        } else {
+            // in the Wirtinger calculus we have
+            // |z| = sqrt(z * conj(z))
+            // d|z|/dz = 1/2 * conj(z) * (z * conj(z))^(-1/2)
+            //         = 1/2 * conj(z) * |z|^(-1)
+            // cannot simplify further, since we would be assuming the "sign" of z
+            // d|z|/dconjz = 1/2 * z * (z * conj(z))^(-1/2)
+            //            = 1/2 * z * |z|^(-1)
+            // cannot simplify further, since we would be assuming the "sign" of z
+            //
+            // now for |f|, we have
+            //
+            // d|f|/dz = d|f|/df * df/dz + d|f|/dconjf * conj(df/dconjz)
+            //        = f/|f| * df/dz + conj(f)/|f| * conj(df/dconjz)
+            //
+            // and
+            //
+            // d|f|/dconjz = d|f|/df * df/dconjz + d|f|/dconjf * conj(df/dz)
+            //          = f/|f| * df/dconjz + conj(f)/|f| * conj(df/dz)
+
+            // note that for purely real z, this reduces to the real case
+
+            let (f, df) = self.0.eval_forward_conj_grad(x, dx, static_args);
+            let fconj = f.conj();
+            let dconjfdz = self.0.forward_grad(x, dx, static_args);
+
+            (
+                f.abs(),
+                df.mul(f.signum()).add(dconjfdz.mul(fconj.signum())),
+            )
+        }
+    }
+
+    fn forward_conj_grad(
+        &self,
+        x: &<Self as Diffable<StaticArgs>>::Input,
+        dx: &<Self as Diffable<StaticArgs>>::Input,
+        static_args: &StaticArgs,
+    ) -> <Self as Diffable<StaticArgs>>::Output {
+        if Input::is_always_real() && Output::is_always_real() {
+            let (f, df) = self.0.eval_forward_conj_grad(x, dx, static_args);
+
+            df.mul(f.signum())
+        } else {
+            // in the Wirtinger calculus we have
+            // |z| = sqrt(z * conj(z))
+            // d|z|/dz = 1/2 * conj(z) * (z * conj(z))^(-1/2)
+            //         = 1/2 * conj(z) * |z|^(-1)
+            // cannot simplify further, since we would be assuming the "sign" of z
+            // d|z|/dconjz = 1/2 * z * (z * conj(z))^(-1/2)
+            //            = 1/2 * z * |z|^(-1)
+            // cannot simplify further, since we would be assuming the "sign" of z
+            //
+            // now for |f|, we have
+            //
+            // d|f|/dz = d|f|/df * df/dz + d|f|/dconjf * conj(df/dconjz)
+            //        = f/|f| * df/dz + conj(f)/|f| * conj(df/dconjz)
+            //
+            // and
+            //
+            // d|f|/dconjz = d|f|/df * df/dconjz + d|f|/dconjf * conj(df/dz)
+            //          = f/|f| * df/dconjz + conj(f)/|f| * conj(df/dz)
+
+            // note that for purely real z, this reduces to the real case
+
+            let (f, df) = self.0.eval_forward_conj_grad(x, dx, static_args);
+            let fconj = f.conj();
+            let dconjfdz = self.0.forward_grad(x, dx, static_args);
+
+            df.mul(f.signum()).add(dconjfdz.mul(fconj.signum()))
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ADAbsSqr<A>(pub A);
+
+impl<A: Diffable<StaticArgs>, StaticArgs> Diffable<StaticArgs> for ADAbsSqr<A> {
+    type Input = A::Input;
+    type Output = A::Output;
+}
+
+impl<StaticArgs, Input, Output, Grad, A> AutoDiffable<StaticArgs> for ADAbsSqr<A>
+where
+    A: AutoDiffable<StaticArgs, Input = Input, Output = Output>,
+    Input: Wirtinger + GradientType<Output, GradientType = Grad>,
+    Output: Wirtinger + Add<Output, Output = Output> + Clone + Mul<Grad, Output = Grad>,
+    Grad: Wirtinger + Mul<Output, Output = Grad> + Add<Grad, Output = Grad>,
+{
+    fn eval(
+        &self,
+        x: &<Self as Diffable<StaticArgs>>::Input,
+        static_args: &StaticArgs,
+    ) -> <Self as Diffable<StaticArgs>>::Output {
+        self.0.eval(x, static_args).abs_sqr()
+    }
+
+    fn eval_grad(
+        &self,
+        x: &<Self as Diffable<StaticArgs>>::Input,
+        static_args: &StaticArgs,
+    ) -> (<Self as Diffable<StaticArgs>>::Output, Grad) {
+        if Input::is_always_real() && Output::is_always_real() {
+            // for real z, |z|^2 -> 2 |z| * sign(z) = 2z
+            // |f|^2 -> 2f * df/dz
+
+            let (f, df) = self.0.eval_grad(x, static_args);
+
+            (f.clone().abs_sqr(), df.mul(f.clone().add(f)))
+        } else {
+            // in the Wirtinger calculus we have
+            // |z|^2 = z * conj(z)
+            // d|z|^2/dz = conj(z)
+            //
+            // now for |f|^2, we have
+            //
+            // d|f|^2/dz = d|f|^2/df * df/dz + d|f|^2/dconjf * conj(df/dconjz)
+            //           = conj(f) * df/dz + f * conj(df/dconjz)
+
+            let (f, df) = self.0.eval_grad(x, static_args);
+            let fconj = f.conj();
+            let dconjfdz = self.0.conj_grad(x, static_args).conj();
+
+            (f.abs_sqr(), df.mul(fconj).add(f.mul(dconjfdz)))
+        }
+    }
+
+    fn grad(&self, x: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> Grad {
+        if Input::is_always_real() && Output::is_always_real() {
+            // for real z, |z|^2 -> 2 |z| * sign(z) = 2z
+            // |f|^2 -> 2f * df/dz
+
+            let (f, df) = self.0.eval_grad(x, static_args);
+
+            df.mul(f.clone().add(f))
+        } else {
+            // in the Wirtinger calculus we have
+            // |z|^2 = z * conj(z)
+            // d|z|^2/dz = conj(z)
+            //
+            // now for |f|^2, we have
+            //
+            // d|f|^2/dz = d|f|^2/df * df/dz + d|f|^2/dconjf * conj(df/dconjz)
+            //           = conj(f) * df/dz + f * conj(df/dconjz)
+
+            let (f, df) = self.0.eval_grad(x, static_args);
+            let fconj = f.conj();
+            let dconjfdz = self.0.conj_grad(x, static_args).conj();
+
+            df.mul(fconj).add(f.mul(dconjfdz))
+        }
+    }
+
+    fn eval_conj_grad(
+        &self,
+        x: &<Self as Diffable<StaticArgs>>::Input,
+        static_args: &StaticArgs,
+    ) -> (<Self as Diffable<StaticArgs>>::Output, Grad) {
+        if Input::is_always_real() && Output::is_always_real() {
+            // for real z, |z|^2 -> 2 |z| * sign(z) = 2z
+            // |f|^2 -> 2f * df/dz
+
+            let (f, df) = self.0.eval_conj_grad(x, static_args);
+
+            (f.clone().abs_sqr(), df.mul(f.clone().add(f)))
+        } else {
+            // in the Wirtinger calculus we have
+            // |z|^2 = z * conj(z)
+            // d|z|^2/dconjz = z
+            //
+            // now for |f|^2, we have
+            //
+            // d|f|^2/dconjz = d|f|^2/df * df/dconjz + d|f|^2/dconjf * conj(df/dz)
+            //           = conj(f) * df/dconjz + f * conj(df/dz)
+
+            let (f, dfdconjz) = self.0.eval_conj_grad(x, static_args);
+            let fconj = f.conj();
+            let dconjfdconjz = self.0.grad(x, static_args).conj();
+
+            (f.abs_sqr(), dfdconjz.mul(fconj).add(f.mul(dconjfdconjz)))
+        }
+    }
+
+    fn conj_grad(
+        &self,
+        x: &<Self as Diffable<StaticArgs>>::Input,
+        static_args: &StaticArgs,
+    ) -> Grad {
+        if Input::is_always_real() && Output::is_always_real() {
+            // for real z, |z|^2 -> 2 |z| * sign(z) = 2z
+            // |f|^2 -> 2f * df/dz
+
+            let (f, df) = self.0.eval_conj_grad(x, static_args);
+
+            df.mul(f.clone().add(f))
+        } else {
+            // in the Wirtinger calculus we have
+            // |z|^2 = z * conj(z)
+            // d|z|^2/dconjz = z
+            //
+            // now for |f|^2, we have
+            //
+            // d|f|^2/dconjz = d|f|^2/df * df/dconjz + d|f|^2/dconjf * conj(df/dz)
+            //           = conj(f) * df/dconjz + f * conj(df/dz)
+
+            let (f, dfdconjz) = self.0.eval_conj_grad(x, static_args);
+            let fconj = f.conj();
+            let dconjfdconjz = self.0.grad(x, static_args).conj();
+
+            dfdconjz.mul(fconj).add(f.mul(dconjfdconjz))
+        }
+    }
+}
+
+impl<StaticArgs, Input, Output, A> ForwardDiffable<StaticArgs> for ADAbsSqr<A>
+where
+    A: ForwardDiffable<StaticArgs, Input = Input, Output = Output>,
+    Input: Wirtinger,
+    Output: Wirtinger + Mul<Output, Output = Output> + Add<Output, Output = Output> + Clone,
+{
+    fn eval_forward(
+        &self,
+        x: &<Self as Diffable<StaticArgs>>::Input,
+        static_args: &StaticArgs,
+    ) -> <Self as Diffable<StaticArgs>>::Output {
+        self.0.eval_forward(x, static_args).abs_sqr()
+    }
+    fn eval_forward_grad(
+        &self,
+        x: &<Self as Diffable<StaticArgs>>::Input,
+        dx: &<Self as Diffable<StaticArgs>>::Input,
+        static_args: &StaticArgs,
+    ) -> (
+        <Self as Diffable<StaticArgs>>::Output,
+        <Self as Diffable<StaticArgs>>::Output,
+    ) {
+        if Input::is_always_real() && Output::is_always_real() {
+            let (f, df) = self.0.eval_forward_grad(x, dx, static_args);
+
+            (f.abs_sqr(), df.mul(f.clone().add(f)))
+        } else {
+            // in the Wirtinger calculus we have
+            // |z|^2 = z * conj(z)
+            // d|z|^2/dz = conj(z)
+            //
+            // now for |f|^2, we have
+            //
+            // d|f|^2/dz = d|f|^2/df * df/dz + d|f|^2/dconjf * conj(df/dconjz)
+            //           = conj(f) * df/dz + f * conj(df/dconjz)
+
+            let (f, df) = self.0.eval_forward_grad(x, dx, static_args);
+            let fconj = f.conj();
+            let dconjf = self.0.forward_conj_grad(x, dx, static_args).conj();
+
+            (f.abs_sqr(), df.mul(fconj).add(f.mul(dconjf)))
+        }
+    }
+
+    fn forward_grad(
+        &self,
+        x: &<Self as Diffable<StaticArgs>>::Input,
+        dx: &<Self as Diffable<StaticArgs>>::Input,
+        static_args: &StaticArgs,
+    ) -> <Self as Diffable<StaticArgs>>::Output {
+        if Input::is_always_real() && Output::is_always_real() {
+            let (f, df) = self.0.eval_forward_grad(x, dx, static_args);
+
+            df.mul(f.clone().add(f))
+        } else {
+            let (f, df) = self.0.eval_forward_grad(x, dx, static_args);
+            let fconj = f.conj();
+            let dconjf = self.0.forward_conj_grad(x, dx, static_args);
+
+            df.mul(fconj).add(f.mul(dconjf))
+        }
+    }
+
+    fn eval_forward_conj_grad(
+        &self,
+        x: &<Self as Diffable<StaticArgs>>::Input,
+        dx: &<Self as Diffable<StaticArgs>>::Input,
+        static_args: &StaticArgs,
+    ) -> (
+        <Self as Diffable<StaticArgs>>::Output,
+        <Self as Diffable<StaticArgs>>::Output,
+    ) {
+        if Input::is_always_real() && Output::is_always_real() {
+            let (f, df) = self.0.eval_forward_conj_grad(x, dx, static_args);
+
+            (f.abs_sqr(), df.mul(f.clone().add(f)))
+        } else {
+            // in the Wirtinger calculus we have
+            // |z|^2 = z * conj(z)
+            // d|z|^2/dconjz = z
+            //
+            // now for |f|^2, we have
+            //
+            // d|f|^2/dconjz = d|f|^2/df * df/dconjz + d|f|^2/dconjf * conj(df/dz)
+            //           = conj(f) * df/dconjz + f * conj(df/dz)
+
+            let (f, dfdconjz) = self.0.eval_forward_conj_grad(x, dx, static_args);
+            let fconj = f.conj();
+            let dconjfdconjz = self.0.forward_grad(x, dx, static_args).conj();
+
+            (f.abs_sqr(), dfdconjz.mul(fconj).add(f.mul(dconjfdconjz)))
+        }
+    }
+
+    fn forward_conj_grad(
+        &self,
+        x: &<Self as Diffable<StaticArgs>>::Input,
+        dx: &<Self as Diffable<StaticArgs>>::Input,
+        static_args: &StaticArgs,
+    ) -> <Self as Diffable<StaticArgs>>::Output {
+        if Input::is_always_real() && Output::is_always_real() {
+            let (f, df) = self.0.eval_forward_conj_grad(x, dx, static_args);
+
+            df.mul(f.clone().add(f))
+        } else {
+            let (f, dfdconjz) = self.0.eval_forward_conj_grad(x, dx, static_args);
+            let fconj = f.conj();
+            let dconjfdconjz = self.0.forward_grad(x, dx, static_args).conj();
+
+            dfdconjz.mul(fconj).add(f.mul(dconjfdconjz))
+        }
     }
 }
 
@@ -2050,9 +2739,17 @@ impl<A: Diffable<StaticArgs>, StaticArgs> Diffable<StaticArgs> for ADSignum<A> {
 impl<StaticArgs, Input, Output, Grad, A> AutoDiffable<StaticArgs> for ADSignum<A>
 where
     A: AutoDiffable<StaticArgs, Input = Input, Output = Output>,
-    Input: GradientType<Output, GradientType = Grad>,
-    Output: Signed + InstZero,
-    Grad: InstZero + UpperBounded,
+    Input: Wirtinger + GradientType<Output, GradientType = Grad>,
+    Output: Clone
+        + Wirtinger
+        + InstOne
+        + InstZero
+        + Mul<Grad, Output = Grad>
+        + Mul<Output, Output = Output>
+        + Add<Output, Output = Output>
+        + Neg<Output = Output>
+        + Div<Output, Output = Output>,
+    Grad: Wirtinger + InstZero,
 {
     fn eval(
         &self,
@@ -2067,16 +2764,128 @@ where
         x: &<Self as Diffable<StaticArgs>>::Input,
         static_args: &StaticArgs,
     ) -> (<Self as Diffable<StaticArgs>>::Output, Grad) {
-        // chain rule on signum, (sign(f(x)))' = 2 delta(f(x))
-        // we approximate delta(x) as
-        // delta(x) = Grad::MAX if x == 0, 0 otherwise
+        // defining signum(f) = f/|f| if f != 0, 0 otherwise
+        // this works for both purely real and complex f
+        //
+        // in the real case:
+        // d/dx (f/|f|) = (|f| * df/dx - f * d|f|/dx) / |f|^2
+        //
+        // and
+        //
+        // d/dx |f| = f * df/dx / |f|
+        //
+        // so d/dx signum(f) = (|f| * df/dx - f^2 * df/dx / |f|) / |f|^2
+        //                   = (|f| * df/dx - |f| * df/dx) / |f|^2
+        //                   = 0
+        // as expected
+        //
+        // in the complex case:
+        //
+        // d/dz (f/|f|)
+        //
+        // d/dz (z/|z|) = d/dz sqrt(z / conj(z)) = 1/(2 sqrt(z * conj(z)))
+        //            = 1/(2 |z|)
+        // d/dconjz (z/|z|) = d/dconjz sqrt(z / conj(z))
+        //                 = sqrt(z) * d/dconjz conj(z)^(-1/2)
+        //                 = sqrt(z) * -1/2 * conj(z)^(-3/2)
+        //                 = -1/2 (z/conj(z)^3)^(1/2)
+        //                 = -1/2 (z^4/|z|^6)^(1/2)
+        //                 = -1/2 (z^2/|z|^3)
+        //
+        // so from the chain rule then
+        //
+        // d/dz (f/|f|) = (1/(2 |f|)) * df/dz - 1/2 (f^2/|f|^3) * conj(df/dconjz)
+        // which would be 0 in the real case as expected
 
-        let (f, df) = self.0.eval_grad(x, static_args);
+        if Input::is_always_real() && Output::is_always_real() {
+            let (f, df) = self.0.eval_grad(x, static_args);
 
-        if InstZero::is_zero(&f) {
-            (f.signum(), Grad::max_value())
-        } else {
             (f.signum(), df.zero())
+        } else {
+            let (f, df) = self.0.eval_grad(x, static_args);
+            let dconjfdz = self.0.conj_grad(x, static_args).conj();
+            let fabs = f.clone().abs();
+            let dsdf = f.one().div(fabs.clone().add(fabs.clone()));
+            let dsdconjf_half_denom = fabs.clone().mul(fabs.clone().mul(fabs));
+            let dsdconjf = f
+                .clone()
+                .mul(f.clone())
+                .div(dsdconjf_half_denom.clone().add(dsdconjf_half_denom))
+                .neg();
+
+            (f.signum(), dsdf.mul(df).add(dsdconjf.mul(dconjfdz)))
+        }
+    }
+
+    fn grad(&self, x: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> Grad {
+        if Input::is_always_real() && Output::is_always_real() {
+            self.0.grad(x, static_args).zero()
+        } else {
+            let (f, df) = self.0.eval_grad(x, static_args);
+            let dconjfdz = self.0.conj_grad(x, static_args).conj();
+            let fabs = f.clone().abs();
+            let dsdf = f.one().div(fabs.clone().add(fabs.clone()));
+            let dsdconjf_half_denom = fabs.clone().mul(fabs.clone().mul(fabs));
+            let dsdconjf = f
+                .clone()
+                .mul(f.clone())
+                .div(dsdconjf_half_denom.clone().add(dsdconjf_half_denom))
+                .neg();
+
+            dsdf.mul(df).add(dsdconjf.mul(dconjfdz))
+        }
+    }
+
+    fn eval_conj_grad(
+        &self,
+        x: &<Self as Diffable<StaticArgs>>::Input,
+        static_args: &StaticArgs,
+    ) -> (<Self as Diffable<StaticArgs>>::Output, Grad) {
+        if Input::is_always_real() && Output::is_always_real() {
+            let (f, df) = self.0.eval_conj_grad(x, static_args);
+
+            (f.signum(), df.zero())
+        } else {
+            // now we use df/dconjz and conj(df/dz)
+
+            let (f, dfdconjz) = self.0.eval_conj_grad(x, static_args);
+            let dconjfdconjz = self.0.grad(x, static_args).conj();
+            let fabs = f.clone().abs();
+            let dsdf = f.one().div(fabs.clone().add(fabs.clone()));
+            let dsdconjf_half_denom = fabs.clone().mul(fabs.clone().mul(fabs));
+            let dsdconjf = f
+                .clone()
+                .mul(f.clone())
+                .div(dsdconjf_half_denom.clone().add(dsdconjf_half_denom))
+                .neg();
+
+            (
+                f.signum(),
+                dsdf.mul(dfdconjz).add(dsdconjf.mul(dconjfdconjz)),
+            )
+        }
+    }
+
+    fn conj_grad(
+        &self,
+        x: &<Self as Diffable<StaticArgs>>::Input,
+        static_args: &StaticArgs,
+    ) -> Grad {
+        if Input::is_always_real() && Output::is_always_real() {
+            self.0.conj_grad(x, static_args).conj().zero()
+        } else {
+            let (f, dfdconjz) = self.0.eval_conj_grad(x, static_args);
+            let dconjfdconjz = self.0.grad(x, static_args).conj();
+            let fabs = f.clone().abs();
+            let dsdf = f.one().div(fabs.clone().add(fabs.clone()));
+            let dsdconjf_half_denom = fabs.clone().mul(fabs.clone().mul(fabs));
+            let dsdconjf = f
+                .clone()
+                .mul(f.clone())
+                .div(dsdconjf_half_denom.clone().add(dsdconjf_half_denom))
+                .neg();
+
+            dsdf.mul(dfdconjz).add(dsdconjf.mul(dconjfdconjz))
         }
     }
 }
@@ -2084,8 +2893,23 @@ where
 impl<StaticArgs, Input, Output, A> ForwardDiffable<StaticArgs> for ADSignum<A>
 where
     A: ForwardDiffable<StaticArgs, Input = Input, Output = Output>,
-    Output: Signed + InstZero + UpperBounded,
+    Input: Wirtinger,
+    Output: Clone
+        + Wirtinger
+        + InstOne
+        + InstZero
+        + Mul<Output, Output = Output>
+        + Add<Output, Output = Output>
+        + Neg<Output = Output>
+        + Div<Output, Output = Output>,
 {
+    fn eval_forward(
+        &self,
+        x: &<Self as Diffable<StaticArgs>>::Input,
+        static_args: &StaticArgs,
+    ) -> <Self as Diffable<StaticArgs>>::Output {
+        self.0.eval_forward(x, static_args).signum()
+    }
     fn eval_forward_grad(
         &self,
         x: &<Self as Diffable<StaticArgs>>::Input,
@@ -2095,24 +2919,111 @@ where
         <Self as Diffable<StaticArgs>>::Output,
         <Self as Diffable<StaticArgs>>::Output,
     ) {
-        // chain rule on signum, (sign(f(x)))' = 2 delta(f(x))
-        // we approximate delta(x) as
-        // delta(x) = Grad::MAX if x == 0, 0 otherwise
+        if Input::is_always_real() && Output::is_always_real() {
+            let (f, df) = self.0.eval_forward_grad(x, dx, static_args);
 
-        let (f, df) = self.0.eval_forward_grad(x, dx, static_args);
-
-        if InstZero::is_zero(&f) {
-            (f.signum(), Output::max_value())
-        } else {
             (f.signum(), df.zero())
+        } else {
+            let (f, df) = self.0.eval_forward_grad(x, dx, static_args);
+            let dconjf = self.0.forward_conj_grad(x, dx, static_args);
+            let fabs = f.clone().abs();
+            let dsdf = f.one().div(fabs.clone().add(fabs.clone()));
+            let dsdconjf_half_denom = fabs.clone().mul(fabs.clone().mul(fabs));
+            let dsdconjf = f
+                .clone()
+                .mul(f.clone())
+                .div(dsdconjf_half_denom.clone().add(dsdconjf_half_denom))
+                .neg();
+
+            (f.signum(), dsdf.mul(df).add(dsdconjf.mul(dconjf)))
+        }
+    }
+
+    fn forward_grad(
+        &self,
+        x: &<Self as Diffable<StaticArgs>>::Input,
+        dx: &<Self as Diffable<StaticArgs>>::Input,
+        static_args: &StaticArgs,
+    ) -> <Self as Diffable<StaticArgs>>::Output {
+        if Input::is_always_real() && Output::is_always_real() {
+            self.0.forward_grad(x, dx, static_args).zero()
+        } else {
+            let (f, df) = self.0.eval_forward_grad(x, dx, static_args);
+            let dconjf = self.0.forward_conj_grad(x, dx, static_args);
+            let fabs = f.clone().abs();
+            let dsdf = f.one().div(fabs.clone().add(fabs.clone()));
+            let dsdconjf_half_denom = fabs.clone().mul(fabs.clone().mul(fabs));
+            let dsdconjf = f
+                .clone()
+                .mul(f.clone())
+                .div(dsdconjf_half_denom.clone().add(dsdconjf_half_denom))
+                .neg();
+
+            dsdf.mul(df).add(dsdconjf.mul(dconjf))
+        }
+    }
+
+    fn eval_forward_conj_grad(
+        &self,
+        x: &<Self as Diffable<StaticArgs>>::Input,
+        dx: &<Self as Diffable<StaticArgs>>::Input,
+        static_args: &StaticArgs,
+    ) -> (
+        <Self as Diffable<StaticArgs>>::Output,
+        <Self as Diffable<StaticArgs>>::Output,
+    ) {
+        if Input::is_always_real() && Output::is_always_real() {
+            let (f, df) = self.0.eval_forward_conj_grad(x, dx, static_args);
+
+            (f.signum(), df.zero())
+        } else {
+            let (f, dfdconjz) = self.0.eval_forward_conj_grad(x, dx, static_args);
+            let dconjfdconjz = self.0.forward_grad(x, dx, static_args).conj();
+            let fabs = f.clone().abs();
+            let dsdf = f.one().div(fabs.clone().add(fabs.clone()));
+            let dsdconjf_half_denom = fabs.clone().mul(fabs.clone().mul(fabs));
+            let dsdconjf = f
+                .clone()
+                .mul(f.clone())
+                .div(dsdconjf_half_denom.clone().add(dsdconjf_half_denom))
+                .neg();
+
+            (
+                f.signum(),
+                dsdf.mul(dfdconjz).add(dsdconjf.mul(dconjfdconjz)),
+            )
+        }
+    }
+
+    fn forward_conj_grad(
+        &self,
+        x: &<Self as Diffable<StaticArgs>>::Input,
+        dx: &<Self as Diffable<StaticArgs>>::Input,
+        static_args: &StaticArgs,
+    ) -> <Self as Diffable<StaticArgs>>::Output {
+        if Input::is_always_real() && Output::is_always_real() {
+            self.0.forward_conj_grad(x, dx, static_args).zero()
+        } else {
+            let (f, dfdconjz) = self.0.eval_forward_conj_grad(x, dx, static_args);
+            let dconjfdconjz = self.0.forward_grad(x, dx, static_args).conj();
+            let fabs = f.clone().abs();
+            let dsdf = f.one().div(fabs.clone().add(fabs.clone()));
+            let dsdconjf_half_denom = fabs.clone().mul(fabs.clone().mul(fabs));
+            let dsdconjf = f
+                .clone()
+                .mul(f.clone())
+                .div(dsdconjf_half_denom.clone().add(dsdconjf_half_denom))
+                .neg();
+
+            dsdf.mul(dfdconjz).add(dsdconjf.mul(dconjfdconjz))
         }
     }
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct ADComplexConjugate<A>(pub A);
+pub struct ADConjugate<A>(pub A);
 
-impl<A: Diffable<StaticArgs>, StaticArgs> Diffable<StaticArgs> for ADComplexConjugate<A>
+impl<A: Diffable<StaticArgs>, StaticArgs> Diffable<StaticArgs> for ADConjugate<A>
 where
     A::Output: Wirtinger,
 {
@@ -2120,7 +3031,7 @@ where
     type Output = A::Output;
 }
 
-impl<StaticArgs, Input, AOutput, AGrad, A> AutoDiffable<StaticArgs> for ADComplexConjugate<A>
+impl<StaticArgs, Input, AOutput, AGrad, A> AutoDiffable<StaticArgs> for ADConjugate<A>
 where
     A: AutoDiffable<StaticArgs, Input = Input, Output = AOutput>,
     Input: GradientType<AOutput, GradientType = AGrad>,
@@ -2178,11 +3089,18 @@ where
     }
 }
 
-impl<StaticArgs, Input, AOutput, A> ForwardDiffable<StaticArgs> for ADComplexConjugate<A>
+impl<StaticArgs, Input, AOutput, A> ForwardDiffable<StaticArgs> for ADConjugate<A>
 where
     A: ForwardDiffable<StaticArgs, Input = Input, Output = AOutput>,
     AOutput: Wirtinger,
 {
+    fn eval_forward(
+        &self,
+        x: &<Self as Diffable<StaticArgs>>::Input,
+        static_args: &StaticArgs,
+    ) -> <Self as Diffable<StaticArgs>>::Output {
+        self.0.eval_forward(x, static_args).conj()
+    }
     fn eval_forward_grad(
         &self,
         x: &<Self as Diffable<StaticArgs>>::Input,

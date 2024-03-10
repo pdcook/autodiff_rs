@@ -53,11 +53,8 @@ pub trait Wirtinger: Sized {
     fn conj(&self) -> Self;
     fn abs(&self) -> Self; // sqrt(conj(z) * z)
     fn abs_sqr(&self) -> Self; // conj(z) * z
-    fn arg(&self) -> Self;
-    fn signum(&self) -> Self {
-        // alias for arg
-        self.arg()
-    }
+    fn arg(&self) -> Self; // arg(z) = ln(z / abs(z))
+    fn signum(&self) -> Self; // z / abs(z)
     fn is_always_real() -> bool; // should be set to true for real numbers
 }
 
@@ -222,63 +219,125 @@ where
 }
 
 // implementation of Complex traits for all real number types
-macro_rules! impl_wirtinger_real_copy {
-    ($($t:ty),*) => ($(
-        impl Wirtinger for $t
-        {
-            fn conj(&self) -> Self
-            {
+macro_rules! impl_wirtinger_real_signed_copy {
+    ($t:ty, $pi:expr) => {
+        impl Wirtinger for $t {
+            fn conj(&self) -> Self {
                 *self
             }
-            fn abs(&self) -> Self
-            {
+            fn abs(&self) -> Self {
                 self.abs()
             }
-            fn abs_sqr(&self) -> Self
-            {
+            fn abs_sqr(&self) -> Self {
                 self * self
             }
-            fn arg(&self) -> Self
-            {
+            fn signum(&self) -> Self {
                 self.signum()
             }
-            fn is_always_real() -> bool
-            {
+            fn arg(&self) -> Self {
+                if *self >= self.zero() {
+                    self.zero() // ln(1) = 0
+                } else {
+                    $pi
+                }
+            }
+            fn is_always_real() -> bool {
                 true
             }
         }
-    )*)
+    };
 }
-macro_rules! impl_wirtinger_real_clone {
-    ($($t:ty),*) => ($(
-        impl Wirtinger for $t
-        {
-            fn conj(&self) -> Self
-            {
+macro_rules! impl_wirtinger_real_unsigned_copy {
+    ($t:ty) => {
+        impl Wirtinger for $t {
+            fn conj(&self) -> Self {
+                *self
+            }
+            fn abs(&self) -> Self {
+                *self
+            }
+            fn abs_sqr(&self) -> Self {
+                self * self
+            }
+            fn signum(&self) -> Self {
+                self.one()
+            }
+            fn arg(&self) -> Self {
+                self.zero()
+            }
+            fn is_always_real() -> bool {
+                true
+            }
+        }
+    };
+}
+macro_rules! impl_wirtinger_real_signed_clone {
+    ($t:ty, $pi:expr) => {
+        impl Wirtinger for $t {
+            fn conj(&self) -> Self {
                 self.clone()
             }
-            fn abs(&self) -> Self
-            {
+            fn abs(&self) -> Self {
                 self.clone().abs()
             }
-            fn abs_sqr(&self) -> Self
-            {
+            fn abs_sqr(&self) -> Self {
                 self.clone() * self.clone()
             }
-            fn arg(&self) -> Self
-            {
+            fn signum(&self) -> Self {
                 self.clone().signum()
             }
-            fn is_always_real() -> bool
-            {
+            fn arg(&self) -> Self {
+                if self.clone() >= self.zero() {
+                    self.zero() // ln(1) = 0
+                } else {
+                    $pi
+                }
+            }
+            fn is_always_real() -> bool {
                 true
             }
         }
-    )*)
+    };
+}
+macro_rules! impl_wirtinger_real_unsigned_clone {
+    ($t:ty) => {
+        impl Wirtinger for $t {
+            fn conj(&self) -> Self {
+                self.clone()
+            }
+            fn abs(&self) -> Self {
+                self.clone()
+            }
+            fn abs_sqr(&self) -> Self {
+                self.clone() * self.clone()
+            }
+            fn signum(&self) -> Self {
+                self.one()
+            }
+            fn arg(&self) -> Self {
+                self.zero()
+            }
+            fn is_always_real() -> bool {
+                true
+            }
+        }
+    };
 }
 
-impl_wirtinger_real_copy!(i64, u128, f32, u16, u32, i16, f64, isize, i32, u8, u64, usize, i128, i8);
-impl_wirtinger_real_clone!(num::BigInt, num::BigUint);
+impl_wirtinger_real_signed_copy!(f32, std::f32::consts::PI);
+impl_wirtinger_real_signed_copy!(f64, std::f64::consts::PI);
+impl_wirtinger_real_signed_copy!(i64, 3_i64); // I don't even want to think about the implications of this
+impl_wirtinger_real_signed_copy!(i32, 3_i32); //
+impl_wirtinger_real_signed_copy!(i16, 3_i16); //
+impl_wirtinger_real_signed_copy!(i8, 3_i8); //
+impl_wirtinger_real_signed_copy!(isize, 3_isize); //
+impl_wirtinger_real_unsigned_copy!(u64);
+impl_wirtinger_real_unsigned_copy!(u32);
+impl_wirtinger_real_unsigned_copy!(u16);
+impl_wirtinger_real_unsigned_copy!(u8);
+impl_wirtinger_real_unsigned_copy!(usize);
+impl_wirtinger_real_signed_clone!(num::BigInt, num::BigInt::from(3i8)); //
+impl_wirtinger_real_unsigned_clone!(num::BigUint);
 
 // generic implementations done here
 impl<T> Wirtinger for Wrapping<T>
@@ -293,6 +352,9 @@ where
     }
     fn abs_sqr(&self) -> Wrapping<T> {
         Wrapping(self.0.abs_sqr())
+    }
+    fn signum(&self) -> Wrapping<T> {
+        Wrapping(self.0.signum())
     }
     fn arg(&self) -> Wrapping<T> {
         Wrapping(self.0.arg())
@@ -310,29 +372,22 @@ where
         Ratio::new(self.numer().clone().conj(), self.denom().clone().conj())
     }
     fn abs(&self) -> Ratio<T> {
-        Ratio::new(
-            self.numer().clone().abs() / self.denom().clone().abs(),
-            self.denom().one(),
-        )
+        Ratio::new(self.numer().clone().abs(), self.denom().clone().abs())
     }
     fn abs_sqr(&self) -> Ratio<T> {
         Ratio::new(
-            self.numer().clone().abs_sqr() / self.denom().clone().abs_sqr(),
-            self.denom().one(),
+            self.numer().clone().abs_sqr(),
+            self.denom().clone().abs_sqr(),
         )
     }
+    fn signum(&self) -> Ratio<T> {
+        Ratio::new(self.numer().clone().signum(), self.denom().clone().signum())
+    }
     fn arg(&self) -> Ratio<T> {
-        if Self::is_always_real() {
-            Ratio::new(
-                self.numer().clone().signum() * self.denom().clone().signum(),
-                self.denom().one(),
-            )
-        } else {
-            Ratio::new(
-                self.numer().clone().arg() - self.denom().clone().arg(),
-                self.denom().one(),
-            )
-        }
+        Ratio::new(
+            self.numer().clone().arg() - self.denom().clone().arg(),
+            self.denom().clone().one(),
+        )
     }
     fn is_always_real() -> bool {
         T::is_always_real()
@@ -351,6 +406,9 @@ where
     }
     fn abs_sqr(&self) -> Complex<T> {
         self.abs_sqr()
+    }
+    fn signum(&self) -> Complex<T> {
+        self / self.abs()
     }
     fn arg(&self) -> Complex<T> {
         self.arg()
