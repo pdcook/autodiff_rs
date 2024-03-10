@@ -1,11 +1,11 @@
 use crate::autodiff::AutoDiff;
-use crate::diffable::Diffable;
 use crate::autodiffable::*;
 use crate::compose::*;
-use crate::funcs::*;
-use std::ops::Add;
-use crate::gradienttype::GradientType;
+use crate::diffable::Diffable;
 use crate::forward::ForwardMul;
+use crate::funcs::*;
+use crate::gradienttype::GradientType;
+use std::ops::Add;
 
 use crate as autodiff;
 use autodiff_derive::*;
@@ -93,10 +93,13 @@ fn test_manual() {
             let (f0, df0) = self.0.eval_grad(x, &());
             let (f1, df1) = self.1.eval_grad(x, &());
 
-            (F(f0.0 + f1.0, f0.1 + f1.1),
-                G(F(df0.0.0 + df1.0.0, df0.0.1 + df1.0.1),
-                 F(df0.1.0 + df1.1.0, df0.1.1 + df1.1.1)))
-
+            (
+                F(f0.0 + f1.0, f0.1 + f1.1),
+                G(
+                    F(df0.0 .0 + df1.0 .0, df0.0 .1 + df1.0 .1),
+                    F(df0.1 .0 + df1.1 .0, df0.1 .1 + df1.1 .1),
+                ),
+            )
         }
     }
 
@@ -120,8 +123,7 @@ fn test_manual() {
             let (f0, f1) = (x.0.powf(self.0), x.1.powf(self.0));
             (
                 F(f0, f1),
-                G(F(self.0 * f0 / x.0, 0.0),
-                 F(0.0, self.0 * f1 / x.1),)
+                G(F(self.0 * f0 / x.0, 0.0), F(0.0, self.0 * f1 / x.1)),
             )
         }
     }
@@ -190,7 +192,6 @@ fn test_manual() {
 
     // f3(x,y) = x^2 o (y,x) = (y^2, x^2)
     let f3 = AutoDiff::new((m).compose(f));
-
 
     assert_eq!(f3.eval(&x, &()), F(4.0, 1.0));
     assert_eq!(f3.grad(&x, &()), G(F(0.0, 4.0), F(2.0, 0.0)));

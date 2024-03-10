@@ -16,8 +16,7 @@ use std::ops::Mul;
 /// `df/dg(g(x)): Self`,
 /// `dg/dx(x): OtherGrad`
 /// `df/dx(x): Result`
-pub trait ForwardMul<SelfInput, OtherGrad>
-{
+pub trait ForwardMul<SelfInput, OtherGrad> {
     type ResultGrad;
     fn forward_mul(&self, other: &OtherGrad) -> Self::ResultGrad;
 }

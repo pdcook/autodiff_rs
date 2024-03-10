@@ -3,7 +3,7 @@ use ndarray::{Dimension, Ix0, Ix1, Ix2, Ix3, Ix4, Ix5, Ix6, IxDyn};
 pub trait DimAbsSub<Rhs>
 where
     Rhs: Dimension,
-    Self: Dimension,// + DimMax<Rhs, Output = Self>,
+    Self: Dimension,
 {
     type Output;
 }
@@ -12,7 +12,7 @@ where
 impl<D> DimAbsSub<D> for IxDyn
 where
     D: Dimension,
-    Self: Dimension,// + DimMax<D, Output = IxDyn>,
+    Self: Dimension, // + DimMax<D, Output = IxDyn>,
 {
     type Output = IxDyn;
 }
@@ -75,5 +75,3 @@ impl_dim_abs_sub!(Ix6, Ix3, Ix3);
 impl_dim_abs_sub!(Ix6, Ix4, Ix2);
 impl_dim_abs_sub!(Ix6, Ix5, Ix1);
 impl_dim_abs_sub!(Ix6, Ix6, Ix0);
-
-

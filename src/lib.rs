@@ -3,27 +3,27 @@ static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
 pub mod adops;
 pub mod autodiff;
-pub mod diffable;
-pub mod compose;
 pub mod autodiffable;
 pub mod autotuple;
+pub mod compose;
+pub mod diffable;
+pub mod forward;
 pub mod func_traits;
 pub mod funcs;
-pub mod traits;
-pub mod forward;
 pub mod gradienttype;
+pub mod traits;
 
 // re-export
 pub use autodiff::*;
-pub use diffable::*;
-pub use compose::*;
 pub use autodiffable::*;
 pub use autotuple::*;
+pub use compose::*;
+pub use diffable::*;
 pub use func_traits::*;
 //pub use funcs::*;
-pub use traits::*;
 pub use forward::*;
 pub use gradienttype::*;
+pub use traits::*;
 
 #[cfg(feature = "ndarray")]
 pub mod ad_ndarray;

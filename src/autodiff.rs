@@ -1,12 +1,12 @@
 use crate::adops::*;
-use crate::autodiffable::{Diffable, AutoDiffable, ForwardDiffable};
+use crate::autodiffable::{AutoDiffable, Diffable, ForwardDiffable};
+use crate::compose::*;
 use crate::func_traits;
+use crate::gradienttype::GradientType;
 use crate::traits::{InstOne, InstZero};
 use num::traits::Pow;
 use std::marker::PhantomData;
 use std::ops::{Add, Deref, Div, Mul, Neg, Sub};
-use crate::gradienttype::GradientType;
-use crate::compose::*;
 
 /// A wrapper type for an AutoDiffable type.
 #[derive(Debug, Clone)]
@@ -29,22 +29,19 @@ impl<StaticArgs, T> AutoDiff<StaticArgs, T> {
 
     pub fn coerce<NewInputType, NewOutputType>(
         self,
-    ) -> AutoDiff<StaticArgs, ADCoerce<T, NewInputType, NewOutputType>>
-    {
+    ) -> AutoDiff<StaticArgs, ADCoerce<T, NewInputType, NewOutputType>> {
         AutoDiff(ADCoerce(self.0, PhantomData), PhantomData)
     }
 
     pub fn append_static_args<NewStaticArgs>(
         self,
-    ) -> AutoDiff<(StaticArgs, NewStaticArgs), ADAppendStaticArgs<T, NewStaticArgs>>
-    {
+    ) -> AutoDiff<(StaticArgs, NewStaticArgs), ADAppendStaticArgs<T, NewStaticArgs>> {
         AutoDiff(ADAppendStaticArgs(self.0, PhantomData), PhantomData)
     }
 
     pub fn prepend_static_args<NewStaticArgs>(
         self,
-    ) -> AutoDiff<(NewStaticArgs, StaticArgs), ADPrependStaticArgs<T, NewStaticArgs>>
-    {
+    ) -> AutoDiff<(NewStaticArgs, StaticArgs), ADPrependStaticArgs<T, NewStaticArgs>> {
         AutoDiff(ADPrependStaticArgs(self.0, PhantomData), PhantomData)
     }
 }
@@ -70,11 +67,7 @@ where
         self.0.eval(x, static_args)
     }
 
-    fn eval_grad(
-        &self,
-        x: &Self::Input,
-        static_args: &StaticArgs,
-    ) -> (Self::Output, Grad) {
+    fn eval_grad(&self, x: &Self::Input, static_args: &StaticArgs) -> (Self::Output, Grad) {
         self.0.eval_grad(x, static_args)
     }
 }
@@ -91,7 +84,12 @@ where
         self.0.eval_forward(x, static_args)
     }
 
-    fn eval_forward_grad(&self, x: &Self::Input, dx: &Self::Input, static_args: &StaticArgs) -> (Self::Output, Self::Output) {
+    fn eval_forward_grad(
+        &self,
+        x: &Self::Input,
+        dx: &Self::Input,
+        static_args: &StaticArgs,
+    ) -> (Self::Output, Self::Output) {
         self.0.eval_forward_grad(x, dx, static_args)
     }
 }
@@ -106,8 +104,7 @@ impl<StaticArgs, T> Deref for AutoDiff<StaticArgs, T> {
 }
 
 /// Impl of Add for AutoDiff
-impl<StaticArgs, A, B> Add<AutoDiff<StaticArgs, B>>
-    for AutoDiff<StaticArgs, A>
+impl<StaticArgs, A, B> Add<AutoDiff<StaticArgs, B>> for AutoDiff<StaticArgs, A>
 where
     A: Diffable<StaticArgs>,
     B: Diffable<StaticArgs>,
@@ -120,8 +117,7 @@ where
 }
 
 /// Impl of Sub for AutoDiff
-impl<StaticArgs, A, B> Sub<AutoDiff<StaticArgs, B>>
-    for AutoDiff<StaticArgs, A>
+impl<StaticArgs, A, B> Sub<AutoDiff<StaticArgs, B>> for AutoDiff<StaticArgs, A>
 where
     A: Diffable<StaticArgs>,
     B: Diffable<StaticArgs>,
@@ -133,10 +129,8 @@ where
     }
 }
 
-
 /// Impl of Mul for AutoDiff
-impl<StaticArgs, A, B> Mul<AutoDiff<StaticArgs, B>>
-    for AutoDiff<StaticArgs, A>
+impl<StaticArgs, A, B> Mul<AutoDiff<StaticArgs, B>> for AutoDiff<StaticArgs, A>
 where
     A: Diffable<StaticArgs>,
     B: Diffable<StaticArgs>,
@@ -149,8 +143,7 @@ where
 }
 
 /// Impl of Div for AutoDiff
-impl<StaticArgs, A, B> Div<AutoDiff<StaticArgs, B>>
-    for AutoDiff<StaticArgs, A>
+impl<StaticArgs, A, B> Div<AutoDiff<StaticArgs, B>> for AutoDiff<StaticArgs, A>
 where
     A: Diffable<StaticArgs>,
     B: Diffable<StaticArgs>,
@@ -163,8 +156,7 @@ where
 }
 
 /// Impl of Neg for AutoDiff
-impl<StaticArgs, A> Neg for AutoDiff<StaticArgs, A>
-{
+impl<StaticArgs, A> Neg for AutoDiff<StaticArgs, A> {
     type Output = AutoDiff<StaticArgs, ADNeg<A>>;
 
     fn neg(self) -> Self::Output {
@@ -173,8 +165,8 @@ impl<StaticArgs, A> Neg for AutoDiff<StaticArgs, A>
 }
 
 /// Impl of Compose for AutoDiff
-impl<StaticArgs, Outer, Inner>
-    AutoCompose<AutoDiff<StaticArgs, Inner>> for AutoDiff<StaticArgs, Outer>
+impl<StaticArgs, Outer, Inner> AutoCompose<AutoDiff<StaticArgs, Inner>>
+    for AutoDiff<StaticArgs, Outer>
 where
     Outer: Diffable<StaticArgs> + FuncCompose<StaticArgs, Inner>,
     Inner: Diffable<StaticArgs>,
@@ -251,8 +243,7 @@ where
 }
 
 /// Impl Abs
-impl<StaticArgs, A> func_traits::Abs for AutoDiff<StaticArgs, A>
-{
+impl<StaticArgs, A> func_traits::Abs for AutoDiff<StaticArgs, A> {
     type Output = AutoDiff<StaticArgs, ADAbs<A>>;
     fn abs(self) -> Self::Output {
         AutoDiff(ADAbs(self.0), PhantomData)
@@ -260,8 +251,7 @@ impl<StaticArgs, A> func_traits::Abs for AutoDiff<StaticArgs, A>
 }
 
 /// Impl Signum
-impl<StaticArgs, A> func_traits::Signum for AutoDiff<StaticArgs, A>
-{
+impl<StaticArgs, A> func_traits::Signum for AutoDiff<StaticArgs, A> {
     type Output = AutoDiff<StaticArgs, ADSignum<A>>;
     fn signum(self) -> Self::Output {
         AutoDiff(ADSignum(self.0), PhantomData)

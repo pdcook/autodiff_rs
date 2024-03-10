@@ -1,10 +1,10 @@
+use crate::forward::ForwardMul;
+use crate::gradienttype::GradientType;
 use crate::traits::{InstOne, InstZero};
 use num::complex::Complex;
 use num::traits::{Num, NumOps, One, Pow, Signed, Zero};
 use paste::paste;
 use std::ops::{Add, Deref, Div, Mul, Neg, Rem, Sub};
-use crate::gradienttype::GradientType;
-use crate::forward::ForwardMul;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct AutoTuple<Tuple>(pub Tuple)
@@ -364,7 +364,6 @@ autotuple_unary_ops!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12);
 autotuple_unary_ops!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13);
 autotuple_unary_ops!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14);
 autotuple_unary_ops!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
-
 
 // macro for GradientType for AutoTuple
 macro_rules! autotuple_gradient_type {

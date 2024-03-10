@@ -24,7 +24,7 @@ where
 }*/
 
 // forward from traits
-pub use crate::traits::{Conjugate, InstOne, InstZero};
+pub use crate::traits::{InstOne, InstZero, Wirtinger};
 
 pub trait Abs {
     type Output;

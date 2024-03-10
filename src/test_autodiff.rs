@@ -1,7 +1,7 @@
 use crate::autodiff::AutoDiff;
 use crate::autodiffable::*;
-use crate::func_traits::*;
 use crate::compose::*;
+use crate::func_traits::*;
 use crate::funcs::*;
 use num::traits::Pow;
 use std::ops::Deref;
@@ -41,37 +41,46 @@ fn test_all_ops() {
 
     // binary ops with constants
     let c = 3.0_f64;
-    assert_eq!((p_x + c, dp_x), (p.clone() + c).eval_forward_grad(&x, &dx, &()));
+    assert_eq!(
+        (p_x + c, dp_x),
+        (p.clone() + c).eval_forward_grad(&x, &dx, &())
+    );
     assert_eq!(dp_dx, (p.clone() + c).grad(&x, &()));
-    assert_eq!((p_x - c, dp_x), (p.clone() - c).eval_forward_grad(&x, &dx, &()));
+    assert_eq!(
+        (p_x - c, dp_x),
+        (p.clone() - c).eval_forward_grad(&x, &dx, &())
+    );
     assert_eq!(dp_dx, (p.clone() - c).grad(&x, &()));
-    assert_eq!((p_x * c, dp_x * c), (p.clone() * c).eval_forward_grad(&x, &dx, &()));
+    assert_eq!(
+        (p_x * c, dp_x * c),
+        (p.clone() * c).eval_forward_grad(&x, &dx, &())
+    );
     assert_eq!(dp_dx * c, (p.clone() * c).grad(&x, &()));
-    assert_eq!((p_x / c, dp_x / c), (p.clone() / c).eval_forward_grad(&x, &dx, &()));
+    assert_eq!(
+        (p_x / c, dp_x / c),
+        (p.clone() / c).eval_forward_grad(&x, &dx, &())
+    );
     assert_eq!(dp_dx / c, (p.clone() / c).grad(&x, &()));
     assert_eq!(
-        (p_x.pow(c), c * p_x.pow(c-1.0) * dp_x),
+        (p_x.pow(c), c * p_x.pow(c - 1.0) * dp_x),
         (p.clone().pow(c)).eval_forward_grad(&x, &dx, &())
     );
-    assert_eq!(c * p_x.pow(c-1.0) * dp_dx, (p.clone().pow(c)).grad(&x, &()));
+    assert_eq!(
+        c * p_x.pow(c - 1.0) * dp_dx,
+        (p.clone().pow(c)).grad(&x, &())
+    );
 
     // binary ops with other functions
     assert_eq!(
         (p_x + q_x, dp_x + dq_x),
         (p.clone() + q.clone()).eval_forward_grad(&x, &dx, &())
     );
-    assert_eq!(
-        dp_dx + dq_dx,
-        (p.clone() + q.clone()).grad(&x, &())
-    );
+    assert_eq!(dp_dx + dq_dx, (p.clone() + q.clone()).grad(&x, &()));
     assert_eq!(
         (p_x - q_x, dp_x - dq_x),
         (p.clone() - q.clone()).eval_forward_grad(&x, &dx, &())
     );
-    assert_eq!(
-        dp_dx - dq_dx,
-        (p.clone() - q.clone()).grad(&x, &())
-    );
+    assert_eq!(dp_dx - dq_dx, (p.clone() - q.clone()).grad(&x, &()));
     assert_eq!(
         (p_x * q_x, p_x * dq_x + q_x * dp_x),
         (p.clone() * q.clone()).eval_forward_grad(&x, &dx, &())
@@ -134,22 +143,29 @@ fn test_all_ops() {
     assert_eq!((p_w, dp_w), (p_x, dp_x));
 
     // test special operations
-    let p_i32: AutoDiff<(), Polynomial<(), i32, i32>> = AutoDiff::new(Polynomial::<(), i32, i32>::new(vec![1i32, 2i32, 3i32]));
+    let p_i32: AutoDiff<(), Polynomial<(), i32, i32>> =
+        AutoDiff::new(Polynomial::<(), i32, i32>::new(vec![1i32, 2i32, 3i32]));
     let p_i32_coerced = p.clone().coerce::<i32, f64>();
 
     let x_i32 = 2i32;
     let dx_i32 = 1i32;
 
     let (p_i32_x, dp_i32_x): (i32, i32) = p_i32.eval_forward_grad(&x_i32, &dx_i32, &());
-    let (p_i32_coerced_x, dp_i32_coerced_x): (f64, f64) = p_i32_coerced.eval_forward_grad(&x_i32, &dx_i32, &());
+    let (p_i32_coerced_x, dp_i32_coerced_x): (f64, f64) =
+        p_i32_coerced.eval_forward_grad(&x_i32, &dx_i32, &());
 
-    assert_eq!((p_i32_x as f64, dp_i32_x as f64), (p_i32_coerced_x, dp_i32_coerced_x));
+    assert_eq!(
+        (p_i32_x as f64, dp_i32_x as f64),
+        (p_i32_coerced_x, dp_i32_coerced_x)
+    );
 
     let s1 = 0_usize;
     let s2 = 0.0_f32;
 
-    let p_static_1: AutoDiff<usize, Polynomial<usize, f64, f64>> = AutoDiff::new(Polynomial::<usize, f64, f64>::new(vec![1.0, 2.0, 3.0]));
-    let p_static_2: AutoDiff<f32, Polynomial<f32, f64, f64>> = AutoDiff::new(Polynomial::<f32, f64, f64>::new(vec![1.0, 2.0, 3.0]));
+    let p_static_1: AutoDiff<usize, Polynomial<usize, f64, f64>> =
+        AutoDiff::new(Polynomial::<usize, f64, f64>::new(vec![1.0, 2.0, 3.0]));
+    let p_static_2: AutoDiff<f32, Polynomial<f32, f64, f64>> =
+        AutoDiff::new(Polynomial::<f32, f64, f64>::new(vec![1.0, 2.0, 3.0]));
 
     let p1_compat = p_static_1.clone().append_static_args::<f32>();
     let p2_compat = p_static_2.clone().prepend_static_args::<usize>();

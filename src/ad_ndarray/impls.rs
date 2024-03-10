@@ -1,15 +1,17 @@
+use crate::ad_ndarray::dimabssub::DimAbsSub;
 use crate::autotuple::AutoTuple;
-use crate::traits::{InstOne, InstZero, GradientIdentity, Conjugate};
-use ndarray::{ArrayBase, DataOwned, Dimension, RawDataClone, DimAdd, DimMax, OwnedRepr, IxDyn, LinalgScalar};
-use num::traits::{One, Zero};
-use std::ops::{Add, Mul};
 use crate::forward::ForwardMul;
 use crate::gradienttype::GradientType;
-use crate::ad_ndarray::dimabssub::DimAbsSub;
+use crate::traits::{Conjugate, GradientIdentity, InstOne, InstZero};
+use ndarray::{
+    ArrayBase, DataOwned, DimAdd, DimMax, Dimension, IxDyn, LinalgScalar, OwnedRepr, RawDataClone,
+};
 use ndarray_einsum_beta::einsum;
+use num::traits::{One, Zero};
+use std::ops::{Add, Mul};
 
 #[cfg(test)]
-use ndarray::{Array0, Array1, Array2, arr1};
+use ndarray::{arr1, Array0, Array1, Array2};
 
 impl<A, S, D> InstZero for ArrayBase<S, D>
 where
@@ -46,25 +48,27 @@ where
     AI: Clone + GradientType<AI, GradientType = AG>,
     AG: Clone + InstOne + One + Zero,
     Self: Sized + GradientType<Self, GradientType = ArrayBase<OwnedRepr<AG>, DG>>,
-
 {
-    fn grad_identity(&self) -> ArrayBase<OwnedRepr<AG>, DG>
-    {
+    fn grad_identity(&self) -> ArrayBase<OwnedRepr<AG>, DG> {
         // for an input with shape (a, b, ...) ndim
         // the gradient identity is a tensor with shape (a, b, ..., a, b, ...) 2ndim
         // where g[a, b, ..., z, y, ...] = 1 if a == z && b == y && ... else 0
 
         // first, we need to get the shape of the gradient
-        let grad_shape = self.shape().iter().chain(self.shape().iter()).map(|x| *x).collect::<Vec<_>>();
+        let grad_shape = self
+            .shape()
+            .iter()
+            .chain(self.shape().iter())
+            .map(|x| *x)
+            .collect::<Vec<_>>();
 
         // make the gradient
-        let mut grad: ArrayBase<OwnedRepr<AG>, IxDyn> = ArrayBase::<OwnedRepr<AG>, IxDyn>::zeros(grad_shape);
+        let mut grad: ArrayBase<OwnedRepr<AG>, IxDyn> =
+            ArrayBase::<OwnedRepr<AG>, IxDyn>::zeros(grad_shape);
 
         // then set the values
-        for (i, x) in self.shape().iter().enumerate()
-        {
-            for j in 0..*x
-            {
+        for (i, x) in self.shape().iter().enumerate() {
+            for j in 0..*x {
                 for (k, _) in self.shape().iter().enumerate() {
                     let mut idx = vec![k; grad.ndim()];
                     idx[i] = j;
@@ -105,7 +109,8 @@ where
 }
 
 // gradienttype of two arrays is the dimensional sum of the two
-impl<AI, DI, AO, DO, AG, DG> GradientType<ArrayBase<OwnedRepr<AO>, DO>> for ArrayBase<OwnedRepr<AI>, DI>
+impl<AI, DI, AO, DO, AG, DG> GradientType<ArrayBase<OwnedRepr<AO>, DO>>
+    for ArrayBase<OwnedRepr<AI>, DI>
 where
     DI: Dimension,
     DO: Dimension,
@@ -121,9 +126,17 @@ fn test_gradient_type() {
     let a: Array1<f64> = <Array1<f64> as GradientType<Array0<f64>>>::GradientType::zeros(1);
     assert_eq!(a, arr1(&[0.0]));
 
-    let b: AutoTuple<(Array1<f64>, Array2<f64>)> = <<AutoTuple<(Array1<f64>,)> as GradientType<AutoTuple<(Array0<f64>, Array1<f64>)>>>::GradientType as Default>::default();
+    let b: AutoTuple<(Array1<f64>, Array2<f64>)> = <<AutoTuple<(Array1<f64>,)> as GradientType<
+        AutoTuple<(Array0<f64>, Array1<f64>)>,
+    >>::GradientType as Default>::default();
 
-    assert_eq!(b, AutoTuple::new((<Array1<f64> as Default>::default(), <Array2<f64> as Default>::default())));
+    assert_eq!(
+        b,
+        AutoTuple::new((
+            <Array1<f64> as Default>::default(),
+            <Array2<f64> as Default>::default()
+        ))
+    );
 }
 
 // get einsum string for forward mul
@@ -146,16 +159,25 @@ fn get_einsum_str(op1_ndim: u8, op2_ndim: u8, sum_idxs: u8) -> String {
     assert!(op2_ndim <= 26u8);
 
     // the sum indices are the first sum_idxs of the alphabet
-    let sum_str = (0u8..sum_idxs).map(|i| (i + 97u8) as char).collect::<String>();
+    let sum_str = (0u8..sum_idxs)
+        .map(|i| (i + 97u8) as char)
+        .collect::<String>();
     // the unsummed indices of op1 are the next op1_ndim - sum_idxs of the alphabet
     // i.e. from sum_idxs to sum_idxs + op1_ndim - sum_idxs = op1_ndim
-    let op1_str = (sum_idxs..op1_ndim).map(|i| (i + 97u8) as char).collect::<String>();
+    let op1_str = (sum_idxs..op1_ndim)
+        .map(|i| (i + 97u8) as char)
+        .collect::<String>();
     // the unsummed indices of op2 are the next op2_ndim - sum_idxs of the alphabet
     // i.e. from op1_ndim to op1_ndim + op2_ndim - sum_idxs
-    let op2_str = (op1_ndim..op1_ndim + op2_ndim - sum_idxs).map(|i| (i + 97u8) as char).collect::<String>();
+    let op2_str = (op1_ndim..op1_ndim + op2_ndim - sum_idxs)
+        .map(|i| (i + 97u8) as char)
+        .collect::<String>();
 
     // the result is then {sum_str}{op1_str},{op2_str}{sum_str} -> {op2_str}{op1_str}
-    format!("{}{},{}{}->{}{}", sum_str, op1_str, op2_str, sum_str, op2_str, op1_str)
+    format!(
+        "{}{},{}{}->{}{}",
+        sum_str, op1_str, op2_str, sum_str, op2_str, op1_str
+    )
 }
 
 // multiplication for df/dx * dx -> df as well as chain rule:
@@ -170,16 +192,16 @@ fn get_einsum_str(op1_ndim: u8, op2_ndim: u8, sum_idxs: u8) -> String {
 // dx: ArrayBase<OwnedRepr<AOtherGrad>, DOtherGrad>
 // df: ArrayBase<OwnedRepr<AResult>, DResult>
 
-impl<AI, DI, // g input
-     AS, DS, // self (grad)
-     DG, // g grad dim
-     DR, // result dim
-     MAXGD // max(DS, DG)
-     >
-     ForwardMul<
-        ArrayBase<OwnedRepr<AI>, DI>,
-        ArrayBase<OwnedRepr<AS>, DG>,
-    > for ArrayBase<OwnedRepr<AS>, DS>
+impl<
+        AI,
+        DI, // g input
+        AS,
+        DS,    // self (grad)
+        DG,    // g grad dim
+        DR,    // result dim
+        MAXGD, // max(DS, DG)
+    > ForwardMul<ArrayBase<OwnedRepr<AI>, DI>, ArrayBase<OwnedRepr<AS>, DG>>
+    for ArrayBase<OwnedRepr<AS>, DS>
 where
     // basic bounds for static operations on dimensions
     DI: Dimension,
@@ -194,18 +216,20 @@ where
     AS: Clone + Mul<AS, Output = AS> + LinalgScalar,
 {
     type ResultGrad = ArrayBase<OwnedRepr<AS>, DR>;
-    fn forward_mul(
-        &self,
-        other: &ArrayBase<OwnedRepr<AS>, DG>,
-    ) -> Self::ResultGrad {
-
-        let res_dyn: ArrayBase<OwnedRepr<AS>, IxDyn> =
-            einsum(&get_einsum_str(self.ndim().try_into().unwrap(), other.ndim().try_into().unwrap(), DI::NDIM.unwrap().try_into().unwrap()), &[self, other]).unwrap();
+    fn forward_mul(&self, other: &ArrayBase<OwnedRepr<AS>, DG>) -> Self::ResultGrad {
+        let res_dyn: ArrayBase<OwnedRepr<AS>, IxDyn> = einsum(
+            &get_einsum_str(
+                self.ndim().try_into().unwrap(),
+                other.ndim().try_into().unwrap(),
+                DI::NDIM.unwrap().try_into().unwrap(),
+            ),
+            &[self, other],
+        )
+        .unwrap();
 
         // convert to static dimension
         let res: ArrayBase<OwnedRepr<AS>, DR> = res_dyn.into_dimensionality::<DR>().unwrap();
 
         res
-
     }
 }

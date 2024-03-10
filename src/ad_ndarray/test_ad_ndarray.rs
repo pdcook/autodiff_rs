@@ -1,13 +1,13 @@
 use crate::ad_ndarray::scalar::*;
 use crate::autodiff::AutoDiff;
 use crate::autodiffable::*;
-use crate::diffable::Diffable;
 use crate::autotuple::*;
 use crate::compose::*;
+use crate::diffable::Diffable;
+use crate::funcs::Identity;
 use crate::traits::InstOne;
 use ndarray::prelude::*;
 use num::complex::Complex;
-use crate::funcs::Identity;
 
 use crate as autodiff;
 use autodiff_derive::*;
@@ -27,11 +27,7 @@ impl AutoDiffable<()> for Sum1 {
         Scalar::new(x.sum())
     }
 
-    fn eval_grad(
-        &self,
-        x: &Array1<f64>,
-        _: &(),
-    ) -> (Scalar<f64>, Array1<f64>) {
+    fn eval_grad(&self, x: &Array1<f64>, _: &()) -> (Scalar<f64>, Array1<f64>) {
         (self.eval(x, &()), x.one())
     }
 }
@@ -64,11 +60,7 @@ impl AutoDiffable<()> for Sum2 {
         Scalar::new(x.sum())
     }
 
-    fn eval_grad(
-        &self,
-        x: &Array2<f64>,
-        _: &(),
-    ) -> (Scalar<f64>, Array2<f64>) {
+    fn eval_grad(&self, x: &Array2<f64>, _: &()) -> (Scalar<f64>, Array2<f64>) {
         (self.eval(x, &()), x.one())
     }
 }
@@ -105,11 +97,7 @@ impl AutoDiffable<()> for Prod2 {
         Scalar::new(x.iter().product())
     }
 
-    fn eval_grad(
-        &self,
-        x: &Array2<f64>,
-        _: &(),
-    ) -> (Scalar<f64>, Array2<f64>) {
+    fn eval_grad(&self, x: &Array2<f64>, _: &()) -> (Scalar<f64>, Array2<f64>) {
         let mut grad = Array2::<f64>::ones(x.raw_dim());
         for i in 0..x.dim().0 {
             for j in 0..x.dim().1 {
@@ -154,11 +142,7 @@ impl AutoDiffable<()> for UpcastN {
         Array2::from_shape_fn((self.n, x.len()), |(_, i)| x[i])
     }
 
-    fn eval_grad(
-        &self,
-        x: &Array1<f64>,
-        _: &(),
-    ) -> (Array2<f64>, Array3<f64>) {
+    fn eval_grad(&self, x: &Array1<f64>, _: &()) -> (Array2<f64>, Array3<f64>) {
         let mut grad = Array3::<f64>::zeros((x.len(), self.n, x.len()));
         for i in 0..x.len() {
             for j in 0..self.n {
@@ -188,11 +172,7 @@ impl AutoDiffable<()> for VertCastN {
         Array2::from_shape_fn((x.len(), self.n), |(i, _)| x[i])
     }
 
-    fn eval_grad(
-        &self,
-        x: &Array1<f64>,
-        _: &(),
-    ) -> (Array2<f64>, Array3<f64>) {
+    fn eval_grad(&self, x: &Array1<f64>, _: &()) -> (Array2<f64>, Array3<f64>) {
         let mut grad = Array3::<f64>::zeros((x.len(), x.len(), self.n));
         for i in 0..x.len() {
             for j in 0..self.n {
@@ -239,27 +219,21 @@ impl AutoDiffable<()> for SumAutoTuples {
     }
 
     fn eval_grad(&self, x: &SInput, _: &()) -> (SOutput, SInput) {
-
-        (self.eval(x, &()), AutoTuple::new(((**x).0.one(), (**x).1.one())))
+        (
+            self.eval(x, &()),
+            AutoTuple::new(((**x).0.one(), (**x).1.one())),
+        )
     }
 }
 
 impl ForwardDiffable<()> for SumAutoTuples {
     //type Input = SInput;
     //type Output = SOutput;
-    fn eval_forward_grad(
-        &self,
-        x: &SInput,
-        dx: &SInput,
-        _: &(),
-    ) -> (SOutput, SOutput) {
+    fn eval_forward_grad(&self, x: &SInput, dx: &SInput, _: &()) -> (SOutput, SOutput) {
         let mut gradval = 0.0_f64;
         gradval += (**dx).0.sum();
         gradval += (**dx).1.sum();
-        (
-            self.eval(x, &()),
-            AutoTuple::new((Scalar::new(gradval),)),
-        )
+        (self.eval(x, &()), AutoTuple::new((Scalar::new(gradval),)))
     }
 }
 
@@ -280,7 +254,10 @@ impl AutoDiffable<()> for ComposeSumUpcastAutoTuple {
     // d/da Sum(...) = n+1
     fn eval_grad(&self, x: &Self::Input, _: &()) -> (Self::Output, AutoTuple<(Array1<f64>,)>) {
         let (y, _dy) = self.0.eval_grad(&self.1.eval(x, &()), &());
-        (y, (Array1::ones((**x).0.len()) * ((**x).0.len() as f64 + 1.0)).into())
+        (
+            y,
+            (Array1::ones((**x).0.len()) * ((**x).0.len() as f64 + 1.0)).into(),
+        )
     }
 }
 
@@ -290,7 +267,6 @@ impl FuncCompose<(), UpcastAutoTuple> for SumAutoTuples {
         AutoDiff::new(ComposeSumUpcastAutoTuple(self, rhs))
     }
 }
-
 
 #[derive(Clone, Copy, FuncCompose)]
 struct UpcastAutoTuple {}
@@ -334,25 +310,14 @@ impl AutoDiffable<()> for UpcastAutoTuple {
             }
         }
 
-        (
-            self.eval(x, &()),
-            AutoTuple::new((
-                d1_dx,
-                d2_dx,
-            )),
-        )
+        (self.eval(x, &()), AutoTuple::new((d1_dx, d2_dx)))
     }
 }
 
 impl ForwardDiffable<()> for UpcastAutoTuple {
     //type Input = UInput;
     //type Output = UOutput;
-    fn eval_forward_grad(
-        &self,
-        x: &UInput,
-        dx: &UInput,
-        _: &(),
-    ) -> (UOutput, UOutput) {
+    fn eval_forward_grad(&self, x: &UInput, dx: &UInput, _: &()) -> (UOutput, UOutput) {
         let xc = (**x).0.clone();
         let n = xc.len();
         let mut d1 = Array2::zeros((n, n));
@@ -371,13 +336,7 @@ impl ForwardDiffable<()> for UpcastAutoTuple {
             d2[[i]] = (**dx).0[i];
         }
 
-        (
-            self.eval(x, &()),
-            AutoTuple::new((
-                d1,
-                d2,
-            )),
-        )
+        (self.eval(x, &()), AutoTuple::new((d1, d2)))
     }
 }
 
@@ -409,7 +368,6 @@ impl ForwardDiffable<()> for OnlyForward {
 
 #[test]
 fn test_ad_ndarray() {
-
     let f = AutoDiff::new(Sum1 {});
     let i = AutoDiff::new(Identity::new());
 
@@ -452,14 +410,22 @@ fn test_ad_ndarray() {
     );
     assert_eq!(
         du_dy,
-        Array3::from_shape_vec((2, 3, 2), vec![1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0])
-            .unwrap()
+        Array3::from_shape_vec(
+            (2, 3, 2),
+            vec![1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0]
+        )
+        .unwrap()
     );
     assert_eq!(
         du,
         Array2::from_shape_vec((3, 2), vec![dy[0], dy[1], dy[0], dy[1], dy[0], dy[1],]).unwrap()
     );
-    assert_eq!(du, (du_dy.reversed_axes()*&dy).sum_axis(Axis(2)).reversed_axes());
+    assert_eq!(
+        du,
+        (du_dy.reversed_axes() * &dy)
+            .sum_axis(Axis(2))
+            .reversed_axes()
+    );
 
     let vu = AutoDiff::new(VertCastN { n: 3 });
     let (vu_y, dvu_dy) = vu.eval_grad(&y, &());
@@ -471,8 +437,11 @@ fn test_ad_ndarray() {
     );
     assert_eq!(
         dvu_dy,
-        Array3::from_shape_vec((2, 2, 3), vec![1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0])
-            .unwrap()
+        Array3::from_shape_vec(
+            (2, 2, 3),
+            vec![1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0]
+        )
+        .unwrap()
     );
     assert_eq!(
         dvu,

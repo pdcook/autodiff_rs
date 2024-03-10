@@ -1,11 +1,11 @@
 #![allow(dead_code)]
 
 use crate::autodiffable::*;
-use crate::traits::{InstOne, InstZero, GradientIdentity};
+use crate::gradienttype::GradientType;
+use crate::traits::{GradientIdentity, InstOne, InstZero};
 use num::traits::Pow;
 use std::marker::PhantomData;
 use std::ops::{Mul, Sub};
-use crate::gradienttype::GradientType;
 
 use crate as autodiff;
 use autodiff_derive::*;
@@ -35,7 +35,9 @@ impl<S, I> Diffable<S> for Identity<S, I> {
     type Output = I;
 }
 
-impl<S, I: Clone + InstOne + GradientType<I, GradientType = G> + GradientIdentity, G> AutoDiffable<S> for Identity<S, I> {
+impl<S, I: Clone + InstOne + GradientType<I, GradientType = G> + GradientIdentity, G>
+    AutoDiffable<S> for Identity<S, I>
+{
     //type Input = I;
     //type Output = I;
     fn eval(&self, x: &I, _: &S) -> I {
@@ -47,7 +49,9 @@ impl<S, I: Clone + InstOne + GradientType<I, GradientType = G> + GradientIdentit
     }
 }
 
-impl<S, I: Clone + InstOne + InstZero + GradientType<I> + GradientIdentity> ForwardDiffable<S> for Identity<S, I> {
+impl<S, I: Clone + InstOne + InstZero + GradientType<I> + GradientIdentity> ForwardDiffable<S>
+    for Identity<S, I>
+{
     //type Input = I;
     //type Output = I;
     fn eval_forward_grad(&self, x: &I, dx: &I, s: &S) -> (I, I) {
@@ -79,7 +83,8 @@ impl<S, I, O> Diffable<S> for Polynomial<S, I, O> {
     type Output = O;
 }
 
-impl<S, I: GradientType<O, GradientType = O>, O: InstZero + InstOne> AutoDiffable<S> for Polynomial<S, I, O>
+impl<S, I: GradientType<O, GradientType = O>, O: InstZero + InstOne> AutoDiffable<S>
+    for Polynomial<S, I, O>
 where
     for<'b> O: Mul<&'b O, Output = O>,
     for<'b> &'b I: Mul<&'b O, Output = O>,
@@ -115,10 +120,13 @@ where
 
         (res, grad)
     }
-
 }
 
-impl<S, I: Clone + GradientType<O, GradientType = O>, O: InstZero + InstOne + Mul<I, Output = O>> ForwardDiffable<S> for Polynomial<S, I, O>
+impl<
+        S,
+        I: Clone + GradientType<O, GradientType = O>,
+        O: InstZero + InstOne + Mul<I, Output = O>,
+    > ForwardDiffable<S> for Polynomial<S, I, O>
 where
     for<'b> O: Mul<&'b O, Output = O>,
     for<'b> &'b I: Mul<&'b O, Output = O>,
@@ -126,8 +134,7 @@ where
 {
     //type Input = I;
     //type Output = O;
-    fn eval_forward_grad(&self, x: &I, dx: &I, _: &S) -> (O, O)
-    {
+    fn eval_forward_grad(&self, x: &I, dx: &I, _: &S) -> (O, O) {
         let mut res = self.0[0].zero();
         let mut grad = self.0[0].zero();
         let mut x_pow = self.0[0].one();
@@ -178,8 +185,15 @@ impl<S, I, P> Diffable<S> for Monomial<S, I, P> {
     type Output = I;
 }
 
-impl<S, I: Clone + InstOne + Pow<P, Output = I> + Mul<I, Output = I> + GradientType<I, GradientType = I>, P: InstOne> AutoDiffable<S>
-    for Monomial<S, I, P>
+impl<
+        S,
+        I: Clone
+            + InstOne
+            + Pow<P, Output = I>
+            + Mul<I, Output = I>
+            + GradientType<I, GradientType = I>,
+        P: InstOne,
+    > AutoDiffable<S> for Monomial<S, I, P>
 where
     for<'b> I: Mul<&'b I, Output = I> + Mul<&'b P, Output = I> + Pow<&'b P, Output = I>,
     for<'b> &'b I: Mul<&'b I, Output = I>,
@@ -195,11 +209,17 @@ where
         let x_pow = x.clone().pow(&self.0 - self.0.one());
         (&x_pow * x, x_pow * &self.0)
     }
-
 }
 
-impl<S, I: Clone + InstOne + Pow<P, Output = I> + Mul<I, Output = I> + GradientType<I, GradientType = I>, P: InstOne> ForwardDiffable<S>
-    for Monomial<S, I, P>
+impl<
+        S,
+        I: Clone
+            + InstOne
+            + Pow<P, Output = I>
+            + Mul<I, Output = I>
+            + GradientType<I, GradientType = I>,
+        P: InstOne,
+    > ForwardDiffable<S> for Monomial<S, I, P>
 where
     for<'b> I: Mul<&'b I, Output = I> + Mul<&'b P, Output = I> + Pow<&'b P, Output = I>,
     for<'b> &'b I: Mul<&'b I, Output = I>,

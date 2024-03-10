@@ -1,9 +1,9 @@
+use crate::gradienttype::GradientType;
 use num::complex::Complex;
 use num::rational::Ratio;
 use num::{Integer, Num, One, Zero};
 use std::num::Wrapping;
-use std::ops::{Add, Mul, Neg};
-use crate::gradienttype::GradientType;
+use std::ops::{Add, Mul, Sub};
 
 pub trait InstZero: Sized + Add<Self, Output = Self> {
     // required methods
@@ -23,7 +23,6 @@ pub trait InstOne: Sized + Mul<Self, Output = Self> {
     /// i.e. self * self.one() == self
     fn one(&self) -> Self;
 
-
     // provided methods
     fn set_one(&mut self) {
         *self = self.one();
@@ -39,7 +38,7 @@ pub trait InstOne: Sized + Mul<Self, Output = Self> {
 
 pub trait GradientIdentity: Sized
 where
-    Self: GradientType<Self>
+    Self: GradientType<Self>,
 {
     /// Returns the gradient identity for a function with input Self,
     /// output Self, and gradient type `<Self as GradientType<Self>>::GradientType`
@@ -50,9 +49,16 @@ where
     fn grad_identity(&self) -> <Self as GradientType<Self>>::GradientType;
 }
 
-pub trait Conjugate {
-    type Output;
-    fn conj(&self) -> Self::Output;
+pub trait Wirtinger: Sized {
+    fn conj(&self) -> Self;
+    fn abs(&self) -> Self; // sqrt(conj(z) * z)
+    fn abs_sqr(&self) -> Self; // conj(z) * z
+    fn arg(&self) -> Self;
+    fn signum(&self) -> Self {
+        // alias for arg
+        self.arg()
+    }
+    fn is_always_real() -> bool; // should be set to true for real numbers
 }
 
 // implementation for InstZero for all the types that implement Zero from num
@@ -215,65 +221,141 @@ where
     }
 }
 
-// implementation of Conjugate for all real number types
-macro_rules! impl_conjugate_real_copy {
+// implementation of Complex traits for all real number types
+macro_rules! impl_wirtinger_real_copy {
     ($($t:ty),*) => ($(
-        impl Conjugate for $t
+        impl Wirtinger for $t
         {
-            type Output = Self;
-            fn conj(&self) -> Self::Output
+            fn conj(&self) -> Self
             {
                 *self
             }
+            fn abs(&self) -> Self
+            {
+                self.abs()
+            }
+            fn abs_sqr(&self) -> Self
+            {
+                self * self
+            }
+            fn arg(&self) -> Self
+            {
+                self.signum()
+            }
+            fn is_always_real() -> bool
+            {
+                true
+            }
         }
     )*)
 }
-macro_rules! impl_conjugate_real_clone {
+macro_rules! impl_wirtinger_real_clone {
     ($($t:ty),*) => ($(
-        impl Conjugate for $t
+        impl Wirtinger for $t
         {
-            type Output = Self;
-            fn conj(&self) -> Self::Output
+            fn conj(&self) -> Self
             {
                 self.clone()
+            }
+            fn abs(&self) -> Self
+            {
+                self.clone().abs()
+            }
+            fn abs_sqr(&self) -> Self
+            {
+                self.clone() * self.clone()
+            }
+            fn arg(&self) -> Self
+            {
+                self.clone().signum()
+            }
+            fn is_always_real() -> bool
+            {
+                true
             }
         }
     )*)
 }
 
-impl_conjugate_real_copy!(i64, u128, f32, u16, u32, i16, f64, isize, i32, u8, u64, usize, i128, i8);
-impl_conjugate_real_clone!(num::BigInt, num::BigUint);
+impl_wirtinger_real_copy!(i64, u128, f32, u16, u32, i16, f64, isize, i32, u8, u64, usize, i128, i8);
+impl_wirtinger_real_clone!(num::BigInt, num::BigUint);
 
 // generic implementations done here
-impl<T> Conjugate for Wrapping<T>
+impl<T> Wirtinger for Wrapping<T>
 where
-    T: Conjugate<Output = T>,
+    T: Wirtinger,
 {
-    type Output = Self;
-    fn conj(&self) -> Self::Output
-    {
+    fn conj(&self) -> Wrapping<T> {
         Wrapping(self.0.conj())
     }
-}
-
-impl<T> Conjugate for Ratio<T>
-where
-    T: Clone + Integer + Conjugate<Output = T>,
-{
-    type Output = Self;
-    fn conj(&self) -> Self::Output
-    {
-        Ratio::new(self.numer().conj(), self.denom().conj())
+    fn abs(&self) -> Wrapping<T> {
+        Wrapping(self.0.abs())
+    }
+    fn abs_sqr(&self) -> Wrapping<T> {
+        Wrapping(self.0.abs_sqr())
+    }
+    fn arg(&self) -> Wrapping<T> {
+        Wrapping(self.0.arg())
+    }
+    fn is_always_real() -> bool {
+        T::is_always_real()
     }
 }
 
-impl<T> Conjugate for Complex<T>
+impl<T> Wirtinger for Ratio<T>
 where
-    T: Clone + Num + Neg<Output = T>,
+    T: Clone + Integer + Wirtinger + InstOne + Mul<T, Output = T> + Sub<T, Output = T>,
 {
-    type Output = Self;
-    fn conj(&self) -> Self::Output
-    {
-        Complex::<T>::conj(self)
+    fn conj(&self) -> Ratio<T> {
+        Ratio::new(self.numer().clone().conj(), self.denom().clone().conj())
+    }
+    fn abs(&self) -> Ratio<T> {
+        Ratio::new(
+            self.numer().clone().abs() / self.denom().clone().abs(),
+            self.denom().one(),
+        )
+    }
+    fn abs_sqr(&self) -> Ratio<T> {
+        Ratio::new(
+            self.numer().clone().abs_sqr() / self.denom().clone().abs_sqr(),
+            self.denom().one(),
+        )
+    }
+    fn arg(&self) -> Ratio<T> {
+        if Self::is_always_real() {
+            Ratio::new(
+                self.numer().clone().signum() * self.denom().clone().signum(),
+                self.denom().one(),
+            )
+        } else {
+            Ratio::new(
+                self.numer().clone().arg() - self.denom().clone().arg(),
+                self.denom().one(),
+            )
+        }
+    }
+    fn is_always_real() -> bool {
+        T::is_always_real()
+    }
+}
+
+impl<T> Wirtinger for Complex<T>
+where
+    T: Clone + Num,
+{
+    fn conj(&self) -> Complex<T> {
+        self.conj()
+    }
+    fn abs(&self) -> Complex<T> {
+        self.abs()
+    }
+    fn abs_sqr(&self) -> Complex<T> {
+        self.abs_sqr()
+    }
+    fn arg(&self) -> Complex<T> {
+        self.arg()
+    }
+    fn is_always_real() -> bool {
+        false
     }
 }
