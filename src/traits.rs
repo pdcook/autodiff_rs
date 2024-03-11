@@ -1,7 +1,7 @@
 use crate::gradienttype::GradientType;
 use num::complex::Complex;
 use num::rational::Ratio;
-use num::{Integer, Num, One, Zero, Float};
+use num::{Float, Integer, Num, One, Zero};
 use std::num::Wrapping;
 use std::ops::{Add, Mul, Neg};
 
@@ -442,7 +442,6 @@ impl Arg for num::BigUint {
         self.zero()
     }
 }
-
 
 // generic implementations done here
 impl<T> PossiblyComplex for Wrapping<T>

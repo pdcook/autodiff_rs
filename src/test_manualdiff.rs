@@ -5,6 +5,7 @@ use crate::diffable::Diffable;
 use crate::forward::ForwardMul;
 use crate::funcs::*;
 use crate::gradienttype::GradientType;
+use crate::traits::Conjugate;
 use std::ops::Add;
 
 use crate as autodiff;
@@ -21,6 +22,13 @@ fn test_manual() {
 
     impl GradientType<F> for F {
         type GradientType = G;
+    }
+
+    impl Conjugate for F {
+        type Output = F;
+        fn conj(&self) -> Self::Output {
+            F(self.0, self.1)
+        }
     }
 
     /// implementation of ForwardMul for
@@ -62,13 +70,14 @@ fn test_manual() {
     }
 
     impl AutoDiffable<()> for Swap {
-        //type Input = F;
-        //type Output = F;
         fn eval(&self, x: &F, _: &()) -> F {
             F(x.1, x.0)
         }
         fn eval_grad(&self, x: &F, _: &()) -> (F, G) {
             (self.eval(x, &()), G(F(0.0, 1.0), F(1.0, 0.0)))
+        }
+        fn eval_conj_grad(&self, x: &F, _: &()) -> (F, G) {
+            (self.eval(x, &()), G(F(0.0, 0.0), F(0.0, 0.0)))
         }
     }
 
@@ -82,8 +91,6 @@ fn test_manual() {
     }
 
     impl AutoDiffable<()> for AddSwap {
-        //type Input = F;
-        //type Output = F;
         fn eval(&self, x: &F, _: &()) -> F {
             let f0 = self.0.eval(x, &());
             let f1 = self.1.eval(x, &());
@@ -92,6 +99,18 @@ fn test_manual() {
         fn eval_grad(&self, x: &F, _: &()) -> (F, G) {
             let (f0, df0) = self.0.eval_grad(x, &());
             let (f1, df1) = self.1.eval_grad(x, &());
+
+            (
+                F(f0.0 + f1.0, f0.1 + f1.1),
+                G(
+                    F(df0.0 .0 + df1.0 .0, df0.0 .1 + df1.0 .1),
+                    F(df0.1 .0 + df1.1 .0, df0.1 .1 + df1.1 .1),
+                ),
+            )
+        }
+        fn eval_conj_grad(&self, x: &F, _: &()) -> (F, G) {
+            let (f0, df0) = self.0.eval_conj_grad(x, &());
+            let (f1, df1) = self.1.eval_conj_grad(x, &());
 
             (
                 F(f0.0 + f1.0, f0.1 + f1.1),
@@ -114,8 +133,6 @@ fn test_manual() {
     // first we have to manually implement
     // AutoDiffable<()> for Monomial
     impl AutoDiffable<()> for Monomial<(), F, f64> {
-        //type Input = F;
-        //type Output = F;
         fn eval(&self, x: &F, _: &()) -> F {
             F(x.0.powf(self.0), x.1.powf(self.0))
         }
@@ -125,6 +142,10 @@ fn test_manual() {
                 F(f0, f1),
                 G(F(self.0 * f0 / x.0, 0.0), F(0.0, self.0 * f1 / x.1)),
             )
+        }
+        fn eval_conj_grad(&self, x: &F, _: &()) -> (F, G) {
+            let (f0, f1) = (x.0.powf(self.0), x.1.powf(self.0));
+            (F(f0, f1), G(F(0.0, 0.0), F(0.0, 0.0)))
         }
     }
 
@@ -144,14 +165,26 @@ fn test_manual() {
     }
 
     impl AutoDiffable<()> for ComposeMonomialSwap {
-        //type Input = F;
-        //type Output = F;
         fn eval(&self, x: &F, _: &()) -> F {
             self.0.eval(&self.1.eval(x, &()), &())
         }
         fn eval_grad(&self, x: &F, _: &()) -> (F, G) {
             let (f, G(fx, fy)) = self.1.eval_grad(x, &());
             let (fg, G(fgx, fgy)) = self.0.eval_grad(&f, &());
+            let (fxx, fxy) = (fx.0, fx.1);
+            let (fyx, fyy) = (fy.0, fy.1);
+            let (fgxx, fgxy) = (fgx.0, fgx.1);
+            let (fgyx, fgyy) = (fgy.0, fgy.1);
+            // chain rule, elementwise
+            let grad = G(
+                F(fgxx * fxx + fgxy * fyx, fgxx * fxy + fgxy * fyy),
+                F(fgyx * fxx + fgyy * fyx, fgyx * fxy + fgyy * fyy),
+            );
+            (fg, grad)
+        }
+        fn eval_conj_grad(&self, x: &F, _: &()) -> (F, G) {
+            let (f, G(fx, fy)) = self.1.eval_conj_grad(x, &());
+            let (fg, G(fgx, fgy)) = self.0.eval_conj_grad(&f, &());
             let (fxx, fxy) = (fx.0, fx.1);
             let (fyx, fyy) = (fy.0, fy.1);
             let (fgxx, fgxy) = (fgx.0, fgx.1);

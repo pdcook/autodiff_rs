@@ -204,9 +204,9 @@ pub fn funccompose(input: TokenStream) -> TokenStream {
     let where_clause = where_clause.as_ref();
 
     let expanded = quote! {
-        impl #impl_generics autodiff::compose::FuncCompose<StaticArgs, Inner> for #name #orig_ty_generics #where_clause {
-            type Output = autodiff::adops::ADCompose<Self, Inner>;
-            fn func_compose(self, inner: Inner) -> Self::Output
+        impl #impl_generics autodiff::compose::FuncCompose<__PROC_MACRO_S, __PROC_MACRO_INNER> for #name #orig_ty_generics #where_clause {
+            type Output = autodiff::adops::ADCompose<Self, __PROC_MACRO_INNER>;
+            fn func_compose(self, inner: __PROC_MACRO_INNER) -> Self::Output
             {
                 autodiff::adops::ADCompose(self, inner)
             }
@@ -217,32 +217,32 @@ pub fn funccompose(input: TokenStream) -> TokenStream {
 }
 
 fn add_compose_generics(mut generics: Generics) -> Generics {
-    // InnerInput, InnerOutput, InnerGrad, OuterInput, OuterOutput, OuterGrad, Grad, Inner
-    generics.params.push(parse_quote!(StaticArgs));
-    generics.params.push(parse_quote!(InnerInput));
-    generics.params.push(parse_quote!(InnerOutput));
-    generics.params.push(parse_quote!(InnerGrad));
-    generics.params.push(parse_quote!(OuterInput));
-    generics.params.push(parse_quote!(OuterOutput));
-    generics.params.push(parse_quote!(OuterGrad));
-    generics.params.push(parse_quote!(Grad));
-    generics.params.push(parse_quote!(Inner));
+    // __PROC_MACRO_ININ, __PROC_MACRO_INOUT, __PROC_MAGRO_IG, __PROC_MACRO_OUTIN, __PROC_MACRO_OUTOUT, __PROC_MACRO_OUTG, __PROC_MACRO_G, __PROC_MACRO_INNER
+    generics.params.push(parse_quote!(__PROC_MACRO_S));
+    generics.params.push(parse_quote!(__PROC_MACRO_ININ));
+    generics.params.push(parse_quote!(__PROC_MACRO_INOUT));
+    generics.params.push(parse_quote!(__PROC_MAGRO_IG));
+    generics.params.push(parse_quote!(__PROC_MACRO_OUTIN));
+    generics.params.push(parse_quote!(__PROC_MACRO_OUTOUT));
+    generics.params.push(parse_quote!(__PROC_MACRO_OUTG));
+    generics.params.push(parse_quote!(__PROC_MACRO_G));
+    generics.params.push(parse_quote!(__PROC_MACRO_INNER));
 
     generics
 }
 
 fn add_compose_bounds(mut where_clause: WhereClause) -> WhereClause {
-    // Self: Diffable<Input = OuterInput, Output = OuterOutput>,
-    // Inner: Diffable<Input = InnerInput, Output = InnerOutput>,
-    // OuterInput: From<InnerOutput> + GradientType<OuterOutput, GradientType = OuterGrad>,
-    // InnerInput: GradientType<InnerOutput, GradientType = InnerGrad> + GradientType<OuterOutput, GradientType = Grad>,
-    // OuterGrad: ForwardMul<OuterInput, InnerGrad, ResultGrad = Grad>
+    // Self: Diffable<Input = __PROC_MACRO_OUTIN, Output = __PROC_MACRO_OUTOUT>,
+    // __PROC_MACRO_INNER: Diffable<Input = __PROC_MACRO_ININ, Output = __PROC_MACRO_INOUT>,
+    // __PROC_MACRO_OUTIN: From<__PROC_MACRO_INOUT> + GradientType<__PROC_MACRO_OUTOUT, GradientType = __PROC_MACRO_OUTG>,
+    // __PROC_MACRO_ININ: GradientType<__PROC_MACRO_INOUT, GradientType = __PROC_MAGRO_IG> + GradientType<__PROC_MACRO_OUTOUT, GradientType = __PROC_MACRO_G>,
+    // __PROC_MACRO_OUTG: ForwardMul<__PROC_MACRO_OUTIN, __PROC_MAGRO_IG, ResultGrad = __PROC_MACRO_G>
 
-    where_clause.predicates.push(parse_quote!(Self: autodiff::diffable::Diffable<StaticArgs, Input = OuterInput, Output = OuterOutput> + autodiff::autodiffable::AutoDiffable<StaticArgs> + autodiff::autodiffable::ForwardDiffable<StaticArgs>));
-    where_clause.predicates.push(parse_quote!(Inner: autodiff::diffable::Diffable<StaticArgs, Input = InnerInput, Output = InnerOutput> + autodiff::autodiffable::AutoDiffable<StaticArgs> + autodiff::autodiffable::ForwardDiffable<StaticArgs>));
-    where_clause.predicates.push(parse_quote!(OuterInput: From<InnerOutput> + autodiff::gradienttype::GradientType<OuterOutput, GradientType = OuterGrad>));
-    where_clause.predicates.push(parse_quote!(InnerInput: autodiff::gradienttype::GradientType<InnerOutput, GradientType = InnerGrad> + autodiff::gradienttype::GradientType<OuterOutput, GradientType = Grad>));
-    where_clause.predicates.push(parse_quote!(OuterGrad: autodiff::forward::ForwardMul<OuterInput, InnerGrad, ResultGrad = Grad>));
+    where_clause.predicates.push(parse_quote!(Self: autodiff::diffable::Diffable<__PROC_MACRO_S, Input = __PROC_MACRO_OUTIN, Output = __PROC_MACRO_OUTOUT> + autodiff::autodiffable::AutoDiffable<__PROC_MACRO_S> + autodiff::autodiffable::ForwardDiffable<__PROC_MACRO_S>));
+    where_clause.predicates.push(parse_quote!(__PROC_MACRO_INNER: autodiff::diffable::Diffable<__PROC_MACRO_S, Input = __PROC_MACRO_ININ, Output = __PROC_MACRO_INOUT> + autodiff::autodiffable::AutoDiffable<__PROC_MACRO_S> + autodiff::autodiffable::ForwardDiffable<__PROC_MACRO_S>));
+    where_clause.predicates.push(parse_quote!(__PROC_MACRO_OUTIN: From<__PROC_MACRO_INOUT> + autodiff::gradienttype::GradientType<__PROC_MACRO_OUTOUT, GradientType = __PROC_MACRO_OUTG>));
+    where_clause.predicates.push(parse_quote!(__PROC_MACRO_ININ: autodiff::gradienttype::GradientType<__PROC_MACRO_INOUT, GradientType = __PROC_MAGRO_IG> + autodiff::gradienttype::GradientType<__PROC_MACRO_OUTOUT, GradientType = __PROC_MACRO_G>));
+    where_clause.predicates.push(parse_quote!(__PROC_MACRO_OUTG: autodiff::forward::ForwardMul<__PROC_MACRO_OUTIN, __PROC_MAGRO_IG, ResultGrad = __PROC_MACRO_G>));
 
     where_clause
 }

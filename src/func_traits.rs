@@ -1,2 +1,2 @@
 // forward from traits
-pub use crate::traits::{InstOne, InstZero, PossiblyComplex, Conjugate, Abs, AbsSqr, Signum, Arg};
+pub use crate::traits::{Abs, AbsSqr, Arg, Conjugate, InstOne, InstZero, PossiblyComplex, Signum};

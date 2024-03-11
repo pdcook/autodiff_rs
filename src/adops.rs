@@ -2,12 +2,15 @@ use crate::autodiffable::{AutoDiffable, ForwardDiffable};
 use crate::diffable::Diffable;
 use crate::forward::ForwardMul;
 use crate::gradienttype::GradientType;
-use crate::traits::{InstOne, InstZero, PossiblyComplex, Conjugate, Abs, AbsSqr, Signum};//, Arg};
+use crate::traits::{Abs, AbsSqr, Conjugate, InstOne, InstZero, PossiblyComplex, Signum}; //, Arg};
 use num::traits::Pow;
 use std::marker::PhantomData;
 use std::ops::{Add, Div, Mul, Neg, Sub};
 
-#[derive(Debug, Clone, Copy)]
+use crate as autodiff;
+use autodiff_derive::*;
+
+#[derive(FuncCompose, Debug, Clone, Copy)]
 pub struct ADCoerce<A, NewInput, NewOutput>(pub A, pub PhantomData<(NewInput, NewOutput)>);
 
 impl<A: Diffable<StaticArgs>, NewInput, NewOutput, StaticArgs> Diffable<StaticArgs>
@@ -143,7 +146,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(FuncCompose, Debug, Clone, Copy)]
 pub struct ADAppendStaticArgs<A, NewStaticArgs>(pub A, pub PhantomData<NewStaticArgs>);
 
 impl<A: Diffable<StaticArgs>, StaticArgs, NewStaticArgs> Diffable<(StaticArgs, NewStaticArgs)>
@@ -235,7 +238,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(FuncCompose, Debug, Clone, Copy)]
 pub struct ADPrependStaticArgs<A, NewStaticArgs>(pub A, pub PhantomData<NewStaticArgs>);
 
 impl<A: Diffable<StaticArgs>, StaticArgs, NewStaticArgs> Diffable<(NewStaticArgs, StaticArgs)>
@@ -327,7 +330,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(FuncCompose, Debug, Clone, Copy)]
 pub struct ADAdd<A, B>(pub A, pub B);
 
 impl<A: Diffable<StaticArgs>, B: Diffable<StaticArgs>, StaticArgs> Diffable<StaticArgs>
@@ -466,7 +469,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(FuncCompose, Debug, Clone, Copy)]
 pub struct ADSub<A, B>(pub A, pub B);
 
 impl<A: Diffable<StaticArgs>, B: Diffable<StaticArgs>, StaticArgs> Diffable<StaticArgs>
@@ -604,7 +607,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(FuncCompose, Debug, Clone, Copy)]
 pub struct ADMul<A, B>(pub A, pub B);
 
 impl<A: Diffable<StaticArgs>, B: Diffable<StaticArgs>, StaticArgs> Diffable<StaticArgs>
@@ -786,7 +789,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(FuncCompose, Debug, Clone, Copy)]
 pub struct ADDiv<A, B>(pub A, pub B);
 
 impl<A: Diffable<StaticArgs>, B: Diffable<StaticArgs>, StaticArgs> Diffable<StaticArgs>
@@ -996,7 +999,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(FuncCompose, Debug, Clone, Copy)]
 pub struct ADNeg<A>(pub A);
 
 impl<A: Diffable<StaticArgs>, StaticArgs> Diffable<StaticArgs> for ADNeg<A>
@@ -1121,7 +1124,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(FuncCompose, Debug, Clone, Copy)]
 pub struct ADCompose<Outer, Inner>(pub Outer, pub Inner);
 
 impl<Outer, Inner, StaticArgs> Diffable<StaticArgs> for ADCompose<Outer, Inner>
@@ -1305,7 +1308,9 @@ where
             // conj(dg/dconj(z) * dconj(z)) = dconj(g)/dz * dz
             let dgdconjz = self.1.forward_conj_grad(x, dx, static_args);
             // f and df/dg * dg
-            let (f, df) = self.0.eval_forward_grad(&g.clone().into(), &dg.into(), static_args);
+            let (f, df) = self
+                .0
+                .eval_forward_grad(&g.clone().into(), &dg.into(), static_args);
             // df/dconjg * dconjg
             let dfdconjg = self
                 .0
@@ -1336,7 +1341,9 @@ where
             // conj(dg/dconj(z) * dconj(z)) = dconj(g)/dz * dz
             let dgdconjz = self.1.forward_conj_grad(x, dx, static_args);
             // f and df/dg * dg
-            let df = self.0.forward_grad(&g.clone().into(), &dg.into(), static_args);
+            let df = self
+                .0
+                .forward_grad(&g.clone().into(), &dg.into(), static_args);
             // df/dconjg * dconjg
             let dfdconjg = self
                 .0
@@ -1399,7 +1406,9 @@ where
             // conj(dg/dconj(z) * dconj(z)) = dconj(g)/dz * dz
             let dgdconjz = self.1.forward_grad(x, dx, static_args);
             // f and df/dg * dg
-            let df = self.0.forward_conj_grad(&g.clone().into(), &dg.into(), static_args);
+            let df = self
+                .0
+                .forward_conj_grad(&g.clone().into(), &dg.into(), static_args);
             // df/dconjg * dconjg
             let dfdconjg = self
                 .0
@@ -1410,7 +1419,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(FuncCompose, Debug, Clone, Copy)]
 pub struct ADConstantAdd<A, B>(pub A, pub B);
 
 impl<A: Diffable<StaticArgs>, B, StaticArgs> Diffable<StaticArgs> for ADConstantAdd<A, B>
@@ -1539,7 +1548,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(FuncCompose, Debug, Clone, Copy)]
 pub struct ADConstantSub<A, B>(pub A, pub B);
 
 impl<A: Diffable<StaticArgs>, B, StaticArgs> Diffable<StaticArgs> for ADConstantSub<A, B>
@@ -1667,7 +1676,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(FuncCompose, Debug, Clone, Copy)]
 pub struct ADConstantMul<A, B>(pub A, pub B);
 
 impl<A: Diffable<StaticArgs>, B, StaticArgs> Diffable<StaticArgs> for ADConstantMul<A, B>
@@ -1796,7 +1805,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(FuncCompose, Debug, Clone, Copy)]
 pub struct ADConstantDiv<A, B>(pub A, pub B);
 
 impl<A: Diffable<StaticArgs>, B, StaticArgs> Diffable<StaticArgs> for ADConstantDiv<A, B>
@@ -1925,7 +1934,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(FuncCompose, Debug, Clone, Copy)]
 pub struct ADConstantPow<A, B>(pub A, pub B);
 
 impl<A: Diffable<StaticArgs>, B, StaticArgs> Diffable<StaticArgs> for ADConstantPow<A, B>
@@ -2104,7 +2113,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(FuncCompose, Debug, Clone, Copy)]
 pub struct ADAbs<A>(pub A);
 
 impl<A: Diffable<StaticArgs>, StaticArgs> Diffable<StaticArgs> for ADAbs<A> {
@@ -2116,7 +2125,11 @@ impl<StaticArgs, Input, Output, Grad, A> AutoDiffable<StaticArgs> for ADAbs<A>
 where
     A: AutoDiffable<StaticArgs, Input = Input, Output = Output>,
     Input: PossiblyComplex + GradientType<Output, GradientType = Grad>,
-    Output: Clone + PossiblyComplex + Abs<Output = Output> + Signum<Output = Output> + Conjugate<Output = Output>,
+    Output: Clone
+        + PossiblyComplex
+        + Abs<Output = Output>
+        + Signum<Output = Output>
+        + Conjugate<Output = Output>,
     Grad: Conjugate<Output = Grad> + Mul<Output, Output = Grad> + Add<Grad, Output = Grad>,
 {
     fn eval(
@@ -2294,7 +2307,13 @@ impl<StaticArgs, Input, Output, A> ForwardDiffable<StaticArgs> for ADAbs<A>
 where
     A: ForwardDiffable<StaticArgs, Input = Input, Output = Output>,
     Input: PossiblyComplex,
-    Output: Clone + PossiblyComplex + Signum<Output = Output> + Abs<Output = Output> + Conjugate<Output = Output> + Mul<Output, Output = Output> + Add<Output, Output = Output>,
+    Output: Clone
+        + PossiblyComplex
+        + Signum<Output = Output>
+        + Abs<Output = Output>
+        + Conjugate<Output = Output>
+        + Mul<Output, Output = Output>
+        + Add<Output, Output = Output>,
 {
     fn eval_forward(
         &self,
@@ -2476,7 +2495,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(FuncCompose, Debug, Clone, Copy)]
 pub struct ADAbsSqr<A>(pub A);
 
 impl<A: Diffable<StaticArgs>, StaticArgs> Diffable<StaticArgs> for ADAbsSqr<A> {
@@ -2488,7 +2507,12 @@ impl<StaticArgs, Input, Output, Grad, A> AutoDiffable<StaticArgs> for ADAbsSqr<A
 where
     A: AutoDiffable<StaticArgs, Input = Input, Output = Output>,
     Input: PossiblyComplex + GradientType<Output, GradientType = Grad>,
-    Output: PossiblyComplex + AbsSqr<Output = Output> + Conjugate<Output = Output> + Add<Output, Output = Output> + Clone + Mul<Grad, Output = Grad>,
+    Output: PossiblyComplex
+        + AbsSqr<Output = Output>
+        + Conjugate<Output = Output>
+        + Add<Output, Output = Output>
+        + Clone
+        + Mul<Grad, Output = Grad>,
     Grad: Conjugate<Output = Grad> + Mul<Output, Output = Grad> + Add<Grad, Output = Grad>,
 {
     fn eval(
@@ -2581,7 +2605,10 @@ where
             let fconj = f.conj();
             let dconjfdconjz = self.0.grad(x, static_args).conj();
 
-            (f.clone().abs_sqr(), dfdconjz.mul(fconj).add(f.mul(dconjfdconjz)))
+            (
+                f.clone().abs_sqr(),
+                dfdconjz.mul(fconj).add(f.mul(dconjfdconjz)),
+            )
         }
     }
 
@@ -2620,7 +2647,12 @@ impl<StaticArgs, Input, Output, A> ForwardDiffable<StaticArgs> for ADAbsSqr<A>
 where
     A: ForwardDiffable<StaticArgs, Input = Input, Output = Output>,
     Input: PossiblyComplex,
-    Output: PossiblyComplex + AbsSqr<Output = Output> + Conjugate<Output = Output> + Mul<Output, Output = Output> + Add<Output, Output = Output> + Clone,
+    Output: PossiblyComplex
+        + AbsSqr<Output = Output>
+        + Conjugate<Output = Output>
+        + Mul<Output, Output = Output>
+        + Add<Output, Output = Output>
+        + Clone,
 {
     fn eval_forward(
         &self,
@@ -2706,7 +2738,10 @@ where
             let fconj = f.conj();
             let dconjfdconjz = self.0.forward_grad(x, dx, static_args).conj();
 
-            (f.clone().abs_sqr(), dfdconjz.mul(fconj).add(f.mul(dconjfdconjz)))
+            (
+                f.clone().abs_sqr(),
+                dfdconjz.mul(fconj).add(f.mul(dconjfdconjz)),
+            )
         }
     }
 
@@ -2730,7 +2765,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(FuncCompose, Debug, Clone, Copy)]
 pub struct ADSignum<A>(pub A);
 
 impl<A: Diffable<StaticArgs>, StaticArgs> Diffable<StaticArgs> for ADSignum<A> {
@@ -3028,7 +3063,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(FuncCompose, Debug, Clone, Copy)]
 pub struct ADConjugate<A>(pub A);
 
 impl<A: Diffable<StaticArgs>, StaticArgs> Diffable<StaticArgs> for ADConjugate<A>

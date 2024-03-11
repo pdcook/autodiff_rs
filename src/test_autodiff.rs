@@ -5,6 +5,7 @@ use crate::func_traits::*;
 use crate::funcs::*;
 use num::traits::Pow;
 use std::ops::Deref;
+use num::complex::Complex;
 
 #[test]
 fn test_all_ops() {
@@ -12,15 +13,28 @@ fn test_all_ops() {
     // test all supported binary operations on p(x) and q(x) = x^5
 
     let x = 2.0_f64;
-    let dx = 1.0_f64;
+    let dx = 0.5_f64;
 
     let p = AutoDiff::new(Polynomial::new(vec![1.0, 2.0, 3.0]));
     let q = AutoDiff::new(Monomial::<(), f64, f64>::new(5.0));
 
     let (p_x, dp_x): (f64, f64) = p.eval_forward_grad(&x, &dx, &());
     let dp_dx: f64 = p.grad(&x, &());
+    let dp_dconjx: f64 = p.conj_grad(&x, &());
     let (q_x, dq_x): (f64, f64) = q.eval_forward_grad(&x, &dx, &());
     let dq_dx: f64 = q.grad(&x, &());
+    let dq_dconjx: f64 = q.conj_grad(&x, &());
+
+    // assert equality
+    assert_eq!(p_x, 1.0 + 2.0 * x + 3.0 * x.pow(2.0));
+    assert_eq!(dp_x, (2.0 + 6.0 * x) * dx);
+    assert_eq!(dp_dx, 2.0 + 6.0 * x);
+    assert_eq!(dp_dconjx, 0.0);
+
+    assert_eq!(q_x, x.pow(5));
+    assert_eq!(dq_x, dx * 5.0 * x.pow(4));
+    assert_eq!(dq_dx, 5.0 * x.pow(4));
+    assert_eq!(dq_dconjx, 0.0);
 
     // unary ops
     // neg
@@ -32,12 +46,19 @@ fn test_all_ops() {
         p.clone().abs().eval_forward_grad(&x, &dx, &())
     );
     assert_eq!(dp_dx * p_x.signum(), p.clone().abs().grad(&x, &()));
+    // abssqr
+    assert_eq!(
+        (p_x.abs_sqr(), 2.0 * p_x * dp_x),
+        p.clone().abs_sqr().eval_forward_grad(&x, &dx, &())
+    );
     // signum
     assert_eq!(
         (p_x.signum(), 0.0),
         p.clone().signum().eval_forward_grad(&x, &dx, &())
     );
     assert_eq!(0.0, p.clone().signum().grad(&x, &()));
+    // conj
+    assert_eq!((p_x.conj(), 0.0), p.conj().eval_forward_grad(&x, &dx, &()));
 
     // binary ops with constants
     let c = 3.0_f64;
@@ -94,7 +115,7 @@ fn test_all_ops() {
         (p.clone() / q.clone()).eval_forward_grad(&x, &dx, &())
     );
     assert_eq!(
-        (dp_x * q_x - p_x * dq_x) / q_x.pow(2.0),
+        (dp_dx * q_x - p_x * dq_dx) / q_x.pow(2.0),
         (p.clone() / q.clone()).grad(&x, &())
     );
 
@@ -135,8 +156,8 @@ fn test_all_ops() {
         }
     }
 
-    let w = Wrapper(2.0_f64);
-    let dw = Wrapper(1.0_f64);
+    let w = Wrapper(x.clone());
+    let dw = Wrapper(dx.clone());
 
     let (p_w, dp_w) = p.eval_forward_grad(&w, &dw, &());
 
@@ -147,8 +168,8 @@ fn test_all_ops() {
         AutoDiff::new(Polynomial::<(), i32, i32>::new(vec![1i32, 2i32, 3i32]));
     let p_i32_coerced = p.clone().coerce::<i32, f64>();
 
-    let x_i32 = 2i32;
-    let dx_i32 = 1i32;
+    let x_i32 = 3i32;
+    let dx_i32 = 2i32;
 
     let (p_i32_x, dp_i32_x): (i32, i32) = p_i32.eval_forward_grad(&x_i32, &dx_i32, &());
     let (p_i32_coerced_x, dp_i32_coerced_x): (f64, f64) =
@@ -159,8 +180,8 @@ fn test_all_ops() {
         (p_i32_coerced_x, dp_i32_coerced_x)
     );
 
-    let s1 = 0_usize;
-    let s2 = 0.0_f32;
+    let s1 = 3_usize;
+    let s2 = 2.0_f32;
 
     let p_static_1: AutoDiff<usize, Polynomial<usize, f64, f64>> =
         AutoDiff::new(Polynomial::<usize, f64, f64>::new(vec![1.0, 2.0, 3.0]));
@@ -176,4 +197,49 @@ fn test_all_ops() {
     let (p1_p2_x, dp1_p2_x): (f64, f64) = p1_p2.eval_forward_grad(&x, &dx, &(s1, s2));
 
     assert_eq!((p1_x + p2_x, dp1_x + dp2_x), (p1_p2_x, dp1_p2_x));
+
+    // test with Complex numbers
+    let z = Complex::new(2.0_f64, 3.0);
+    let dz = Complex::new(0.5_f64, 0.75);
+
+    let i_complex = AutoDiff::new(Identity::new());
+    let m_complex = i_complex.abs_sqr();
+
+    let (i_z, di_z): (Complex<f64>, Complex<f64>) = i_complex.eval_forward_grad(&z, &dz, &());
+    let di_dz: Complex<f64> = i_complex.grad(&z, &());
+    let di_dconjz: Complex<f64> = i_complex.conj_grad(&z, &());
+    let di_conjz: Complex<f64> = i_complex.forward_conj_grad(&z, &dz, &());
+
+    let (m_z, dm_z): (Complex<f64>, Complex<f64>) = m_complex.eval_forward_grad(&z, &dz, &());
+    let dm_dz: Complex<f64> = m_complex.grad(&z, &());
+    let dm_dconjz: Complex<f64> = m_complex.conj_grad(&z, &());
+    let dm_conjz: Complex<f64> = m_complex.forward_conj_grad(&z, &dz, &());
+
+    // Wirtinger derivatives
+    assert_eq!(i_z, z);
+    assert_eq!(di_z, dz);
+    assert_eq!(di_dz, Complex::new(1.0, 0.0));
+    assert_eq!(di_dconjz, Complex::new(0.0, 0.0));
+    assert_eq!(di_conjz, Complex::new(0.0, 0.0));
+
+    assert_eq!(m_z, z.norm_sqr().into());
+    assert_eq!(dm_z, z.conj() * dz);
+    assert_eq!(dm_dz, z.conj());
+    assert_eq!(dm_dconjz, z);
+    assert_eq!(dm_conjz, z * dz.conj());
+
+    // trivial composition
+    let m_of_i = m_complex.compose(i_complex);
+
+    let (m_of_i_z, dm_of_i_z): (Complex<f64>, Complex<f64>) = m_of_i.eval_forward_grad(&z, &dz, &());
+    let dm_of_i_dz: Complex<f64> = m_of_i.grad(&z, &());
+    let dm_of_i_dconjz: Complex<f64> = m_of_i.conj_grad(&z, &());
+    let dm_of_i_conjz: Complex<f64> = m_of_i.forward_conj_grad(&z, &dz, &());
+
+    assert_eq!(m_of_i_z, z.norm_sqr().into());
+    assert_eq!(dm_of_i_z, z.conj() * dz);
+    assert_eq!(dm_of_i_dz, z.conj());
+    assert_eq!(dm_of_i_dconjz, z);
+    assert_eq!(dm_of_i_conjz, z * dz.conj());
 }
+

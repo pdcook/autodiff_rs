@@ -109,7 +109,12 @@ where
         self.0.eval_forward_conj_grad(x, dx, static_args)
     }
 
-    fn forward_grad(&self, x: &Self::Input, dx: &Self::Input, static_args: &StaticArgs) -> Self::Output {
+    fn forward_grad(
+        &self,
+        x: &Self::Input,
+        dx: &Self::Input,
+        static_args: &StaticArgs,
+    ) -> Self::Output {
         self.0.forward_grad(x, dx, static_args)
     }
 }

@@ -1,4 +1,5 @@
 use std::ops::Mul;
+use num::complex::Complex;
 
 /// Multiplication used for df/dx * dx -> df
 /// s:
@@ -42,4 +43,4 @@ macro_rules! impl_forward_mul {
     };
 }
 
-impl_forward_mul!(f32, f64, i8, i16, i32, i64, u8, u16, u32, u64, isize, usize);
+impl_forward_mul!(f32, f64, i8, i16, i32, i64, u8, u16, u32, u64, isize, usize, Complex<f32>, Complex<f64>);

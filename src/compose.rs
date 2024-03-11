@@ -23,7 +23,7 @@ where
     }
 }
 
-pub trait FuncCompose<StaticArgs, Other>: Sized {
+pub trait FuncCompose<StaticArgs, Other> {
     type Output;
 
     // default implementation via proc macro uses `ADCompose`
