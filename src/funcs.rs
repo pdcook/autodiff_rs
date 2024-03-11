@@ -35,11 +35,9 @@ impl<S, I> Diffable<S> for Identity<S, I> {
     type Output = I;
 }
 
-impl<S, I: Clone + InstOne + GradientType<I, GradientType = G> + GradientIdentity, G>
+impl<S, I: Clone + InstOne + GradientType<I, GradientType = G> + GradientIdentity, G: InstZero>
     AutoDiffable<S> for Identity<S, I>
 {
-    //type Input = I;
-    //type Output = I;
     fn eval(&self, x: &I, _: &S) -> I {
         x.clone()
     }
@@ -47,15 +45,37 @@ impl<S, I: Clone + InstOne + GradientType<I, GradientType = G> + GradientIdentit
     fn eval_grad(&self, x: &I, s: &S) -> (I, G) {
         (self.eval(x, s), x.grad_identity())
     }
+
+    fn grad(&self, x: &I, _: &S) -> G {
+        x.grad_identity()
+    }
+
+    fn eval_conj_grad(&self, x: &I, s: &S) -> (I, G) {
+        (self.eval(x, s), x.grad_identity().zero())
+    }
+
+    fn conj_grad(&self, x: &I, _: &S) -> G {
+        x.grad_identity().zero()
+    }
 }
 
 impl<S, I: Clone + InstOne + InstZero + GradientType<I> + GradientIdentity> ForwardDiffable<S>
     for Identity<S, I>
 {
-    //type Input = I;
-    //type Output = I;
+    fn eval_forward(&self, x: &I, _: &S) -> I {
+        x.clone()
+    }
     fn eval_forward_grad(&self, x: &I, dx: &I, s: &S) -> (I, I) {
-        (self.eval(x, s), dx.clone())
+        (self.eval_forward(x, s), dx.clone())
+    }
+    fn eval_forward_conj_grad(&self, x: &I, dx: &I, s: &S) -> (I, I) {
+        (self.eval_forward(x, s), dx.zero())
+    }
+    fn forward_grad(&self, _: &I, dx: &I, _: &S) -> I {
+        dx.clone()
+    }
+    fn forward_conj_grad(&self, _: &I, dx: &I, _: &S) -> I {
+        dx.zero()
     }
 }
 
@@ -90,9 +110,6 @@ where
     for<'b> &'b I: Mul<&'b O, Output = O>,
     for<'b> &'b O: Mul<&'b I, Output = O> + Mul<&'b O, Output = O>,
 {
-    //type Input = I;
-    //type Output = O;
-
     fn eval(&self, x: &I, _: &S) -> O {
         let mut res = self.0[0].zero();
         let mut x_pow = self.0[0].one();
@@ -120,6 +137,30 @@ where
 
         (res, grad)
     }
+
+    fn grad(&self, x: &I, _: &S) -> O {
+        let mut grad = self.0[0].zero();
+        let mut x_pow = self.0[0].one();
+        let mut pow = self.0[0].zero();
+
+        for i in 0..self.0.len() - 1 {
+            pow = pow + self.0[0].one();
+            grad = grad + &self.0[i + 1] * &pow * &x_pow;
+            x_pow = &x_pow * x;
+        }
+
+        grad
+    }
+
+    fn eval_conj_grad(&self, x: &I, s: &S) -> (O, O) {
+        let res = self.eval(x, s);
+        let grad = res.zero();
+        (res, grad)
+    }
+
+    fn conj_grad(&self, x: &I, s: &S) -> O {
+        self.eval(x, s).zero()
+    }
 }
 
 impl<
@@ -132,8 +173,16 @@ where
     for<'b> &'b I: Mul<&'b O, Output = O>,
     for<'b> &'b O: Mul<&'b I, Output = O> + Mul<&'b O, Output = O>,
 {
-    //type Input = I;
-    //type Output = O;
+    fn eval_forward(&self, x: &I, _: &S) -> O {
+        let mut res = self.0[0].zero();
+        let mut x_pow = self.0[0].one();
+        for c in &self.0 {
+            res = res + c * &x_pow;
+            x_pow = &x_pow * x;
+        }
+        res
+    }
+
     fn eval_forward_grad(&self, x: &I, dx: &I, _: &S) -> (O, O) {
         let mut res = self.0[0].zero();
         let mut grad = self.0[0].zero();
@@ -150,6 +199,30 @@ where
         }
 
         (res, grad)
+    }
+
+    fn eval_forward_conj_grad(&self, x: &I, _: &I, s: &S) -> (O, O) {
+        let res = self.eval_forward(x, s);
+        let grad = res.zero();
+        (res, grad)
+    }
+
+    fn forward_grad(&self, _: &I, dx: &I, _: &S) -> O {
+        let mut grad = self.0[0].zero();
+        let mut x_pow = self.0[0].one();
+        let mut pow = self.0[0].zero();
+
+        for i in 0..self.0.len() - 1 {
+            pow = pow + self.0[0].one();
+            grad = grad + &self.0[i + 1] * &pow * (&x_pow * dx);
+            x_pow = &x_pow * dx;
+        }
+
+        grad
+    }
+
+    fn forward_conj_grad(&self, x: &I, _: &I, s: &S) -> O {
+        self.eval_forward(x, s).zero()
     }
 }
 
@@ -189,6 +262,7 @@ impl<
         S,
         I: Clone
             + InstOne
+            + InstZero
             + Pow<P, Output = I>
             + Mul<I, Output = I>
             + GradientType<I, GradientType = I>,
@@ -199,8 +273,6 @@ where
     for<'b> &'b I: Mul<&'b I, Output = I>,
     for<'b> &'b P: Sub<&'b P, Output = P> + Sub<P, Output = P>,
 {
-    //type Input = I;
-    //type Output = I;
     fn eval(&self, x: &I, _: &S) -> I {
         x.clone().pow(&self.0)
     }
@@ -209,12 +281,25 @@ where
         let x_pow = x.clone().pow(&self.0 - self.0.one());
         (&x_pow * x, x_pow * &self.0)
     }
+
+    fn grad(&self, x: &I, _: &S) -> I {
+        x.clone().pow(&self.0 - self.0.one()) * &self.0
+    }
+
+    fn eval_conj_grad(&self, x: &I, s: &S) -> (I, I) {
+        (self.eval(x, s), x.zero())
+    }
+
+    fn conj_grad(&self, x: &I, _: &S) -> I {
+        x.zero()
+    }
 }
 
 impl<
         S,
         I: Clone
             + InstOne
+            + InstZero
             + Pow<P, Output = I>
             + Mul<I, Output = I>
             + GradientType<I, GradientType = I>,
@@ -225,11 +310,25 @@ where
     for<'b> &'b I: Mul<&'b I, Output = I>,
     for<'b> &'b P: Sub<&'b P, Output = P> + Sub<P, Output = P>,
 {
-    //type Input = I;
-    //type Output = I;
+    fn eval_forward(&self, x: &I, _: &S) -> I {
+        x.clone().pow(&self.0)
+    }
+
     fn eval_forward_grad(&self, x: &I, dx: &I, _: &S) -> (I, I) {
         let x_pow = x.clone().pow(&self.0 - self.0.one());
         (&x_pow * x, x_pow * &self.0 * dx)
+    }
+
+    fn eval_forward_conj_grad(&self, x: &I, dx: &I, s: &S) -> (I, I) {
+        (self.eval_forward(x, s), dx.zero())
+    }
+
+    fn forward_grad(&self, x: &I, dx: &I, _: &S) -> I {
+        x.clone().pow(&self.0 - self.0.one()) * &self.0 * dx
+    }
+
+    fn forward_conj_grad(&self, _: &I, dx: &I, _: &S) -> I {
+        dx.zero()
     }
 }
 

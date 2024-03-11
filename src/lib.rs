@@ -18,7 +18,7 @@ pub use autodiff::*;
 pub use autodiffable::*;
 pub use autotuple::*;
 pub use compose::*;
-pub use diffable::*;
+//pub use diffable::*;
 pub use func_traits::*;
 //pub use funcs::*;
 pub use forward::*;

@@ -2,7 +2,7 @@ use crate::autodiffable::{AutoDiffable, ForwardDiffable};
 use crate::diffable::Diffable;
 use crate::forward::ForwardMul;
 use crate::gradienttype::GradientType;
-use crate::traits::{InstOne, InstZero, Wirtinger};
+use crate::traits::{InstOne, InstZero, PossiblyComplex, Conjugate, Abs, AbsSqr, Signum};//, Arg};
 use num::traits::Pow;
 use std::marker::PhantomData;
 use std::ops::{Add, Div, Mul, Neg, Sub};
@@ -1152,11 +1152,12 @@ where
     InnerInput: GradientType<InnerOutput, GradientType = InnerGrad>
         + GradientType<OuterOutput, GradientType = Grad>,
     OuterGrad: ForwardMul<OuterInput, InnerGrad, ResultGrad = Grad>,
-    InnerInput: Wirtinger,
-    OuterInput: Wirtinger,
-    InnerGrad: Wirtinger,
-    OuterGrad: Wirtinger,
-    Grad: Wirtinger + Add<Output = Grad>,
+    InnerInput: PossiblyComplex,
+    InnerOutput: Clone,
+    OuterInput: PossiblyComplex,
+    InnerGrad: Conjugate<Output = InnerGrad>,
+    OuterGrad: Conjugate<Output = OuterGrad>,
+    Grad: Add<Output = Grad>,
 {
     fn eval(
         &self,
@@ -1184,7 +1185,7 @@ where
 
             let (g, dg) = self.1.eval_grad(x, static_args);
             let dconjg = self.1.conj_grad(x, static_args).conj();
-            let (f, df) = self.0.eval_grad(&g.into(), static_args);
+            let (f, df) = self.0.eval_grad(&g.clone().into(), static_args);
             let dfdconjg = self.0.conj_grad(&g.into(), static_args);
 
             (f, df.forward_mul(&dg).add(dfdconjg.forward_mul(&dconjg)))
@@ -1204,7 +1205,7 @@ where
 
             let (g, dg) = self.1.eval_grad(x, static_args);
             let dconjg = self.1.conj_grad(x, static_args).conj();
-            let df = self.0.grad(&g.into(), static_args);
+            let df = self.0.grad(&g.clone().into(), static_args);
             let dfdconjg = self.0.conj_grad(&g.into(), static_args);
 
             df.forward_mul(&dg).add(dfdconjg.forward_mul(&dconjg))
@@ -1226,7 +1227,7 @@ where
 
             let (g, dgdconjz) = self.1.eval_conj_grad(x, static_args);
             let dconjgdconjz = self.1.grad(x, static_args).conj();
-            let (f, df) = self.0.eval_grad(&g.into(), static_args);
+            let (f, df) = self.0.eval_grad(&g.clone().into(), static_args);
             let dfdconjg = self.0.conj_grad(&g.into(), static_args);
 
             (
@@ -1252,7 +1253,7 @@ where
 
             let (g, dgdconjz) = self.1.eval_conj_grad(x, static_args);
             let dconjgdconjz = self.1.grad(x, static_args).conj();
-            let df = self.0.grad(&g.into(), static_args);
+            let df = self.0.grad(&g.clone().into(), static_args);
             let dfdconjg = self.0.conj_grad(&g.into(), static_args);
 
             df.forward_mul(&dgdconjz)
@@ -1267,8 +1268,9 @@ where
     Outer: ForwardDiffable<StaticArgs, Input = OuterInput, Output = OuterOutput>,
     Inner: ForwardDiffable<StaticArgs, Input = InnerInput, Output = InnerOutput>,
     OuterInput: From<InnerOutput>,
-    InnerInput: Wirtinger,
-    OuterInput: Wirtinger,
+    InnerInput: PossiblyComplex,
+    InnerOutput: Clone,
+    OuterInput: PossiblyComplex,
     OuterOutput: Add<OuterOutput, Output = OuterOutput>,
 {
     fn eval_forward(
@@ -1277,7 +1279,7 @@ where
         static_args: &StaticArgs,
     ) -> <Self as Diffable<StaticArgs>>::Output {
         self.0
-            .eval_forward(&self.1.eval_foward(x, static_args).into(), static_args)
+            .eval_forward(&self.1.eval_forward(x, static_args).into(), static_args)
     }
     fn eval_forward_grad(
         &self,
@@ -1303,7 +1305,7 @@ where
             // conj(dg/dconj(z) * dconj(z)) = dconj(g)/dz * dz
             let dgdconjz = self.1.forward_conj_grad(x, dx, static_args);
             // f and df/dg * dg
-            let (f, df) = self.0.eval_forward_grad(&g.into(), &dg.into(), static_args);
+            let (f, df) = self.0.eval_forward_grad(&g.clone().into(), &dg.into(), static_args);
             // df/dconjg * dconjg
             let dfdconjg = self
                 .0
@@ -1334,7 +1336,7 @@ where
             // conj(dg/dconj(z) * dconj(z)) = dconj(g)/dz * dz
             let dgdconjz = self.1.forward_conj_grad(x, dx, static_args);
             // f and df/dg * dg
-            let df = self.0.forward_grad(&g.into(), &dg.into(), static_args);
+            let df = self.0.forward_grad(&g.clone().into(), &dg.into(), static_args);
             // df/dconjg * dconjg
             let dfdconjg = self
                 .0
@@ -1368,7 +1370,7 @@ where
             // f and df/dg * dg
             let (f, df) = self
                 .0
-                .eval_forward_conj_grad(&g.into(), &dg.into(), static_args);
+                .eval_forward_conj_grad(&g.clone().into(), &dg.into(), static_args);
             // df/dconjg * dconjg
             let dfdconjg = self
                 .0
@@ -1397,7 +1399,7 @@ where
             // conj(dg/dconj(z) * dconj(z)) = dconj(g)/dz * dz
             let dgdconjz = self.1.forward_grad(x, dx, static_args);
             // f and df/dg * dg
-            let df = self.0.forward_conj_grad(&g.into(), &dg.into(), static_args);
+            let df = self.0.forward_conj_grad(&g.clone().into(), &dg.into(), static_args);
             // df/dconjg * dconjg
             let dfdconjg = self
                 .0
@@ -2113,9 +2115,9 @@ impl<A: Diffable<StaticArgs>, StaticArgs> Diffable<StaticArgs> for ADAbs<A> {
 impl<StaticArgs, Input, Output, Grad, A> AutoDiffable<StaticArgs> for ADAbs<A>
 where
     A: AutoDiffable<StaticArgs, Input = Input, Output = Output>,
-    Input: Wirtinger + GradientType<Output, GradientType = Grad>,
-    Output: Wirtinger,
-    Grad: Wirtinger + Mul<Output, Output = Grad> + Add<Grad, Output = Grad>,
+    Input: PossiblyComplex + GradientType<Output, GradientType = Grad>,
+    Output: Clone + PossiblyComplex + Abs<Output = Output> + Signum<Output = Output> + Conjugate<Output = Output>,
+    Grad: Conjugate<Output = Grad> + Mul<Output, Output = Grad> + Add<Grad, Output = Grad>,
 {
     fn eval(
         &self,
@@ -2133,7 +2135,7 @@ where
         if Input::is_always_real() && Output::is_always_real() {
             let (f, df) = self.0.eval_grad(x, static_args);
 
-            (f.abs(), df.mul(f.signum()))
+            (f.clone().abs(), df.mul(f.signum()))
         } else {
             // in the Wirtinger calculus we have
             // |z| = sqrt(z * conj(z))
@@ -2161,7 +2163,7 @@ where
             let dconjfdz = self.0.conj_grad(x, static_args).conj();
 
             (
-                f.abs(),
+                f.clone().abs(),
                 df.mul(f.signum()).add(dconjfdz.mul(fconj.signum())),
             )
         }
@@ -2210,7 +2212,7 @@ where
         if Input::is_always_real() && Output::is_always_real() {
             let (f, df) = self.0.eval_conj_grad(x, static_args);
 
-            (f.abs(), df.mul(f.signum()))
+            (f.clone().abs(), df.mul(f.signum()))
         } else {
             // in the Wirtinger calculus we have
             // |z| = sqrt(z * conj(z))
@@ -2238,7 +2240,7 @@ where
             let dconjfdconjz = self.0.grad(x, static_args).conj();
 
             (
-                f.abs(),
+                f.clone().abs(),
                 dfdconjz
                     .mul(f.signum())
                     .add(dconjfdconjz.mul(fconj.signum())),
@@ -2291,8 +2293,8 @@ where
 impl<StaticArgs, Input, Output, A> ForwardDiffable<StaticArgs> for ADAbs<A>
 where
     A: ForwardDiffable<StaticArgs, Input = Input, Output = Output>,
-    Input: Wirtinger,
-    Output: Wirtinger + Mul<Output, Output = Output> + Add<Output, Output = Output>,
+    Input: PossiblyComplex,
+    Output: Clone + PossiblyComplex + Signum<Output = Output> + Abs<Output = Output> + Conjugate<Output = Output> + Mul<Output, Output = Output> + Add<Output, Output = Output>,
 {
     fn eval_forward(
         &self,
@@ -2313,7 +2315,7 @@ where
         if Input::is_always_real() && Output::is_always_real() {
             let (f, df) = self.0.eval_forward_grad(x, dx, static_args);
 
-            (f.abs(), df.mul(f.signum()))
+            (f.clone().abs(), df.mul(f.signum()))
         } else {
             // in the Wirtinger calculus we have
             // |z| = sqrt(z * conj(z))
@@ -2338,10 +2340,10 @@ where
 
             let (f, df) = self.0.eval_forward_grad(x, dx, static_args);
             let fconj = f.conj();
-            let dconjfdz = self.0.forward_conj_grad(x, dx, static_args);
+            let dconjfdz = self.0.forward_conj_grad(x, dx, static_args).conj();
 
             (
-                f.abs(),
+                f.clone().abs(),
                 df.mul(f.signum()).add(dconjfdz.mul(fconj.signum())),
             )
         }
@@ -2381,7 +2383,7 @@ where
 
             let (f, df) = self.0.eval_forward_grad(x, dx, static_args);
             let fconj = f.conj();
-            let dconjfdz = self.0.forward_conj_grad(x, dx, static_args);
+            let dconjfdz = self.0.forward_conj_grad(x, dx, static_args).conj();
 
             df.mul(f.signum()).add(dconjfdz.mul(fconj.signum()))
         }
@@ -2399,7 +2401,7 @@ where
         if Input::is_always_real() && Output::is_always_real() {
             let (f, df) = self.0.eval_forward_conj_grad(x, dx, static_args);
 
-            (f.abs(), df.mul(f.signum()))
+            (f.clone().abs(), df.mul(f.signum()))
         } else {
             // in the Wirtinger calculus we have
             // |z| = sqrt(z * conj(z))
@@ -2424,11 +2426,11 @@ where
 
             let (f, df) = self.0.eval_forward_conj_grad(x, dx, static_args);
             let fconj = f.conj();
-            let dconjfdz = self.0.forward_grad(x, dx, static_args);
+            let dconjfdconjz = self.0.forward_grad(x, dx, static_args).conj();
 
             (
-                f.abs(),
-                df.mul(f.signum()).add(dconjfdz.mul(fconj.signum())),
+                f.clone().abs(),
+                df.mul(f.signum()).add(dconjfdconjz.mul(fconj.signum())),
             )
         }
     }
@@ -2467,9 +2469,9 @@ where
 
             let (f, df) = self.0.eval_forward_conj_grad(x, dx, static_args);
             let fconj = f.conj();
-            let dconjfdz = self.0.forward_grad(x, dx, static_args);
+            let dconjfdconjz = self.0.forward_grad(x, dx, static_args).conj();
 
-            df.mul(f.signum()).add(dconjfdz.mul(fconj.signum()))
+            df.mul(f.signum()).add(dconjfdconjz.mul(fconj.signum()))
         }
     }
 }
@@ -2485,9 +2487,9 @@ impl<A: Diffable<StaticArgs>, StaticArgs> Diffable<StaticArgs> for ADAbsSqr<A> {
 impl<StaticArgs, Input, Output, Grad, A> AutoDiffable<StaticArgs> for ADAbsSqr<A>
 where
     A: AutoDiffable<StaticArgs, Input = Input, Output = Output>,
-    Input: Wirtinger + GradientType<Output, GradientType = Grad>,
-    Output: Wirtinger + Add<Output, Output = Output> + Clone + Mul<Grad, Output = Grad>,
-    Grad: Wirtinger + Mul<Output, Output = Grad> + Add<Grad, Output = Grad>,
+    Input: PossiblyComplex + GradientType<Output, GradientType = Grad>,
+    Output: PossiblyComplex + AbsSqr<Output = Output> + Conjugate<Output = Output> + Add<Output, Output = Output> + Clone + Mul<Grad, Output = Grad>,
+    Grad: Conjugate<Output = Grad> + Mul<Output, Output = Grad> + Add<Grad, Output = Grad>,
 {
     fn eval(
         &self,
@@ -2523,7 +2525,7 @@ where
             let fconj = f.conj();
             let dconjfdz = self.0.conj_grad(x, static_args).conj();
 
-            (f.abs_sqr(), df.mul(fconj).add(f.mul(dconjfdz)))
+            (f.clone().abs_sqr(), df.mul(fconj).add(f.mul(dconjfdz)))
         }
     }
 
@@ -2579,7 +2581,7 @@ where
             let fconj = f.conj();
             let dconjfdconjz = self.0.grad(x, static_args).conj();
 
-            (f.abs_sqr(), dfdconjz.mul(fconj).add(f.mul(dconjfdconjz)))
+            (f.clone().abs_sqr(), dfdconjz.mul(fconj).add(f.mul(dconjfdconjz)))
         }
     }
 
@@ -2617,8 +2619,8 @@ where
 impl<StaticArgs, Input, Output, A> ForwardDiffable<StaticArgs> for ADAbsSqr<A>
 where
     A: ForwardDiffable<StaticArgs, Input = Input, Output = Output>,
-    Input: Wirtinger,
-    Output: Wirtinger + Mul<Output, Output = Output> + Add<Output, Output = Output> + Clone,
+    Input: PossiblyComplex,
+    Output: PossiblyComplex + AbsSqr<Output = Output> + Conjugate<Output = Output> + Mul<Output, Output = Output> + Add<Output, Output = Output> + Clone,
 {
     fn eval_forward(
         &self,
@@ -2639,7 +2641,7 @@ where
         if Input::is_always_real() && Output::is_always_real() {
             let (f, df) = self.0.eval_forward_grad(x, dx, static_args);
 
-            (f.abs_sqr(), df.mul(f.clone().add(f)))
+            (f.clone().abs_sqr(), df.mul(f.clone().add(f)))
         } else {
             // in the Wirtinger calculus we have
             // |z|^2 = z * conj(z)
@@ -2654,7 +2656,7 @@ where
             let fconj = f.conj();
             let dconjf = self.0.forward_conj_grad(x, dx, static_args).conj();
 
-            (f.abs_sqr(), df.mul(fconj).add(f.mul(dconjf)))
+            (f.clone().abs_sqr(), df.mul(fconj).add(f.mul(dconjf)))
         }
     }
 
@@ -2671,7 +2673,7 @@ where
         } else {
             let (f, df) = self.0.eval_forward_grad(x, dx, static_args);
             let fconj = f.conj();
-            let dconjf = self.0.forward_conj_grad(x, dx, static_args);
+            let dconjf = self.0.forward_conj_grad(x, dx, static_args).conj();
 
             df.mul(fconj).add(f.mul(dconjf))
         }
@@ -2689,7 +2691,7 @@ where
         if Input::is_always_real() && Output::is_always_real() {
             let (f, df) = self.0.eval_forward_conj_grad(x, dx, static_args);
 
-            (f.abs_sqr(), df.mul(f.clone().add(f)))
+            (f.clone().abs_sqr(), df.mul(f.clone().add(f)))
         } else {
             // in the Wirtinger calculus we have
             // |z|^2 = z * conj(z)
@@ -2704,7 +2706,7 @@ where
             let fconj = f.conj();
             let dconjfdconjz = self.0.forward_grad(x, dx, static_args).conj();
 
-            (f.abs_sqr(), dfdconjz.mul(fconj).add(f.mul(dconjfdconjz)))
+            (f.clone().abs_sqr(), dfdconjz.mul(fconj).add(f.mul(dconjfdconjz)))
         }
     }
 
@@ -2739,9 +2741,12 @@ impl<A: Diffable<StaticArgs>, StaticArgs> Diffable<StaticArgs> for ADSignum<A> {
 impl<StaticArgs, Input, Output, Grad, A> AutoDiffable<StaticArgs> for ADSignum<A>
 where
     A: AutoDiffable<StaticArgs, Input = Input, Output = Output>,
-    Input: Wirtinger + GradientType<Output, GradientType = Grad>,
+    Input: PossiblyComplex + GradientType<Output, GradientType = Grad>,
     Output: Clone
-        + Wirtinger
+        + PossiblyComplex
+        + Signum<Output = Output>
+        + Abs<Output = Output>
+        + Conjugate<Output = Output>
         + InstOne
         + InstZero
         + Mul<Grad, Output = Grad>
@@ -2749,7 +2754,7 @@ where
         + Add<Output, Output = Output>
         + Neg<Output = Output>
         + Div<Output, Output = Output>,
-    Grad: Wirtinger + InstZero,
+    Grad: Conjugate<Output = Grad> + InstZero,
 {
     fn eval(
         &self,
@@ -2893,9 +2898,12 @@ where
 impl<StaticArgs, Input, Output, A> ForwardDiffable<StaticArgs> for ADSignum<A>
 where
     A: ForwardDiffable<StaticArgs, Input = Input, Output = Output>,
-    Input: Wirtinger,
+    Input: PossiblyComplex,
     Output: Clone
-        + Wirtinger
+        + PossiblyComplex
+        + Signum<Output = Output>
+        + Abs<Output = Output>
+        + Conjugate<Output = Output>
         + InstOne
         + InstZero
         + Mul<Output, Output = Output>
@@ -3025,7 +3033,7 @@ pub struct ADConjugate<A>(pub A);
 
 impl<A: Diffable<StaticArgs>, StaticArgs> Diffable<StaticArgs> for ADConjugate<A>
 where
-    A::Output: Wirtinger,
+    A::Output: Conjugate<Output = A::Output>,
 {
     type Input = A::Input;
     type Output = A::Output;
@@ -3036,9 +3044,9 @@ where
     A: AutoDiffable<StaticArgs, Input = Input, Output = AOutput>,
     Input: GradientType<AOutput, GradientType = AGrad>,
     // make sure A.conj() is defined and Output = Output
-    AOutput: Wirtinger,
+    AOutput: Conjugate<Output = AOutput>,
     // make sure dA.conj() is defined and Output = Grad
-    AGrad: Wirtinger,
+    AGrad: Conjugate<Output = AGrad>,
 {
     fn eval(
         &self,
@@ -3053,7 +3061,7 @@ where
         x: &<Self as Diffable<StaticArgs>>::Input,
         static_args: &StaticArgs,
     ) -> (<Self as Diffable<StaticArgs>>::Output, AGrad) {
-        // Wirtinger derivative conj(df/dz) = dconj(f)/dconj(z)
+        // Wirtinger derivative dconj(f)/dz = conj(df/dconjz)
 
         let (f, dfdzconj) = self.0.eval_conj_grad(x, static_args);
 
@@ -3061,8 +3069,6 @@ where
     }
 
     fn grad(&self, x: &<Self as Diffable<StaticArgs>>::Input, static_args: &StaticArgs) -> AGrad {
-        // Wirtinger derivative conj(df/dz) = dconj(f)/dconj(z)
-
         self.0.conj_grad(x, static_args).conj()
     }
 
@@ -3071,7 +3077,7 @@ where
         x: &<Self as Diffable<StaticArgs>>::Input,
         static_args: &StaticArgs,
     ) -> (<Self as Diffable<StaticArgs>>::Output, AGrad) {
-        // Wirtinger derivative conj(df/dz) = dconj(f)/dconj(z)
+        // Wirtinger derivative dconj(f)/dconj(z) = conj(df/dz)
 
         let (f, df) = self.0.eval_grad(x, static_args);
 
@@ -3083,8 +3089,6 @@ where
         x: &<Self as Diffable<StaticArgs>>::Input,
         static_args: &StaticArgs,
     ) -> AGrad {
-        // Wirtinger derivative conj(df/dz) = dconj(f)/dconj(z)
-
         self.0.grad(x, static_args).conj()
     }
 }
@@ -3092,7 +3096,7 @@ where
 impl<StaticArgs, Input, AOutput, A> ForwardDiffable<StaticArgs> for ADConjugate<A>
 where
     A: ForwardDiffable<StaticArgs, Input = Input, Output = AOutput>,
-    AOutput: Wirtinger,
+    AOutput: Conjugate<Output = AOutput>,
 {
     fn eval_forward(
         &self,

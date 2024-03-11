@@ -91,7 +91,7 @@ where
     A: Clone + Conjugate,
 {
     type Output = Array<A, D>;
-    fn conj(&self) -> Self {
+    fn conj(&self) -> Self::Output {
         self.mapv(|x| x.conj())
     }
 }

@@ -277,3 +277,19 @@ impl<StaticArgs, A> func_traits::Signum for AutoDiff<StaticArgs, A> {
         AutoDiff(ADSignum(self.0), PhantomData)
     }
 }
+
+/// Impl AbsSqr
+impl<StaticArgs, A> func_traits::AbsSqr for AutoDiff<StaticArgs, A> {
+    type Output = AutoDiff<StaticArgs, ADAbsSqr<A>>;
+    fn abs_sqr(self) -> Self::Output {
+        AutoDiff(ADAbsSqr(self.0), PhantomData)
+    }
+}
+
+/// Impl Conjugate
+impl<StaticArgs, A: Clone> func_traits::Conjugate for AutoDiff<StaticArgs, A> {
+    type Output = AutoDiff<StaticArgs, ADConjugate<A>>;
+    fn conj(&self) -> Self::Output {
+        AutoDiff(ADConjugate(self.0.clone()), PhantomData)
+    }
+}
