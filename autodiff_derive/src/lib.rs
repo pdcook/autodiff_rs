@@ -17,8 +17,11 @@ use syn::{parse_macro_input, parse_quote, DeriveInput, WhereClause, Generics};
 ///     SelfInput: autodiff::gradienttype::GradientType<SelfOutput, GradientType = SelfGradient>,
 ///     SelfGradient: autodiff::forward::ForwardMul<SelfInput, SelfInput, ResultGrad = SelfOutput>,
 /// {
-///     //type Input = SelfInput;
-///     //type Output = SelfOutput;
+///
+///     fn eval_forward(&self, x: &Self::Input, s: &S) -> Self::Output {
+///         self.eval(x, s)
+///     }
+///
 ///     fn eval_forward_grad(
 ///         &self,
 ///         x: &Self::Input,
@@ -29,6 +32,33 @@ use syn::{parse_macro_input, parse_quote, DeriveInput, WhereClause, Generics};
 ///         (f, df.forward_mul(dx))
 ///     }
 ///
+///     fn eval_forward_conj_grad(
+///         &self,
+///         x: &Self::Input,
+///         dx: &Self::Input,
+///         s: &S
+///     ) -> (Self::Output, Self::Output) {
+///         let (f, df) = self.eval_conj_grad(x, s);
+///         (f, df.forward_mul(&dx.conj()))
+///     }
+///
+///     fn forward_grad(
+///         &self,
+///         x: &Self::Input,
+///         dx: &Self::Input,
+///         s: &S
+///     ) -> Self::Output {
+///        self.grad(x, s).forward_mul(dx)
+///     }
+///
+///     fn forward_conj_grad(
+///         &self,
+///         x: &Self::Input,
+///         dx: &Self::Input,
+///         s: &S
+///     ) -> Self::Output {
+///         self.conj_grad(x, s).forward_mul(&dx.conj())
+///     }
 /// }
 /// ```
 ///
@@ -62,8 +92,14 @@ pub fn simple_forward_diffable(input: TokenStream) -> TokenStream {
 
     let expanded = quote! {
         impl #impl_generics autodiff::autodiffable::ForwardDiffable<__PROC_MACRO_S> for #name #orig_ty_generics #where_clause {
-            //type Input = __PROC_MACRO_I;
-            //type Output = __PROC_MACRO_O;
+            fn eval_forward(
+                &self,
+                x: &__PROC_MACRO_I,
+                s: &__PROC_MACRO_S,
+            ) -> __PROC_MACRO_O {
+                self.eval(x, s)
+            }
+
             fn eval_forward_grad(
                 &self,
                 x: &__PROC_MACRO_I,
@@ -72,6 +108,34 @@ pub fn simple_forward_diffable(input: TokenStream) -> TokenStream {
             ) -> (__PROC_MACRO_O, __PROC_MACRO_O) {
                 let (f, df) = self.eval_grad(x, s);
                 (f, df.forward_mul(dx))
+            }
+
+            fn eval_forward_conj_grad(
+                &self,
+                x: &__PROC_MACRO_I,
+                dx: &__PROC_MACRO_I,
+                s: &__PROC_MACRO_S
+            ) -> (__PROC_MACRO_O, __PROC_MACRO_O) {
+                let (f, df) = self.eval_conj_grad(x, s);
+                (f, df.forward_mul(&dx.conj()))
+            }
+
+            fn forward_grad(
+                &self,
+                x: &__PROC_MACRO_I,
+                dx: &__PROC_MACRO_I,
+                s: &__PROC_MACRO_S
+            ) -> __PROC_MACRO_O {
+                self.grad(x, s).forward_mul(dx)
+            }
+
+            fn forward_conj_grad(
+                &self,
+                x: &__PROC_MACRO_I,
+                dx: &__PROC_MACRO_I,
+                s: &__PROC_MACRO_S
+            ) -> __PROC_MACRO_O {
+                self.conj_grad(x, s).forward_mul(&dx.conj())
             }
         }
     };
@@ -90,26 +154,11 @@ fn add_generics(mut generics: Generics) -> Generics {
 
 fn add_bounds(mut where_clause: WhereClause) -> WhereClause {
     where_clause.predicates.push(parse_quote!(Self: autodiff::autodiffable::AutoDiffable<__PROC_MACRO_S, Input = __PROC_MACRO_I, Output = __PROC_MACRO_O>));
-    where_clause.predicates.push(parse_quote!(__PROC_MACRO_I: autodiff::gradienttype::GradientType<__PROC_MACRO_O, GradientType = __PROC_MACRO_G>));
+    where_clause.predicates.push(parse_quote!(__PROC_MACRO_I: autodiff::gradienttype::GradientType<__PROC_MACRO_O, GradientType = __PROC_MACRO_G> + autodiff::traits::Conjugate<Output = __PROC_MACRO_I>));
     where_clause.predicates.push(parse_quote!(__PROC_MACRO_G: autodiff::forward::ForwardMul<__PROC_MACRO_I, __PROC_MACRO_I, ResultGrad = __PROC_MACRO_O>));
 
     where_clause
 }
-
-/*
-#[proc_macro_derive(Diffable)]
-pub fn diffable(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as DeriveInput);
-    let name = input.ident;
-
-    let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
-    let expanded = quote! {
-        impl #impl_generics autodiff::autodiffable::Diffable for #name #ty_generics #where_clause {
-        }
-    };
-
-    expanded.into()
-}*/
 
 /// derive proc macro to generate the following:
 ///
