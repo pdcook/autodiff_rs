@@ -3,9 +3,9 @@ use crate::autodiffable::*;
 use crate::compose::*;
 use crate::func_traits::*;
 use crate::funcs::*;
+use num::complex::Complex;
 use num::traits::Pow;
 use std::ops::Deref;
-use num::complex::Complex;
 
 #[test]
 fn test_all_ops() {
@@ -199,8 +199,8 @@ fn test_all_ops() {
     assert_eq!((p1_x + p2_x, dp1_x + dp2_x), (p1_p2_x, dp1_p2_x));
 
     // test with Complex numbers
-    let z = Complex::new(2.0_f64, 3.0);
-    let dz = Complex::new(0.5_f64, 0.75);
+    let z = Complex::<f64>::new(2.0_f64, 3.0);
+    let dz = Complex::<f64>::new(0.5_f64, 0.75);
 
     let i_complex = AutoDiff::new(Identity::new());
     let m_complex = i_complex.abs_sqr();
@@ -228,10 +228,25 @@ fn test_all_ops() {
     assert_eq!(dm_dconjz, z);
     assert_eq!(dm_conjz, z * dz.conj());
 
+    // abs
+    let a_complex = i_complex.abs();
+    let (a_z, da_z): (Complex<f64>, Complex<f64>) = a_complex.eval_forward_grad(&z, &dz, &());
+    let da_dz: Complex<f64> = a_complex.grad(&z, &());
+    let da_dconjz: Complex<f64> = a_complex.conj_grad(&z, &());
+    let da_conjz: Complex<f64> = a_complex.forward_conj_grad(&z, &dz, &());
+
+    // Wirtinger derivative of abs(z) = 0.5 * conj(z)/(|z|)
+    assert_eq!(a_z, z.norm().into());
+    assert_eq!(da_z, 0.5 * z.conj() * dz / z.norm());
+    assert_eq!(da_dz, 0.5 * z.conj() / z.norm());
+    assert_eq!(da_dconjz, 0.5 * z / z.norm());
+    assert_eq!(da_conjz, 0.5 * z * dz.conj() / z.norm());
+
     // trivial composition
     let m_of_i = m_complex.compose(i_complex);
 
-    let (m_of_i_z, dm_of_i_z): (Complex<f64>, Complex<f64>) = m_of_i.eval_forward_grad(&z, &dz, &());
+    let (m_of_i_z, dm_of_i_z): (Complex<f64>, Complex<f64>) =
+        m_of_i.eval_forward_grad(&z, &dz, &());
     let dm_of_i_dz: Complex<f64> = m_of_i.grad(&z, &());
     let dm_of_i_dconjz: Complex<f64> = m_of_i.conj_grad(&z, &());
     let dm_of_i_conjz: Complex<f64> = m_of_i.forward_conj_grad(&z, &dz, &());
@@ -241,5 +256,97 @@ fn test_all_ops() {
     assert_eq!(dm_of_i_dz, z.conj());
     assert_eq!(dm_of_i_dconjz, z);
     assert_eq!(dm_of_i_conjz, z * dz.conj());
-}
 
+    // test mix of operations on complex numbers
+    // z + conj(z) (= 2 * Re(z))
+
+    let z_plus_conjz = i_complex + i_complex.conj();
+
+    let (z_plus_conjz_z, dz_plus_conjz_z): (Complex<f64>, Complex<f64>) =
+        z_plus_conjz.eval_forward_grad(&z, &dz, &());
+    let dz_plus_conjz_dz: Complex<f64> = z_plus_conjz.grad(&z, &());
+    let dz_plus_conjz_dconjz: Complex<f64> = z_plus_conjz.conj_grad(&z, &());
+    let dz_plus_conjz_conjz: Complex<f64> = z_plus_conjz.forward_conj_grad(&z, &dz, &());
+
+    assert_eq!(z_plus_conjz_z, (2.0 * z.re).into());
+    assert_eq!(dz_plus_conjz_z, dz);
+    assert_eq!(dz_plus_conjz_dz, Complex::new(1.0, 0.0));
+    assert_eq!(dz_plus_conjz_dconjz, Complex::new(1.0, 0.0));
+    assert_eq!(dz_plus_conjz_conjz, dz.conj());
+
+    // z * (z + conj(z)) (= z * 2 * Re(z))
+
+    let z_times_z_plus_conjz = i_complex * z_plus_conjz;
+
+    let (z_times_z_plus_conjz_z, dz_times_z_plus_conjz_z): (Complex<f64>, Complex<f64>) =
+        z_times_z_plus_conjz.eval_forward_grad(&z, &dz, &());
+    let dz_times_z_plus_conjz_dz: Complex<f64> = z_times_z_plus_conjz.grad(&z, &());
+    let dz_times_z_plus_conjz_dconjz: Complex<f64> = z_times_z_plus_conjz.conj_grad(&z, &());
+    let dz_times_z_plus_conjz_conjz: Complex<f64> =
+        z_times_z_plus_conjz.forward_conj_grad(&z, &dz, &());
+
+    assert_eq!(z_times_z_plus_conjz_z, 2.0 * z.re * z);
+    assert_eq!(dz_times_z_plus_conjz_z, (2.0 * z + z.conj()) * dz);
+    assert_eq!(dz_times_z_plus_conjz_dz, 2.0 * z + z.conj());
+    assert_eq!(dz_times_z_plus_conjz_dconjz, z);
+    assert_eq!(dz_times_z_plus_conjz_conjz, z * dz.conj());
+
+    // | z *(z + conj(z)) |
+
+    let abs_z_times_z_plus_conjz = z_times_z_plus_conjz.abs();
+    let (abs_z_times_z_plus_conjz_z, dabs_z_times_z_plus_conjz_z): (Complex<f64>, Complex<f64>) =
+        abs_z_times_z_plus_conjz.eval_forward_grad(&z, &dz, &());
+    let dabs_z_times_z_plus_conjz_dz: Complex<f64> = abs_z_times_z_plus_conjz.grad(&z, &());
+    let dabs_z_times_z_plus_conjz_dconjz: Complex<f64> =
+        abs_z_times_z_plus_conjz.conj_grad(&z, &());
+    let dabs_z_times_z_plus_conjz_conjz: Complex<f64> =
+        abs_z_times_z_plus_conjz.forward_conj_grad(&z, &dz, &());
+
+    assert_eq!(abs_z_times_z_plus_conjz_z, (2.0 * z.re * z).norm().into());
+
+    macro_rules! assert_complex_delta {
+        ($x:expr, $y:expr, $d:expr) => {
+            if (!($x.re - $y.re < $d.re
+                || $y.re - $x.re < $d.re)
+                || !(
+                $x.im - $y.im < $d.im
+                || $y.im - $x.im < $d.im))
+            {
+                // show a panic message with the values
+                panic!(
+                    "assertion failed: `(left == right)`\n  left: `{:?}`,\n right: `{:?}`\n delta: `{:?}`",
+                    $x, $y, $d
+                );
+            }
+        };
+    }
+
+    let expected_dabs_z_times_z_plus_conjz_dz: Complex<f64> = Complex::<f64>::new(0.5, 0.0)
+        * z.conj()
+        * (z.conj().pow(2.0) + 4.0 * z.conj() * z + 3.0 * z.pow(2.0))
+        / Complex::<f64>::sqrt(z.conj() * z * (z.conj() + z).pow(2.0));
+
+    assert_complex_delta!(
+        dabs_z_times_z_plus_conjz_z,
+        expected_dabs_z_times_z_plus_conjz_dz * dz,
+        Complex::<f64>::new(1e-15, 1e-15)
+    );
+
+    assert_complex_delta!(
+        dabs_z_times_z_plus_conjz_dz,
+        expected_dabs_z_times_z_plus_conjz_dz,
+        Complex::<f64>::new(1e-15, 1e-15)
+    );
+
+    // the conjugate gradient is the same
+    assert_complex_delta!(
+        dabs_z_times_z_plus_conjz_dconjz,
+        expected_dabs_z_times_z_plus_conjz_dz,
+        Complex::<f64>::new(1e-15, 1e-15)
+    );
+    assert_complex_delta!(
+        dabs_z_times_z_plus_conjz_conjz,
+        expected_dabs_z_times_z_plus_conjz_dz * dz.conj(),
+        Complex::<f64>::new(1e-15, 1e-15)
+    );
+}

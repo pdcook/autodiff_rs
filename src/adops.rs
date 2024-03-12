@@ -2127,6 +2127,9 @@ where
     Input: PossiblyComplex + GradientType<Output, GradientType = Grad>,
     Output: Clone
         + PossiblyComplex
+        + Add<Output, Output = Output>
+        + InstOne
+        + Div<Output, Output = Output>
         + Abs<Output = Output>
         + Signum<Output = Output>
         + Conjugate<Output = Output>,
@@ -2162,22 +2165,24 @@ where
             // now for |f|, we have
             //
             // d|f|/dz = d|f|/df * df/dz + d|f|/dconjf * conj(df/dconjz)
-            //        = f/|f| * df/dz + conj(f)/|f| * conj(df/dconjz)
+            //        = 0.5*conj(f)/|f| * df/dz + 0.5*f/|f| * conj(df/dconjz)
             //
             // and
             //
             // d|f|/dconjz = d|f|/df * df/dconjz + d|f|/dconjf * conj(df/dz)
-            //          = f/|f| * df/dconjz + conj(f)/|f| * conj(df/dz)
+            //          = 0.5*conj(f)/|f| * df/dconjz + 0.5*f/|f| * conj(df/dz)
 
             // note that for purely real z, this reduces to the real case
 
             let (f, df) = self.0.eval_grad(x, static_args);
             let fconj = f.conj();
             let dconjfdz = self.0.conj_grad(x, static_args).conj();
+            let two = f.one().add(f.one());
 
             (
                 f.clone().abs(),
-                df.mul(f.signum()).add(dconjfdz.mul(fconj.signum())),
+                df.mul(fconj.signum().div(two.clone()))
+                    .add(dconjfdz.mul(f.signum().div(two))),
             )
         }
     }
@@ -2200,20 +2205,22 @@ where
             // now for |f|, we have
             //
             // d|f|/dz = d|f|/df * df/dz + d|f|/dconjf * conj(df/dconjz)
-            //        = f/|f| * df/dz + conj(f)/|f| * conj(df/dconjz)
+            //        = 0.5*conj(f)/|f| * df/dz + 0.5*f/|f| * conj(df/dconjz)
             //
             // and
             //
             // d|f|/dconjz = d|f|/df * df/dconjz + d|f|/dconjf * conj(df/dz)
-            //          = f/|f| * df/dconjz + conj(f)/|f| * conj(df/dz)
+            //          = 0.5*conj(f)/|f| * df/dconjz + 0.5*f/|f| * conj(df/dz)
 
             // note that for purely real z, this reduces to the real case
 
             let (f, df) = self.0.eval_grad(x, static_args);
             let fconj = f.conj();
             let dconjfdz = self.0.conj_grad(x, static_args).conj();
+            let two = f.one().add(f.one());
 
-            df.mul(f.signum()).add(dconjfdz.mul(fconj.signum()))
+            df.mul(fconj.signum().div(two.clone()))
+                .add(dconjfdz.mul(f.signum().div(two)))
         }
     }
 
@@ -2239,24 +2246,25 @@ where
             // now for |f|, we have
             //
             // d|f|/dz = d|f|/df * df/dz + d|f|/dconjf * conj(df/dconjz)
-            //        = f/|f| * df/dz + conj(f)/|f| * conj(df/dconjz)
+            //        = 0.5*conj(f)/|f| * df/dz + 0.5*f/|f| * conj(df/dconjz)
             //
             // and
             //
             // d|f|/dconjz = d|f|/df * df/dconjz + d|f|/dconjf * conj(df/dz)
-            //          = f/|f| * df/dconjz + conj(f)/|f| * conj(df/dz)
+            //          = 0.5*conj(f)/|f| * df/dconjz + 0.5*f/|f| * conj(df/dz)
 
             // note that for purely real z, this reduces to the real case
 
             let (f, dfdconjz) = self.0.eval_conj_grad(x, static_args);
             let fconj = f.conj();
             let dconjfdconjz = self.0.grad(x, static_args).conj();
+            let two = f.one().add(f.one());
 
             (
                 f.clone().abs(),
                 dfdconjz
-                    .mul(f.signum())
-                    .add(dconjfdconjz.mul(fconj.signum())),
+                    .mul(fconj.signum().div(two.clone()))
+                    .add(dconjfdconjz.mul(f.signum().div(two))),
             )
         }
     }
@@ -2283,22 +2291,23 @@ where
             // now for |f|, we have
             //
             // d|f|/dz = d|f|/df * df/dz + d|f|/dconjf * conj(df/dconjz)
-            //        = f/|f| * df/dz + conj(f)/|f| * conj(df/dconjz)
+            //        = 0.5*conj(f)/|f| * df/dz + 0.5*f/|f| * conj(df/dconjz)
             //
             // and
             //
             // d|f|/dconjz = d|f|/df * df/dconjz + d|f|/dconjf * conj(df/dz)
-            //          = f/|f| * df/dconjz + conj(f)/|f| * conj(df/dz)
+            //          = 0.5*conj(f)/|f| * df/dconjz + 0.5*f/|f| * conj(df/dz)
 
             // note that for purely real z, this reduces to the real case
 
             let (f, dfdconjz) = self.0.eval_conj_grad(x, static_args);
             let fconj = f.conj();
             let dconjfdconjz = self.0.grad(x, static_args).conj();
+            let two = f.one().add(f.one());
 
             dfdconjz
-                .mul(f.signum())
-                .add(dconjfdconjz.mul(fconj.signum()))
+                .mul(fconj.signum().div(two.clone()))
+                .add(dconjfdconjz.mul(f.signum().div(two)))
         }
     }
 }
@@ -2309,6 +2318,9 @@ where
     Input: PossiblyComplex,
     Output: Clone
         + PossiblyComplex
+        + Add<Output, Output = Output>
+        + InstOne
+        + Div<Output, Output = Output>
         + Signum<Output = Output>
         + Abs<Output = Output>
         + Conjugate<Output = Output>
@@ -2348,22 +2360,24 @@ where
             // now for |f|, we have
             //
             // d|f|/dz = d|f|/df * df/dz + d|f|/dconjf * conj(df/dconjz)
-            //        = f/|f| * df/dz + conj(f)/|f| * conj(df/dconjz)
+            //        = 0.5*conj(f)/|f| * df/dz + 0.5*f/|f| * conj(df/dconjz)
             //
             // and
             //
             // d|f|/dconjz = d|f|/df * df/dconjz + d|f|/dconjf * conj(df/dz)
-            //          = f/|f| * df/dconjz + conj(f)/|f| * conj(df/dz)
+            //          = 0.5*conj(f)/|f| * df/dconjz + 0.5*f/|f| * conj(df/dz)
 
             // note that for purely real z, this reduces to the real case
 
             let (f, df) = self.0.eval_forward_grad(x, dx, static_args);
             let fconj = f.conj();
             let dconjfdz = self.0.forward_conj_grad(x, dx, static_args).conj();
+            let two = f.one().add(f.one());
 
             (
                 f.clone().abs(),
-                df.mul(f.signum()).add(dconjfdz.mul(fconj.signum())),
+                df.mul(fconj.signum().div(two.clone()))
+                    .add(dconjfdz.mul(f.signum()).div(two)),
             )
         }
     }
@@ -2391,20 +2405,22 @@ where
             // now for |f|, we have
             //
             // d|f|/dz = d|f|/df * df/dz + d|f|/dconjf * conj(df/dconjz)
-            //        = f/|f| * df/dz + conj(f)/|f| * conj(df/dconjz)
+            //        = 0.5*conj(f)/|f| * df/dz + 0.5*f/|f| * conj(df/dconjz)
             //
             // and
             //
             // d|f|/dconjz = d|f|/df * df/dconjz + d|f|/dconjf * conj(df/dz)
-            //          = f/|f| * df/dconjz + conj(f)/|f| * conj(df/dz)
+            //          = 0.5*conj(f)/|f| * df/dconjz + 0.5*f/|f| * conj(df/dz)
 
             // note that for purely real z, this reduces to the real case
 
             let (f, df) = self.0.eval_forward_grad(x, dx, static_args);
             let fconj = f.conj();
             let dconjfdz = self.0.forward_conj_grad(x, dx, static_args).conj();
+            let two = f.one().add(f.one());
 
-            df.mul(f.signum()).add(dconjfdz.mul(fconj.signum()))
+            df.mul(fconj.signum().div(two.clone()))
+                .add(dconjfdz.mul(f.signum()).div(two))
         }
     }
 
@@ -2434,22 +2450,24 @@ where
             // now for |f|, we have
             //
             // d|f|/dz = d|f|/df * df/dz + d|f|/dconjf * conj(df/dconjz)
-            //        = f/|f| * df/dz + conj(f)/|f| * conj(df/dconjz)
+            //        = 0.5*conj(f)/|f| * df/dz + 0.5*f/|f| * conj(df/dconjz)
             //
             // and
             //
             // d|f|/dconjz = d|f|/df * df/dconjz + d|f|/dconjf * conj(df/dz)
-            //          = f/|f| * df/dconjz + conj(f)/|f| * conj(df/dz)
+            //          = 0.5*conj(f)/|f| * df/dconjz + 0.5*f/|f| * conj(df/dz)
 
             // note that for purely real z, this reduces to the real case
 
             let (f, df) = self.0.eval_forward_conj_grad(x, dx, static_args);
             let fconj = f.conj();
             let dconjfdconjz = self.0.forward_grad(x, dx, static_args).conj();
+            let two = f.one().add(f.one());
 
             (
                 f.clone().abs(),
-                df.mul(f.signum()).add(dconjfdconjz.mul(fconj.signum())),
+                df.mul(fconj.signum().div(two.clone()))
+                    .add(dconjfdconjz.mul(f.signum().div(two))),
             )
         }
     }
@@ -2477,20 +2495,22 @@ where
             // now for |f|, we have
             //
             // d|f|/dz = d|f|/df * df/dz + d|f|/dconjf * conj(df/dconjz)
-            //        = f/|f| * df/dz + conj(f)/|f| * conj(df/dconjz)
+            //        = 0.5*conj(f)/|f| * df/dz + 0.5*f/|f| * conj(df/dconjz)
             //
             // and
             //
             // d|f|/dconjz = d|f|/df * df/dconjz + d|f|/dconjf * conj(df/dz)
-            //          = f/|f| * df/dconjz + conj(f)/|f| * conj(df/dz)
+            //          = 0.5*conj(f)/|f| * df/dconjz + 0.5*f/|f| * conj(df/dz)
 
             // note that for purely real z, this reduces to the real case
 
             let (f, df) = self.0.eval_forward_conj_grad(x, dx, static_args);
             let fconj = f.conj();
             let dconjfdconjz = self.0.forward_grad(x, dx, static_args).conj();
+            let two = f.one().add(f.one());
 
-            df.mul(f.signum()).add(dconjfdconjz.mul(fconj.signum()))
+            df.mul(fconj.signum().div(two.clone()))
+                .add(dconjfdconjz.mul(f.signum().div(two)))
         }
     }
 }
