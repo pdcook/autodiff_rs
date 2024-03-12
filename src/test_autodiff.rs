@@ -349,4 +349,219 @@ fn test_all_ops() {
         expected_dabs_z_times_z_plus_conjz_dz * dz.conj(),
         Complex::<f64>::new(1e-15, 1e-15)
     );
+
+    // same function as above, constructed with the compose method
+    let abs_z_times_z_plus_conjz_composed = a_complex.compose(z_times_z_plus_conjz);
+
+    let (abs_z_times_z_plus_conjz_composed_z, dabs_z_times_z_plus_conjz_composed_z): (
+        Complex<f64>,
+        Complex<f64>,
+    ) = abs_z_times_z_plus_conjz_composed.eval_forward_grad(&z, &dz, &());
+    let dabs_z_times_z_plus_conjz_composed_dz: Complex<f64> =
+        abs_z_times_z_plus_conjz_composed.grad(&z, &());
+    let dabs_z_times_z_plus_conjz_composed_dconjz: Complex<f64> =
+        abs_z_times_z_plus_conjz_composed.conj_grad(&z, &());
+    let dabs_z_times_z_plus_conjz_composed_conjz: Complex<f64> =
+        abs_z_times_z_plus_conjz_composed.forward_conj_grad(&z, &dz, &());
+
+    assert_eq!(
+        abs_z_times_z_plus_conjz_composed_z,
+        (2.0 * z.re * z).norm().into()
+    );
+
+    assert_complex_delta!(
+        dabs_z_times_z_plus_conjz_composed_z,
+        expected_dabs_z_times_z_plus_conjz_dz * dz,
+        Complex::<f64>::new(1e-15, 1e-15)
+    );
+
+    assert_complex_delta!(
+        dabs_z_times_z_plus_conjz_composed_dz,
+        expected_dabs_z_times_z_plus_conjz_dz,
+        Complex::<f64>::new(1e-15, 1e-15)
+    );
+
+    // the conjugate gradient is the same
+    assert_complex_delta!(
+        dabs_z_times_z_plus_conjz_composed_dconjz,
+        expected_dabs_z_times_z_plus_conjz_dz,
+        Complex::<f64>::new(1e-15, 1e-15)
+    );
+
+    assert_complex_delta!(
+        dabs_z_times_z_plus_conjz_composed_conjz,
+        expected_dabs_z_times_z_plus_conjz_dz * dz.conj(),
+        Complex::<f64>::new(1e-15, 1e-15)
+    );
+
+    // test all supported unary operations on p(z) = 1 + 2z + 3z^2
+    // test all supported binary operations on p(z) and q(z) = z^5
+    // for complex numbers
+
+    let z = Complex::new(2.0_f64, 3.0);
+    let dz = Complex::new(0.5_f64, 0.75);
+
+    let p = AutoDiff::new(Polynomial::new(vec![
+        Complex::new(1.0, 0.0),
+        Complex::new(2.0, 0.0),
+        Complex::new(3.0, 0.0),
+    ]));
+    let q = AutoDiff::new(Monomial::<(), Complex<f64>, Complex<f64>>::new(5.0.into()));
+
+    let (p_z, dp_z): (Complex<f64>, Complex<f64>) = p.eval_forward_grad(&z, &dz, &());
+    let dp_dz: Complex<f64> = p.grad(&z, &());
+    let dp_dconjz: Complex<f64> = p.conj_grad(&z, &());
+    let dp_conjz: Complex<f64> = p.forward_conj_grad(&z, &dz, &());
+    let (q_z, dq_z): (Complex<f64>, Complex<f64>) = q.eval_forward_grad(&z, &dz, &());
+    let dq_dz: Complex<f64> = q.grad(&z, &());
+    let dq_dconjz: Complex<f64> = q.conj_grad(&z, &());
+    //let dq_conjz: Complex<f64> = q.forward_conj_grad(&z, &dz, &());
+
+    // assert equality
+    let p_expected: Complex<f64> =
+        Complex::new(1.0, 0.0) + Complex::new(2.0, 0.0) * z + Complex::new(3.0, 0.0) * z.pow(2.0);
+    assert_complex_delta!(p_z, p_expected, Complex::<f64>::new(1e-15, 1e-15));
+    assert_eq!(dp_z, (2.0 + 6.0 * z) * dz);
+    assert_eq!(dp_dz, 2.0 + 6.0 * z);
+    assert_eq!(dp_dconjz, 0.0.into());
+
+    let q_expected: Complex<f64> = z.pow(5.0);
+    assert_complex_delta!(q_z, q_expected, Complex::<f64>::new(1e-15, 1e-15));
+    let dq_dz_expected: Complex<f64> = 5.0 * z.pow(4.0);
+    assert_complex_delta!(dq_z, dq_dz_expected * dz, Complex::<f64>::new(1e-15, 1e-15));
+    assert_complex_delta!(dq_dz, dq_dz_expected, Complex::<f64>::new(1e-15, 1e-15));
+    assert_eq!(dq_dconjz, 0.0.into());
+
+    // unary ops
+    // neg
+    assert_eq!((-p_z, -dp_z), (-p.clone()).eval_forward_grad(&z, &dz, &()));
+    assert_eq!(-dp_dz, (-p.clone()).grad(&z, &()));
+    // abs
+    assert_eq!(
+        (
+            p_z.abs(),
+            0.5 * dp_z * p_z.conj().signum() + 0.5 * dp_conjz * p_z.signum()
+        ),
+        p.clone().abs().eval_forward_grad(&z, &dz, &())
+    );
+    assert_eq!(
+        0.5 * dp_dz * p_z.conj().signum() + 0.5 * dp_dconjz * p_z.signum(),
+        p.clone().abs().grad(&z, &())
+    );
+    // abssqr
+    assert_eq!(
+        (p_z.abs_sqr(), p_z.conj() * dp_z + p_z * dp_conjz),
+        p.clone().abs_sqr().eval_forward_grad(&z, &dz, &())
+    );
+    // signum
+    assert_eq!(p_z.signum(), p.clone().signum().eval_forward(&z, &()));
+    let dp_signum_expected: Complex<f64> =
+        0.5 * dp_z / p_z.abs() - 0.5 * dp_conjz * p_z.pow(0.5) * p_z.conj().pow(-1.5);
+    assert_complex_delta!(
+        dp_signum_expected,
+        p.clone().signum().forward_grad(&z, &dz, &()),
+        Complex::<f64>::new(1e-15, 1e-15)
+    );
+    let dp_dz_signum_expected: Complex<f64> =
+        0.5 * dp_dz / p_z.abs() - 0.5 * dp_dconjz * p_z.pow(0.5) * p_z.conj().pow(-1.5);
+    assert_eq!(dp_dz_signum_expected, p.clone().signum().grad(&z, &()));
+    // conj
+    assert_eq!(
+        (p_z.conj(), 0.0.into()),
+        p.conj().eval_forward_grad(&z, &dz, &())
+    );
+
+    // binary ops with constants
+    let c = Complex::new(3.0_f64, -1.0);
+    assert_eq!(
+        (p_z + c, dp_z),
+        (p.clone() + c).eval_forward_grad(&z, &dz, &())
+    );
+    assert_eq!(dp_dz, (p.clone() + c).grad(&z, &()));
+    assert_eq!(
+        (p_z - c, dp_z),
+        (p.clone() - c).eval_forward_grad(&z, &dz, &())
+    );
+    assert_eq!(dp_dz, (p.clone() - c).grad(&z, &()));
+    assert_eq!(
+        (p_z * c, dp_z * c),
+        (p.clone() * c).eval_forward_grad(&z, &dz, &())
+    );
+    assert_eq!(dp_dz * c, (p.clone() * c).grad(&z, &()));
+    assert_eq!(
+        (p_z / c, dp_z / c),
+        (p.clone() / c).eval_forward_grad(&z, &dz, &())
+    );
+    assert_eq!(dp_dz / c, (p.clone() / c).grad(&z, &()));
+    assert_eq!(
+        (p_z.pow(c), c * p_z.pow(c - 1.0) * dp_z),
+        (p.clone().pow(c)).eval_forward_grad(&z, &dz, &())
+    );
+    assert_eq!(
+        c * p_z.pow(c - 1.0) * dp_dz,
+        (p.clone().pow(c)).grad(&z, &())
+    );
+
+    // binary ops with other functions
+    assert_eq!(
+        (p_z + q_z, dp_z + dq_z),
+        (p.clone() + q.clone()).eval_forward_grad(&z, &dz, &())
+    );
+    assert_eq!(dp_dz + dq_dz, (p.clone() + q.clone()).grad(&z, &()));
+    assert_eq!(
+        (p_z - q_z, dp_z - dq_z),
+        (p.clone() - q.clone()).eval_forward_grad(&z, &dz, &())
+    );
+    assert_eq!(dp_dz - dq_dz, (p.clone() - q.clone()).grad(&z, &()));
+    assert_eq!(
+        (p_z * q_z, p_z * dq_z + q_z * dp_z),
+        (p.clone() * q.clone()).eval_forward_grad(&z, &dz, &())
+    );
+    assert_eq!(
+        p_z * dq_dz + q_z * dp_dz,
+        (p.clone() * q.clone()).grad(&z, &())
+    );
+    let p_ov_q_expected: Complex<f64> = p_z / q_z;
+    assert_complex_delta!(
+        p_ov_q_expected,
+        (p.clone() / q.clone()).eval(&z, &()),
+        Complex::<f64>::new(1e-15, 1e-15)
+    );
+    let dp_ov_q_expected: Complex<f64> = (dp_z * q_z - p_z * dq_z) / q_z.pow(2.0);
+    assert_complex_delta!(
+        dp_ov_q_expected,
+        (p.clone() / q.clone()).forward_grad(&z, &dz, &()),
+        Complex::<f64>::new(1e-15, 1e-15)
+    );
+    let dp_ov_q_dz_expected: Complex<f64> = (dp_dz * q_z - p_z * dq_dz) / q_z.pow(2.0);
+    assert_complex_delta!(
+        dp_ov_q_dz_expected,
+        (p.clone() / q.clone()).grad(&z, &()),
+        Complex::<f64>::new(1e-15, 1e-15)
+    );
+
+    // result for composition
+    let (q_of_p_z, dq_of_p_z) = q.eval_forward_grad(&p_z, &dp_z, &());
+    let dq_of_p_dz = q.grad(&p_z, &());
+    let dp_dz = p.grad(&z, &());
+    let (p_of_q_z, dp_of_q_z) = p.eval_forward_grad(&q_z, &dq_z, &());
+    let dp_of_q_dz = p.grad(&q_z, &());
+    let dq_dz = q.grad(&z, &());
+
+    assert_eq!(
+        (q_of_p_z, dq_of_p_z),
+        q.clone().compose(p.clone()).eval_forward_grad(&z, &dz, &())
+    );
+    assert_eq!(
+        dq_of_p_dz * dp_dz,
+        q.clone().compose(p.clone()).grad(&z, &())
+    );
+    assert_eq!(
+        (p_of_q_z, dp_of_q_z),
+        p.clone().compose(q.clone()).eval_forward_grad(&z, &dz, &())
+    );
+    assert_eq!(
+        dp_of_q_dz * dq_dz,
+        p.clone().compose(q.clone()).grad(&z, &())
+    );
 }
