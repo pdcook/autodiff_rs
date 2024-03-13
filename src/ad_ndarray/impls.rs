@@ -2,16 +2,19 @@ use crate::ad_ndarray::dimabssub::DimAbsSub;
 use crate::autotuple::AutoTuple;
 use crate::forward::ForwardMul;
 use crate::gradienttype::GradientType;
-use crate::traits::{Conjugate, GradientIdentity, InstOne, InstZero};
-use ndarray::{
-    ArrayBase, DataOwned, DimAdd, DimMax, Dimension, IxDyn, LinalgScalar, OwnedRepr, RawDataClone,
+use crate::traits::{
+    Abs, AbsSqr, Arg, Conjugate, GradientIdentity, InstOne, InstZero, PossiblyComplex, Signum,
 };
-use ndarray_einsum_beta::einsum;
+use ndarray::{
+    ArrayBase, Axis, DataOwned, DimAdd, DimMax, Dimension, IxDyn, LinalgScalar, OwnedRepr,
+    RawDataClone,
+};
+use ndarray_einsum_beta;
 use num::traits::{One, Zero};
 use std::ops::{Add, Mul};
 
 #[cfg(test)]
-use ndarray::{arr1, Array0, Array1, Array2};
+use ndarray::{arr1, arr2, Array0, Array1, Array2, Dim};
 
 impl<A, S, D> InstZero for ArrayBase<S, D>
 where
@@ -83,16 +86,75 @@ where
     }
 }
 
-// implement Conjugate for ArrayBase
-impl<A, S, D> Conjugate for ArrayBase<S, D>
+// implement PossiblyComplex for ArrayBase<S, D>
+impl<A, S, D> PossiblyComplex for ArrayBase<S, D>
 where
     D: Dimension,
+    A: Clone + PossiblyComplex,
     S: DataOwned<Elem = A>,
+{
+    fn is_always_real() -> bool {
+        A::is_always_real()
+    }
+}
+
+// implement Conjugate for ArrayBase<OwnedRepr<_>, _>
+impl<A, D> Conjugate for ArrayBase<OwnedRepr<A>, D>
+where
+    D: Dimension,
     A: Clone + Conjugate,
 {
-    type Output = Array<A, D>;
+    type Output = ArrayBase<OwnedRepr<A::Output>, D>;
     fn conj(&self) -> Self::Output {
         self.mapv(|x| x.conj())
+    }
+}
+
+// implement Abs for ArrayBase<OwnedRepr<_>, _>
+impl<A, D> Abs for ArrayBase<OwnedRepr<A>, D>
+where
+    D: Dimension,
+    A: Clone + Abs,
+{
+    type Output = ArrayBase<OwnedRepr<A::Output>, D>;
+    fn abs(self) -> Self::Output {
+        self.mapv(|x| x.abs())
+    }
+}
+
+// implement AbsSqr for ArrayBase<OwnedRepr<_>, _>
+impl<A, D> AbsSqr for ArrayBase<OwnedRepr<A>, D>
+where
+    D: Dimension,
+    A: Clone + AbsSqr,
+{
+    type Output = ArrayBase<OwnedRepr<A::Output>, D>;
+    fn abs_sqr(self) -> Self::Output {
+        self.mapv(|x| x.abs_sqr())
+    }
+}
+
+// implement Arg for ArrayBase<OwnedRepr<_>, _>
+impl<A, D> Arg for ArrayBase<OwnedRepr<A>, D>
+where
+    D: Dimension,
+    A: Clone + Arg,
+{
+    type Output = ArrayBase<OwnedRepr<A::Output>, D>;
+    fn arg(self) -> Self::Output {
+        self.mapv(|x| x.arg())
+    }
+}
+
+// implement Signum for ArrayBase<OwnedRepr<_>, _>
+impl<A, D> Signum for ArrayBase<OwnedRepr<A>, D>
+where
+    D: Dimension,
+    A: Clone + Signum,
+{
+    type Output = ArrayBase<OwnedRepr<A::Output>, D>;
+    fn signum(self) -> Self::Output {
+        self.mapv(|x| x.signum())
     }
 }
 
@@ -139,47 +201,6 @@ fn test_gradient_type() {
     );
 }
 
-// get einsum string for forward mul
-fn get_einsum_str(op1_ndim: u8, op2_ndim: u8, sum_idxs: u8) -> String {
-    // Get einsum string from two operands
-    // op1[...op1_ndim...] op2[...op2_ndim...]
-    // where the first sum_idxs of op1 and the last sum_idxs of op2 are summed over
-    // and the result is ordered by the indices of op2 first, then op1
-    // examples:
-    // op1_ndim = 2, op2_ndim = 3, sum_idxs = 2 => "ab,cab->c" | f[a,b] g[c,a,b] -> h[c]
-    // op1_ndim = 3, op2_ndim = 2, sum_idxs = 1 => "abc,da->dbc" | f[a,b,c] g[d,a] -> h[d,b,c]
-    // op1_ndim = 3, op2_ndim = 2, sum_idxs = 2 => "abc,ab->c" | f[a,b,c] g[a,b] -> h[c]
-    // op1_ndim = 6, op2_ndim = 5, sum_idxs = 3 => "abcdef,ghabc->ghdef" | f[a,b,c,d,e,f] g[g,h,a,b,c] -> h[g,h,d,e,f]
-
-    // assertions
-    assert!(op1_ndim >= sum_idxs);
-    assert!(op2_ndim >= sum_idxs);
-    assert!(sum_idxs <= 26u8);
-    assert!(op1_ndim <= 26u8);
-    assert!(op2_ndim <= 26u8);
-
-    // the sum indices are the first sum_idxs of the alphabet
-    let sum_str = (0u8..sum_idxs)
-        .map(|i| (i + 97u8) as char)
-        .collect::<String>();
-    // the unsummed indices of op1 are the next op1_ndim - sum_idxs of the alphabet
-    // i.e. from sum_idxs to sum_idxs + op1_ndim - sum_idxs = op1_ndim
-    let op1_str = (sum_idxs..op1_ndim)
-        .map(|i| (i + 97u8) as char)
-        .collect::<String>();
-    // the unsummed indices of op2 are the next op2_ndim - sum_idxs of the alphabet
-    // i.e. from op1_ndim to op1_ndim + op2_ndim - sum_idxs
-    let op2_str = (op1_ndim..op1_ndim + op2_ndim - sum_idxs)
-        .map(|i| (i + 97u8) as char)
-        .collect::<String>();
-
-    // the result is then {sum_str}{op1_str},{op2_str}{sum_str} -> {op2_str}{op1_str}
-    format!(
-        "{}{},{}{}->{}{}",
-        sum_str, op1_str, op2_str, sum_str, op2_str, op1_str
-    )
-}
-
 // multiplication for df/dx * dx -> df as well as chain rule:
 //
 // x: ArrayBase<OwnedRepr<AInput>, DInput>
@@ -212,24 +233,44 @@ where
 
     // constraints on the types of the arrays
     AI: Clone,
-    //AO: Clone,
-    AS: Clone + Mul<AS, Output = AS> + LinalgScalar,
+    AS: Clone + LinalgScalar,
 {
     type ResultGrad = ArrayBase<OwnedRepr<AS>, DR>;
     fn forward_mul(&self, other: &ArrayBase<OwnedRepr<AS>, DG>) -> Self::ResultGrad {
-        let res_dyn: ArrayBase<OwnedRepr<AS>, IxDyn> = einsum(
-            &get_einsum_str(
-                self.ndim().try_into().unwrap(),
-                other.ndim().try_into().unwrap(),
-                DI::NDIM.unwrap().try_into().unwrap(),
-            ),
-            &[self, other],
-        )
-        .unwrap();
+        // better implementation using tensordot
+        // df/dx * dg/dx requires the summation over the first DI::NDIM dimensions of df/dx and the last DG::NDIM dimensions of dg/dx
+        // this is because the array df/dx[i,j,k,..., a, b, c, ...] is df[a, b, c, ...] / dx[i, j, k, ...]
+
+        let sum_idxs: usize = DI::NDIM.unwrap().try_into().unwrap();
+
+        let lhs = (0usize..sum_idxs).map(|x| Axis(x)).collect::<Vec<_>>();
+        let rhs = (other.ndim() - sum_idxs..other.ndim())
+            .map(|x| Axis(x))
+            .collect::<Vec<_>>();
+
+        let res_dyn: ArrayBase<OwnedRepr<AS>, IxDyn> =
+            ndarray_einsum_beta::tensordot(self, other, lhs.as_slice(), rhs.as_slice());
 
         // convert to static dimension
         let res: ArrayBase<OwnedRepr<AS>, DR> = res_dyn.into_dimensionality::<DR>().unwrap();
 
         res
     }
+}
+
+#[test]
+fn test_forward_mul() {
+    let a = arr1(&[1.0, 2.0, 3.0]);
+    let b = arr2(&[[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]]);
+    // result if the gradient type is 1d,
+    // i.e. b represents the gradient of a 1d function of 1d variables and
+    // a represents the gradient of a 1d function of 0d variables
+    // so db[grad_i, out_i] * da[out_i] = dc[grad_i]
+    let c1 = arr1(&[22.0, 28.0]);
+
+    let res: Array1<f64> = <ArrayBase<OwnedRepr<f64>, Dim<[usize; 2]>> as ForwardMul<
+        ArrayBase<OwnedRepr<f64>, Dim<[usize; 1]>>,
+        ArrayBase<OwnedRepr<f64>, Dim<[usize; 1]>>,
+    >>::forward_mul(&b, &a);
+    assert_eq!(res, c1);
 }

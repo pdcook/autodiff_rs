@@ -21,8 +21,6 @@ impl Diffable<()> for Sum1 {
 }
 
 impl AutoDiffable<()> for Sum1 {
-    //type Input = Array1<f64>;
-    //type Output = Scalar<f64>;
     fn eval(&self, x: &Array1<f64>, _: &()) -> Scalar<f64> {
         Scalar::new(x.sum())
     }
@@ -30,20 +28,11 @@ impl AutoDiffable<()> for Sum1 {
     fn eval_grad(&self, x: &Array1<f64>, _: &()) -> (Scalar<f64>, Array1<f64>) {
         (self.eval(x, &()), x.one())
     }
-}
 
-/*impl ForwardDiffable<()> for Sum1 {
-    type Input = Array1<f64>;
-    type Output = Scalar<f64>;
-    fn eval_forward_grad(
-        &self,
-        x: &Array1<f64>,
-        dx: &Array1<f64>,
-        _: &(),
-    ) -> (Scalar<f64>, Scalar<f64>) {
-        (self.eval(x, &()), self.eval(dx, &()))
+    fn eval_conj_grad(&self, x: &Array1<f64>, _: &()) -> (Scalar<f64>, Array1<f64>) {
+        (self.eval(x, &()), x.zero())
     }
-}*/
+}
 
 #[derive(Clone, Copy, SimpleForwardDiffable, FuncCompose)]
 struct Sum2 {}
@@ -54,8 +43,6 @@ impl Diffable<()> for Sum2 {
 }
 
 impl AutoDiffable<()> for Sum2 {
-    //type Input = Array2<f64>;
-    //type Output = Scalar<f64>;
     fn eval(&self, x: &Array2<f64>, _: &()) -> Scalar<f64> {
         Scalar::new(x.sum())
     }
@@ -63,20 +50,11 @@ impl AutoDiffable<()> for Sum2 {
     fn eval_grad(&self, x: &Array2<f64>, _: &()) -> (Scalar<f64>, Array2<f64>) {
         (self.eval(x, &()), x.one())
     }
-}
 
-/*impl ForwardDiffable<()> for Sum2 {
-    type Input = Array2<f64>;
-    type Output = Scalar<f64>;
-    fn eval_forward_grad(
-        &self,
-        x: &Array2<f64>,
-        dx: &Array2<f64>,
-        _: &(),
-    ) -> (Scalar<f64>, Scalar<f64>) {
-        (self.eval(x, &()), self.eval(dx, &()))
+    fn eval_conj_grad(&self, x: &Array2<f64>, _: &()) -> (Scalar<f64>, Array2<f64>) {
+        (self.eval(x, &()), x.zero())
     }
-}*/
+}
 
 #[derive(Clone, Copy, SimpleForwardDiffable, FuncCompose)]
 struct Prod2 {}
@@ -91,8 +69,6 @@ impl Diffable<()> for Prod2 {
 }
 
 impl AutoDiffable<()> for Prod2 {
-    //type Input = Array2<f64>;
-    //type Output = Scalar<f64>;
     fn eval(&self, x: &Array2<f64>, _: &()) -> Scalar<f64> {
         Scalar::new(x.iter().product())
     }
@@ -108,21 +84,11 @@ impl AutoDiffable<()> for Prod2 {
         }
         (self.eval(x, &()), grad)
     }
-}
 
-/*
-impl ForwardDiffable<()> for Prod2 {
-    type Input = Array2<f64>;
-    type Output = Scalar<f64>;
-    fn eval_forward_grad(
-        &self,
-        x: &Array2<f64>,
-        dx: &Array2<f64>,
-        _: &(),
-    ) -> (Scalar<f64>, Scalar<f64>) {
-        (self.eval(x, &()), Scalar::new((self.grad(x, &())*dx).sum()))
+    fn eval_conj_grad(&self, x: &Array2<f64>, _: &()) -> (Scalar<f64>, Array2<f64>) {
+        (self.eval(x, &()), x.zero())
     }
-}*/
+}
 
 #[derive(Clone, Copy, SimpleForwardDiffable, FuncCompose)]
 struct UpcastN {
@@ -135,8 +101,6 @@ impl Diffable<()> for UpcastN {
 }
 
 impl AutoDiffable<()> for UpcastN {
-    //type Input = Array1<f64>;
-    //type Output = Array2<f64>;
     fn eval(&self, x: &Array1<f64>, _: &()) -> Array2<f64> {
         // make a 2D array with n rows all of which are x
         Array2::from_shape_fn((self.n, x.len()), |(_, i)| x[i])
@@ -149,6 +113,13 @@ impl AutoDiffable<()> for UpcastN {
                 grad[[i, j, i]] = 1.0;
             }
         }
+
+        (self.eval(x, &()), grad)
+    }
+
+    fn eval_conj_grad(&self, x: &Array1<f64>, _: &()) -> (Array2<f64>, Array3<f64>)
+    {
+        let grad = Array3::<f64>::zeros((x.len(), self.n, x.len()));
 
         (self.eval(x, &()), grad)
     }
@@ -165,8 +136,6 @@ impl Diffable<()> for VertCastN {
 }
 
 impl AutoDiffable<()> for VertCastN {
-    //type Input = Array1<f64>;
-    //type Output = Array2<f64>;
     fn eval(&self, x: &Array1<f64>, _: &()) -> Array2<f64> {
         // make a 2D array with n cols all of which are x
         Array2::from_shape_fn((x.len(), self.n), |(i, _)| x[i])
@@ -182,21 +151,14 @@ impl AutoDiffable<()> for VertCastN {
 
         (self.eval(x, &()), grad)
     }
-}
 
-/*
-impl ForwardDiffable<()> for UpcastN {
-    type Input = Array1<f64>;
-    type Output = Array2<f64>;
-    fn eval_forward_grad(
-        &self,
-        x: &Array1<f64>,
-        dx: &Array1<f64>,
-        _: &(),
-    ) -> (Array2<f64>, Array2<f64>) {
-        (self.eval(x, &()), (self.grad(x, &()) * dx).sum_axis(Axis(2)))
+    fn eval_conj_grad(&self, x: &Array1<f64>, _: &()) -> (Array2<f64>, Array3<f64>)
+    {
+        let grad = Array3::<f64>::zeros((x.len(), x.len(), self.n));
+
+        (self.eval(x, &()), grad)
     }
-}*/
+}
 
 // test with AutoTuple
 
@@ -212,8 +174,6 @@ impl Diffable<()> for SumAutoTuples {
 }
 
 impl AutoDiffable<()> for SumAutoTuples {
-    //type Input = SInput;
-    //type Output = SOutput;
     fn eval(&self, x: &SInput, _: &()) -> SOutput {
         AutoTuple::new((Scalar::new((**x).0.sum() + (**x).1.sum()),))
     }
@@ -224,16 +184,24 @@ impl AutoDiffable<()> for SumAutoTuples {
             AutoTuple::new(((**x).0.one(), (**x).1.one())),
         )
     }
+
+    fn eval_conj_grad(&self, x: &SInput, _: &()) -> (SOutput, SInput) {
+        (
+            self.eval(x, &()),
+            AutoTuple::new(((**x).0.zero(), (**x).1.zero())),
+        )
+    }
 }
 
 impl ForwardDiffable<()> for SumAutoTuples {
-    //type Input = SInput;
-    //type Output = SOutput;
     fn eval_forward_grad(&self, x: &SInput, dx: &SInput, _: &()) -> (SOutput, SOutput) {
         let mut gradval = 0.0_f64;
         gradval += (**dx).0.sum();
         gradval += (**dx).1.sum();
         (self.eval(x, &()), AutoTuple::new((Scalar::new(gradval),)))
+    }
+    fn eval_forward_conj_grad(&self, x: &SInput, dx: &SInput, _: &()) -> (SOutput, SOutput) {
+        (self.eval(x, &()), AutoTuple::new((Scalar::new(0.0),)))
     }
 }
 
@@ -259,6 +227,10 @@ impl AutoDiffable<()> for ComposeSumUpcastAutoTuple {
             (Array1::ones((**x).0.len()) * ((**x).0.len() as f64 + 1.0)).into(),
         )
     }
+    fn eval_conj_grad(&self, x: &Self::Input, _: &()) -> (Self::Output, AutoTuple<(Array1<f64>,)>) {
+        let (y, _dy) = self.0.eval_conj_grad(&self.1.eval(x, &()), &());
+        (y, (Array1::zeros((**x).0.len())).into())
+    }
 }
 
 impl FuncCompose<(), UpcastAutoTuple> for SumAutoTuples {
@@ -281,8 +253,6 @@ impl Diffable<()> for UpcastAutoTuple {
 }
 
 impl AutoDiffable<()> for UpcastAutoTuple {
-    //type Input = UInput;
-    //type Output = UOutput;
     fn eval(&self, x: &UInput, _: &()) -> UOutput {
         // make square matrix where the rows are x
         let x = (**x).0.clone();
@@ -312,11 +282,14 @@ impl AutoDiffable<()> for UpcastAutoTuple {
 
         (self.eval(x, &()), AutoTuple::new((d1_dx, d2_dx)))
     }
+
+    fn eval_conj_grad(&self, x: &UInput, _: &()) -> (UOutput, UGrad) {
+        let n = (**x).0.len();
+        (self.eval(x, &()), AutoTuple::new((Array3::zeros((n, n, n)), Array2::zeros((n, n)))))
+    }
 }
 
 impl ForwardDiffable<()> for UpcastAutoTuple {
-    //type Input = UInput;
-    //type Output = UOutput;
     fn eval_forward_grad(&self, x: &UInput, dx: &UInput, _: &()) -> (UOutput, UOutput) {
         let xc = (**x).0.clone();
         let n = xc.len();
@@ -338,6 +311,10 @@ impl ForwardDiffable<()> for UpcastAutoTuple {
 
         (self.eval(x, &()), AutoTuple::new((d1, d2)))
     }
+    fn eval_forward_conj_grad(&self, x: &UInput, dx: &UInput, _: &()) -> (UOutput, UOutput) {
+        let res = self.eval(x, &());
+        (res, res.zero())
+    }
 }
 
 // function that must use custom composition (complex numbers)
@@ -351,8 +328,6 @@ impl Diffable<()> for OnlyForward {
 }
 
 impl ForwardDiffable<()> for OnlyForward {
-    //type Input = Complex<f64>;
-    //type Output = Complex<f64>;
     fn eval_forward(&self, x: &Complex<f64>, _: &()) -> Complex<f64> {
         x * x.conj()
     }
@@ -362,7 +337,15 @@ impl ForwardDiffable<()> for OnlyForward {
         dx: &Complex<f64>,
         _: &(),
     ) -> (Complex<f64>, Complex<f64>) {
-        (x * x.conj(), 2.0 * x.conj() * dx)
+        (x * x.conj(), x.conj() * dx)
+    }
+    fn eval_forward_conj_grad(
+        &self,
+        x: &Complex<f64>,
+        dx: &Complex<f64>,
+        _: &(),
+    ) -> (Complex<f64>, Complex<f64>) {
+        (x * x.conj(), x * dx.conj())
     }
 }
 
