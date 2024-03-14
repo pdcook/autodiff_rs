@@ -231,7 +231,7 @@ where
 /// Impl constant Mul for AutoDiff
 impl<StaticArgs, A, B> Mul<B> for AutoDiff<StaticArgs, A>
 where
-    // ensure B is Clone
+    // ensure B is Clone and a constant to prevent conflicts with the other Mul impl
     B: Clone + InstOne,
 {
     type Output = AutoDiff<StaticArgs, ADConstantMul<A, B>>;
@@ -244,7 +244,7 @@ where
 /// Impl constant Div for AutoDiff
 impl<StaticArgs, A, B> Div<B> for AutoDiff<StaticArgs, A>
 where
-    // ensure B is Clone
+    // ensure B is Clone and a constant to prevent conflicts with the other Div impl
     B: Clone + InstOne,
 {
     type Output = AutoDiff<StaticArgs, ADConstantDiv<A, B>>;

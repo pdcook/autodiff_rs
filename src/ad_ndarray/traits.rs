@@ -2,6 +2,8 @@ use crate::ad_ndarray::dimabssub::DimAbsSub;
 use ndarray::{ArrayBase, Axis, Data, Dim, DimAdd, DimMax, Dimension, LinalgScalar, OwnedRepr};
 use ndarray_einsum_beta;
 
+pub use ndarray::linalg::Dot; // re-export ndarray::linalg::Dot
+
 /// N-dimensional dot product trait
 /// performs contraction of the last axis of the first array and the first axis of the second array
 pub trait TensorDot<T> {

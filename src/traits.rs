@@ -5,6 +5,10 @@ use num::{Float, Integer, Num, One, Zero};
 use std::num::Wrapping;
 use std::ops::{Add, Mul, Neg};
 
+/// Similar to the Zero trait from num, but uses the specific instance of Self
+/// to create the zero value. This is needed for types like Wrapping<T> and Ratio<T>,
+/// and especially arrays
+/// Note that InstZero implies AdditiveConstant
 pub trait InstZero: Sized + Add<Self, Output = Self> {
     // required methods
     fn zero(&self) -> Self;
@@ -17,6 +21,10 @@ pub trait InstZero: Sized + Add<Self, Output = Self> {
     }
 }
 
+/// Similar to the One trait from num, but uses the specific instance of Self
+/// to create the one value. This is needed for types like Wrapping<T> and Ratio<T>,
+/// and especially arrays
+/// Note that InstOne implies MultiplicativeConstant
 pub trait InstOne: Sized + Mul<Self, Output = Self> {
     // required methods
     /// Returns the multiplicative identity of Self, 1.
