@@ -17,13 +17,14 @@ name = "autodiff"
 [dependencies]
 ndarray = { version = "0.15.6", optional = true }
 ndarray_einsum_beta = { version = "0.7.0", optional = true }
+ndarray-linalg = {version = "0.16.0", optional = true, features = ["openblas-static"]}
 num = "0.4.1"
 paste = "1.0.14"
 autodiff_derive = { version = "0.1.0", path = "./autodiff_derive" }
 tikv-jemallocator = { version = "0.5.4" }
 
 [features]
-ndarray = ["dep:ndarray", "dep:ndarray_einsum_beta"]
+ndarray = ["dep:ndarray", "dep:ndarray_einsum_beta", "dep:ndarray-linalg"]
 
 [profile.release]
 codegen-units = 1

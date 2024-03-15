@@ -3,6 +3,7 @@ use ndarray::{ArrayBase, Axis, Data, Dim, DimAdd, DimMax, Dimension, LinalgScala
 use ndarray_einsum_beta;
 
 pub use ndarray::linalg::Dot; // re-export ndarray::linalg::Dot
+use ndarray_linalg;
 
 /// N-dimensional dot product trait
 /// performs contraction of the last axis of the first array and the first axis of the second array
@@ -92,6 +93,62 @@ impl_tensor_contraction!(3);
 impl_tensor_contraction!(4);
 impl_tensor_contraction!(5);
 impl_tensor_contraction!(6);
+
+// traits for sum, sum_axis, mean, mean_axis, var, var_axis, prod, and sort
+pub trait Sum {
+    type Output;
+    fn sum(&self) -> Self::Output;
+}
+
+pub trait SumAxis {
+    type Output;
+    fn sum_axis(&self, axis: usize) -> Self::Output;
+}
+
+pub trait Mean {
+    type Output;
+    fn mean(&self) -> Self::Output;
+}
+
+pub trait MeanAxis {
+    type Output;
+    fn mean_axis(&self, axis: usize) -> Self::Output;
+}
+
+pub trait Var {
+    type Output;
+    fn var(&self) -> Self::Output;
+}
+
+pub trait VarAxis {
+    type Output;
+    fn var_axis(&self, axis: usize) -> Self::Output;
+}
+
+pub trait Prod {
+    type Output;
+    fn prod(&self) -> Self::Output;
+}
+
+pub trait Sort {
+    type Output;
+    fn sort(&self) -> Self::Output;
+}
+
+pub trait Eigh {
+    type Output;
+    fn eigh(&self, uplo: ndarray_linalg::solveh::UPLO) -> Self::Output;
+}
+
+pub trait Eigvalsh {
+    type Output;
+    fn eigvalsh(&self, uplo: ndarray_linalg::solveh::UPLO) -> Self::Output;
+}
+
+pub trait QuadradicForm<T> {
+    type Output;
+    fn quadradic_form(&self, other: &T) -> Self::Output;
+}
 
 #[test]
 fn test_tensor_dot() {
