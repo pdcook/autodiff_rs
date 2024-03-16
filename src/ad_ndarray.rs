@@ -1,5 +1,5 @@
 pub mod dimabssub;
-//pub mod funcs;
+pub mod funcs;
 pub mod impls;
 pub mod scalar;
 pub mod traits;

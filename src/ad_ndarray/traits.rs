@@ -135,19 +135,57 @@ pub trait Sort {
     fn sort(&self) -> Self::Output;
 }
 
+pub enum EighOrder {
+    AlgebraicAscending,
+    AlgebraicDescending,
+    AbsoluteAscending,
+    AbsoluteDescending,
+}
+
 pub trait Eigh {
     type Output;
-    fn eigh(&self, uplo: ndarray_linalg::solveh::UPLO) -> Self::Output;
+    fn eigh(&self, uplo: ndarray_linalg::solveh::UPLO, order: EighOrder) -> Self::Output;
 }
 
 pub trait Eigvalsh {
     type Output;
-    fn eigvalsh(&self, uplo: ndarray_linalg::solveh::UPLO) -> Self::Output;
+    fn eigvalsh(&self, uplo: ndarray_linalg::solveh::UPLO, order: EighOrder) -> Self::Output;
 }
 
+/// Quadradic form is a function of the form f(x) = x^T A x
+/// NOTE: x is real-valued
+/// this trait should be implemented for the matrix A
+/// so f(x) = A.quadradic_form(x)
 pub trait QuadradicForm<T> {
     type Output;
     fn quadradic_form(&self, other: &T) -> Self::Output;
+}
+
+/// Hermitian quadradic form is a function of the form f(x) = x^H A x
+/// NOTE: x is complex-valued
+/// this trait should be implemented for the matrix A
+/// so f(x) = A.hermitian_quadradic_form(x)
+pub trait HermitianQuadradicForm<T> {
+    type Output;
+    fn hermitian_quadradic_form(&self, other: &T) -> Self::Output;
+}
+
+/// Bilinear form is a function of the form f(x, y) = x^T A y
+/// NOTE: x and y are real-valued
+/// this trait should be implemented for the matrix A
+/// so f(x, y) = A.bilinear_form(x, y)
+pub trait BilinearForm<T> {
+    type Output;
+    fn bilinear_form(&self, x: &T, y: &T) -> Self::Output;
+}
+
+/// Hermitian bilinear form is a function of the form f(x, y) = x^H A y
+/// NOTE: x and y are complex-valued
+/// this trait should be implemented for the matrix A
+/// so f(x, y) = A.hermitian_bilinear_form(x, y)
+pub trait HermitianBilinearForm<T> {
+    type Output;
+    fn hermitian_bilinear_form(&self, x: &T, y: &T) -> Self::Output;
 }
 
 #[test]
